@@ -31,7 +31,8 @@ An online bookstore that redefines digital reading. Users can explore, purchase,
 ```bash
 .
 ├── frontend/        # React app
-├── backend/         # Node.js API
+├── backendWeb/         # Node.js API
+├── backendAI/      # Python LLM Integration
 ├── docs/            # Documentation & designs
 └── README.md
 ```
