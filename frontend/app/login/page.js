@@ -1,18 +1,29 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import Logo from "../components/Logo";
+import { signinWithEmail, signInWithGooglePopup, setAuthPersistence } from "../firebase/auth";
 
 export default function Login() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  // Initialize rememberMe from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("nc_remember_me");
+      if (saved) setRememberMe(saved === "true");
+    } catch {}
+  }, []);
+
   const [errors, setErrors] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setErrors({ email: "", password: "" });
 
@@ -20,14 +31,32 @@ export default function Login() {
     if (!password)
       return setErrors((p) => ({ ...p, password: "Password is required" }));
 
-    setLoading(true);
-    setTimeout(() => {
+    try {
+      setLoading(true);
+      await setAuthPersistence(rememberMe);
+      await signinWithEmail(email, password);
+      try { localStorage.setItem("nc_remember_me", String(rememberMe)); } catch {}
+      router.push("/");
+    } catch (err) {
+      setErrors((p) => ({ ...p, password: err?.message || "Login failed" }));
+    } finally {
       setLoading(false);
-      alert("Login successful!");
-    }, 1500);
+    }
   };
 
-  const handleGoogleLogin = () => alert("Google login clicked!");
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+      await setAuthPersistence(rememberMe);
+      await signInWithGooglePopup();
+      try { localStorage.setItem("nc_remember_me", String(rememberMe)); } catch {}
+      router.push("/");
+    } catch (err) {
+      alert(err?.message || "Google sign-in failed");
+    } finally {
+      setLoading(false);
+    }
+  };
   const handleAppleLogin = () => alert("Apple login clicked!");
 
   return (

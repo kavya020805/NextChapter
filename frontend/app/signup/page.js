@@ -1,16 +1,27 @@
 "use client";
-import { Component, useState } from "react";
+import { Component, useState, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Eye, EyeOff } from "lucide-react";
 import Logo from "../components/Logo";
+import { signupWithEmail, signInWithGooglePopup } from "../firebase/auth";
 
 export default function SignupPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [strength, setStrength] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("nc_terms_accepted");
+      if (saved) setAcceptedTerms(saved === "true");
+    } catch {}
+  }, []);
 
   // Password strength checker
   const checkStrength = (pwd) => {
@@ -36,13 +47,23 @@ export default function SignupPage() {
     setStrength(checkStrength(pwd));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       alert("Passwords do not match!");
       return;
     }
-    alert(`Signed up with Email: ${email}`);
+    try {
+      if (!acceptedTerms) {
+        alert("Please accept Terms of Use and Privacy Policy");
+        return;
+      }
+      await signupWithEmail(email, password);
+      try { localStorage.setItem("nc_terms_accepted", String(acceptedTerms)); } catch {}
+      router.push("/");
+    } catch (err) {
+      alert(err?.message || "Signup failed");
+    }
   };
 
   return (
@@ -64,7 +85,14 @@ export default function SignupPage() {
         {/* Social Sign Up */}
         <div className="flex space-x-3 mb-6">
           <button
-            onClick={() => alert("Google Sign Up")}
+            onClick={async () => {
+              try {
+                await signInWithGooglePopup();
+                router.push("/");
+              } catch (err) {
+                alert(err?.message || "Google sign-in failed");
+              }
+            }}
             className="flex w-1/2 items-center justify-center space-x-2 rounded-lg border border-purple-500 py-2 text-sm font-medium hover:bg-white/10 transition"
           >
             <img
@@ -143,13 +171,34 @@ export default function SignupPage() {
             </p>
           )}
 
+          {/* Confirm Password */}
+          <div className="relative">
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              placeholder="Confirm Password"
+              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 pr-10 text-sm text-[#57534E] placeholder-[#57534E] 
+                         focus:ring-2 focus:ring-purple-500 focus:outline-none"
+              required
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-3 text-[#57534E] hover:text-gray-500"
+            >
+              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+            </button>
+          </div>
+
         {/* Terms & Conditions Checkbox */}
 <div className="flex items-center justify-between text-xs text-gray-300">
   <label className="flex items-center space-x-2">
     <input
       type="checkbox"
       className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
-      required
+      checked={acceptedTerms}
+      onChange={() => setAcceptedTerms(!acceptedTerms)}
     />
     <span>
       I agree to the{" "}

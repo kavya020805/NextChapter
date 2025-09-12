@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import { Merriweather } from "next/font/google";
 import "./globals.css";
+import { AuthProvider } from "./contexts/AuthContext";
 
 const merriweather = Merriweather({
   subsets: ["latin"],
@@ -29,7 +30,9 @@ export default function RootLayout({ children }) {
       <body
         className={`${geistSans.variable} ${geistMono.variable}  ${merriweather.variable} antialiased`}
       >
-        {children}
+        <AuthProvider>
+          {children}
+        </AuthProvider>
       </body>
     </html>
   );

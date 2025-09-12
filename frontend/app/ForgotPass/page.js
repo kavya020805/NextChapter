@@ -3,6 +3,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff } from "lucide-react";
 import Logo from "../components/Logo";
+import { sendResetEmail } from "../firebase/auth";
 
 export default function ForgotPass() {
   const [email, setEmail] = useState("");
@@ -34,13 +35,17 @@ export default function ForgotPass() {
     setStrength(checkStrength(pwd));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (password !== confirmPassword) {
-      alert("Passwords do not match!");
-      return;
+    try {
+      await sendResetEmail(email, {
+        url: typeof window !== "undefined" ? window.location.origin : undefined,
+        handleCodeInApp: false,
+      });
+      alert("Password reset email sent. Check your inbox.");
+    } catch (err) {
+      alert(err?.message || "Failed to send reset email");
     }
-    alert(`Password reset for Email: ${email}`);
   };
 
   return (
@@ -69,61 +74,7 @@ export default function ForgotPass() {
             />
           </div>
 
-          {/* New Password */}
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder="New Password"
-              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 pr-10 text-sm text-[#57534E] placeholder-[#57534E] 
-                         focus:ring-2 focus:ring-purple-500 focus:outline-none"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-[#57534E] hover:text-gray-500"
-            >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-
-          </div>
-              {/* Password Strength */}
-          {strength && (
-            <p
-              className={`text-sm ${
-                strength === "Weak"
-                  ? "text-red-400"
-                  : strength === "Medium"
-                  ? "text-yellow-400"
-                  : "text-green-400"
-              }`}
-            >
-              Password Strength: {strength}
-            </p>
-          )}
-
-
-          {/* Confirm Password */}
-          <div className="relative">
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm Password"
-              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 pr-10 text-sm text-[#57534E] placeholder-[#57534E] 
-                         focus:ring-2 focus:ring-purple-500 focus:outline-none"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-3 text-[#57534E] hover:text-gray-500"
-            >
-              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
+          {/* Reset via email only */}
 
           {/* Submit Button */}
           <button
