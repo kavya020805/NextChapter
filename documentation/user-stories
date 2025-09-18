@@ -1,1 +1,58 @@
+                                               User Stories
 
+                                             Admin & Analytics
+                                           Actor : Admin/Manager
+
+User Story 1: Manage Books
+
+Front of the card:
+As an Admin, I want to add, update, or remove books, so that the bookstore’s catalog always stays relevant and accurate.
+
+Back of the card:
+● Admin can upload book details (title, author, publisher, genre, price, cover image, description).
+● Admin can edit existing book details.
+● Admin can remove books from the catalog.
+● Changes should be reflected instantly in the user-facing store.
+● System validates data before saving (e.g., price must be numeric, cover image must be a valid format).
+
+
+User Story 2: Manage Reviews
+
+Front of the card:
+As an Admin, I want to monitor and remove inappropriate reviews, so that the platform maintains quality and credibility.
+
+Back of the card:
+● Admin can view all user reviews.
+● Admin can flag/remove reviews containing offensive or irrelevant content.
+● Admin can restore mistakenly deleted reviews (soft delete).
+● Admin can filter reviews by book, rating, or date.
+● Notifications sent to users if their review is removed.
+
+
+User Story 3: Manage Authors & Publishers
+
+Front of the card:
+As an Admin, I want to add and manage author and publisher information, so that books are accurately categorized and linked
+to their creators.
+
+Back of the card:
+● Admin can add author details (name, bio, photo, nationality, genre).
+● Admin can add publisher details (name, logo, description, location).
+● Admin can edit/update author and publisher information.
+● Books can be linked to the respective author and publisher.
+● Admin can deactivate authors/publishers if no longer active.
+
+
+User Story 4: Analytics & Trends
+
+Front of the card:
+As a Manager, I want to view analytics on current trends and user preferences, so that I can make data-driven business 
+decisions.
+
+
+Back of the card:
+● System displays most purchased books, most viewed books, and top-rated books.
+● Manager can see user demographics (age, location, genre preferences).
+● Graphs/charts showing trends over time (weekly, monthly, yearly).
+● AI-driven insights on upcoming popular genres.
+● Data export option (CSV/PDF) for reports.
