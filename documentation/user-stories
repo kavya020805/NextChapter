@@ -119,3 +119,63 @@ Back of the card:
 ● When the user opens the same book on another device, the system loads the last saved progress automatically.
 ● If progress differs between devices, the system resolves by using the most recent update (updatedAt field).
 ● Bookmarks and notes are synced in real time, ensuring consistency across devices.
+
+
+
+
+                                    Catalogue & Discovery 
+                                      Actor: End User
+
+
+User Story 1: Browse Catalogue by Genre
+
+Front of the Card:
+As a reader, I want to browse books by specific genres, so that I can discover new books when I'm in the mood for a certain type of story.
+
+Back of the Card:
+●A list of available genres is displayed on the 'Explore' page.
+●Each genre in the list is clickable.
+●Clicking a genre navigates to a new page that displays only books from that selected genre.
+●The genre page has a title that clearly identifies the genre being viewed.
+
+
+User Story 2: Basic Search
+
+Front of the Card:
+As a reader, I want to search for books by their title or an author's name, so that I can find exactly what I'm looking for without having to browse.
+
+Back of the Card:
+●A search bar is present and functional in the site header.
+●Searching by a known book title returns that book in the results.
+●Searching by a known author's name returns books by that author.
+●A "No results found" message is shown for searches that have no matches.
+
+User Story 3: View Trending Books
+
+Front of the Card:
+As a reader, I want to see a list of what's currently trending, so that I can stay up-to-date with popular books and see what others are enjoying.
+
+Back of the Card:
+●A section titled "Trending Now" is visible on the homepage.
+●The section displays a collection of books.
+●Clicking on any book within the section navigates to that book's detail page.
+
+User Story 4: Find New Releases
+
+Front of the Card:
+As a reader, I want to easily find a dedicated section for 'New Releases,' so that I can keep up with the latest books as soon as they become available.
+
+Back of the Card:
+●A clickable link or section for "New Releases" is present on the homepage.
+●The "New Releases" page displays books sorted with the newest publications first.
+●Only books published within the last 30 days are included in this section.
+
+User Story 5: Track Explored Books
+
+Front of the Card:
+As a curious reader, I want to see a personal statistic of how many books I've explored from the total catalogue, so that I can track my discovery journey on the platform.
+
+Back of the Card:
+●The user's profile page displays a counter showing "X out of Y books explored".
+●The 'X' value increments by one after the user visits the detail page of a book for the first time.
+●The counter does not increment when visiting a previously explored book's page again.
