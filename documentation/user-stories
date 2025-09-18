@@ -322,3 +322,135 @@ Back of the Card:
 ⦁	Reports can be filtered by time period, plan type, or user segment.
 ⦁	Visual graphs show retention trends.
 ⦁	Reports can be exported in CSV or PDF for business analysis.
+
+
+                                                        Personalization & Recommendations
+                                                        Actors: End User + System (AI)
+
+User Story 1 – Selecting Favourite Authors & Genres
+
+Front of the card:
+ As a user, I want to select my favourite authors and genres so that I can receive personalized recommendations that match my preferences.
+
+Back of the card:
+Users can choose authors/genres while signing up or later in their profile.
+Choices can be updated anytime.
+Suggestions update automatically based on favourites.
+If no favourites are set, the system shows general popular books.
+
+User Story 2 – AI Smart Suggestions
+
+Front of the card:
+ As a user, I want AI to suggest books based on what I read and like so that I can easily find new books I’ll enjoy.
+
+Back of the card:
+AI looks at reading history, ratings, and time spent.
+Suggestions appear on the home screen and refresh regularly.
+Users can mark “Not Interested” to refine future results.
+For new users, AI suggests books liked by similar readers.
+
+User Story 3 – AI Summary Generation
+
+Front of the card:
+ As a user, I want short AI-made summaries of books so that I can quickly decide whether to read or skip the book.
+
+Back of the card:
+User clicks “Generate Summary” on a book.
+AI provides either short or detailed summaries.
+Fiction summaries avoid spoilers unless requested.
+
+User Story 4 – AI Scene Generation
+
+Front of the card:
+ As a user, I want AI to create pictures of book scenes so that I can imagine the story better.
+
+Back of the card:
+The user highlights a passage and requests a scene.
+AI generates an image based on the passage.
+Users can pick visual styles (sketch, realistic, etc.).
+
+User Story 5 – Genre Reading Visualization
+
+Front of the card:
+ As a user, I want to see which genres I read most so that I can track my reading habits.
+
+Back of the card:
+The system tags each book with its genre.
+A chart shows how many books are read per genre.
+Users can filter results by time (month, year, all time).
+Clicking a genre displays books read in that category.
+
+User Story 6 – Personalized Notifications & Alerts
+
+Front of the card:
+ As a user, I want personalized notifications about new releases and suggestions so that I always have fresh reading options.
+
+Back of the card:
+The system sends alerts for new releases or book suggestions.
+Alerts link directly to book detail pages.
+Users can enable or disable alerts anytime.
+
+User Story 7 – AI-Curated Reading Digest
+
+Front of the card:
+ As a user, I want a daily or weekly list of suggested books so that I always have fresh options to read.
+
+Back of the card:
+AI generates a small digest of 3–5 books.
+Digest is shown in-app or sent by email.
+The list updates automatically as the user’s reading evolves.
+
+User Story 8 – Reading Streaks & Personalized Challenges
+
+Front of the card:
+ As a user, I want reading streaks and challenges so that I stay motivated to read more.
+
+Back of the card:
+The system tracks daily reading streaks.
+Challenges are created based on favourite genres (e.g., “Read 5 thrillers this month”).
+Progress is shown on the dashboard.
+Users earn badges or milestones when challenges are completed.
+
+User Story 9 – Adaptive Learning Recommendations
+
+Front of the card:
+ As a user, I want AI to suggest books outside my usual genres so that I can try new topics.
+
+Back of the card:
+AI detects gaps in the user’s reading behaviour.
+Suggestions appear in a separate “Explore” section.
+Users can accept or skip these suggestions.
+AI adapts future recommendations based on user response.
+
+User Story 10 – Trending Reads
+
+Front of the card:
+ As a user, I want to see trending books so that I know what others are reading right now.
+
+Back of the card:
+Displays a list of top trending books overall.
+Shows trending books within the user’s favourite genres.
+Updates weekly.
+Clicking a book opens its detail page.
+
+User Story 11 – New Releases
+
+Front of the card:
+ As a user, I want to see new book releases so that I can read the latest titles.
+
+Back of the card:
+Shows new releases from favourite genres or authors.
+Can also display all global new releases.
+Alerts can be enabled for favourite authors.
+List updates automatically when a new book is added.
+
+User Story 12 – Retention-Based Re-Engagement
+
+Front of the card:
+ As a system, I want to notify users who haven’t opened the app for a set number of days with personalized suggestions or updates on new releases, so that they are encouraged to return and keep reading.
+
+Back of the card:
+The system tracks user inactivity.
+AI sends reminders with personalized book suggestions.
+Notifications can include summaries of missed new releases.
+Users can turn off reminders if they don’t want them.
