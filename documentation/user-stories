@@ -352,144 +352,95 @@ Back of the Card:
                                              Payments & Subscriptions
                                              Actor: End User + Admin
 
-User Story 1: Subscription Management
+User Story 1: Subscribing to a Plan
 
-(a) End User:
-
-Front of the Card:
+Front of the card:
 As a user, I want to subscribe to a plan so that I can access premium features of the service.
 
-Back of the Card:
-⦁	From the subscription page, clicking "Subscribe" opens the available plans.
-⦁	User can view details like plan duration, benefits, and price.
-⦁	User can select a plan and proceed to payment.
-⦁	On successful payment, subscription status updates to "Active."
-⦁	User receives a confirmation email with subscription details.
+Back of the card:
+● From the subscription page, clicking "Subscribe" opens the available plans.
+● Details like plan duration, benefits, and price are visible.
+● A plan can be selected and payment completed.
+● On successful payment, subscription status updates to "Active."
+● A confirmation email with subscription details is received.
 
 
-(b) Admin:
+User Story 2: Managing Subscription Plans
 
-Front of the Card:
+Front of the card:
 As an admin, I want to manage subscription details so that plans and pricing remain accurate.
 
-Back of the Card:
-⦁	From the dashboard, clicking "Subscriptions" opens the management panel.
-⦁	Admin can create, edit, or delete subscription plans.
-⦁	Admin can update plan details like price, features, and duration.
-⦁	Validated changes are applied immediately.
-⦁	Subscription changes are recorded for future reference.
+Back of the card:
+● From the dashboard, clicking "Subscriptions" opens the management panel.
+● Subscription plans can be created, edited, or deleted.
+● Plan details like price, features, and duration can be updated.
+● Validated changes are applied immediately.
+● All modifications are recorded for future reference.
 
 
-User Story 2: Secure Payments
+User Story 3: Completing Secure Payments
 
-(a) End User:
-
-Front of the Card:
+Front of the card:
 As a user, I want to complete my payment securely so that my financial details remain safe.
 
-Back of the Card:
-⦁	From the checkout page, user enters payment details and clicks "Pay Now."
-⦁	Payment is processed through a secure gateway.
-⦁	User sees confirmation of successful payment instantly.
-⦁	Receipt is generated and sent via email.
-⦁	Subscription or order status updates automatically.
+Back of the card:
+● From the checkout page, payment details are entered and "Pay Now" is clicked.
+● Payment is processed through a secure gateway.
+● Confirmation of successful payment is shown instantly.
+● Receipt is generated and sent via email.
+● Subscription or order status updates automatically.
 
 
-(b) Admin:
+User Story 4: Monitoring Secure Payments
 
-Front of the Card:
+Front of the card:
 As an admin, I want to monitor and verify secure payments so that all transactions remain trustworthy.
 
-Back of the Card:
-⦁	From the dashboard, admin can view logs of successful payments.
-⦁	Admin can verify payment gateway responses.
-⦁	Admin can generate daily, weekly, and monthly reports.
-⦁	Reports provide accurate revenue tracking.
-⦁	All payment records are stored for financial analysis.
+Back of the card:
+● From the dashboard, logs of successful payments are visible.
+● Payment gateway responses can be verified.
+● Daily, weekly, and monthly reports can be generated.
+● Reports provide accurate revenue tracking.
+● All payment records are stored for financial analysis.
 
 
-User Story 3: Order History (Membership)
+User Story 5: Viewing Order History
 
-(a) End User:
-
-Front of the Card:
+Front of the card:
 As a user, I want to check my previous subscription orders so that I can track my payments and renewals.
 
-Back of the Card:
-⦁	From the profile, user clicks "Order History" to view past subscriptions.
-⦁	Orders show details like plan name, amount paid, date, and status.
-⦁	History is sorted with most recent first.
-⦁	Cancelled orders are clearly labeled.
-⦁	If no orders exist, a message "No order history found" is displayed.
+Back of the card:
+● From the profile, "Order History" displays past subscriptions.
+● Orders show details like plan name, amount paid, date, and status.
+● History is sorted with most recent first.
+● Cancelled orders are clearly labeled.
+● If no orders exist, a message "No order history found" is displayed.
 
 
-(b) Admin:
+User Story 6: Maintaining Order History
 
-Front of the Card:
+Front of the card:
 As an admin, I want to maintain accurate order history so that users always see correct records.
 
-Back of the Card:
-⦁	From the dashboard, admin can access and verify user order histories.
-⦁	Admin can filter history by user, date range, or plan type.
-⦁	Records are stored in database and kept consistent with payments.
-⦁	Admin can update order records when needed.
-⦁	Backups of order history are maintained for compliance.
+Back of the card:
+● From the dashboard, user order histories can be accessed and verified.
+● History can be filtered by user, date range, or plan type.
+● Records are stored in database and kept consistent with payments.
+● Order records can be updated when needed.
+● Backups of order history are maintained for compliance.
 
 
-User Story 4: Transactions & refunds
+User Story 7: Analyzing Retention Data
 
-(a) End User:
-
-Front of the Card:
-As a user, I want to request a refund so that I can get my money back for a payment I no longer need.
-
-Back of the Card:
-⦁	From the profile, user opens "Transactions" and selects an eligible payment.
-⦁	User clicks "Request Refund" and submits the reason.
-⦁	Refund request is recorded and user can see status updates (pending, approved, completed).
-⦁	Once refund is processed, amount is credited back to user’s original payment method.
-⦁	User receives a notification and email confirmation of successful refund.
-
-
-(b) Admin:
-
-Front of the Card:
-As an admin, I want to manage refund requests so that payments can be reversed properly.
-
-Back of the Card:
-⦁	From the dashboard, admin views all refund requests with transaction details.
-⦁	Admin checks the request reason and approves it.
-⦁	Approved refund is processed through the payment gateway.
-⦁	Refund status updates to "Completed" in both admin and user records.
-⦁	Confirmation of refund is saved in records for reference.
-
-
-User Story 5: User Retention Data
-
-(a) End User:
-
-Front of the Card:
-As a user, I want to see my usage insights so that I can track my engagement with the service.
-
-Back of the Card:
-⦁	From the profile, user can access "My Activity" insights.
-⦁	Insights include days active, reading sessions, and engagement streaks.
-⦁	Data is displayed in charts and tables.
-⦁	User can compare usage over weeks or months.
-⦁	Option to export activity data is available.
-
-
-(b) Admin:
-
-Front of the Card:
+Front of the card:
 As an admin, I want to analyze retention data so that I can improve subscription renewals and reduce churn.
 
-Back of the Card:
-⦁	From the dashboard, clicking "Retention Data" opens the analytics module.
-⦁	Admin can view metrics like renewal rate, churn rate, and active users.
-⦁	Reports can be filtered by time period, plan type, or user segment.
-⦁	Visual graphs show retention trends.
-⦁	Reports can be exported in CSV or PDF for business analysis.
+Back of the card:
+● From the dashboard, "Retention Data" opens the analytics module.
+● Metrics like renewal rate, churn rate, and active users are available.
+● Reports can be filtered by time period, plan type, or user segment.
+● Visual graphs display retention trends.
+● Reports can be exported in CSV or PDF for analysis.
 
 
                                                         Personalization & Recommendations
