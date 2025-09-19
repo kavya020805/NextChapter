@@ -301,8 +301,7 @@ Front of the Card:
 As a reader, I want to browse books by specific genres, so that I can discover new books when I'm in the mood for a certain type of story.
 
 Back of the Card:
-●A list of available genres is displayed on the 'Explore' page.
-●Each genre in the list is clickable.
+●A list of available genres is displayed on the homepage.
 ●Clicking a genre navigates to a new page that displays only books from that selected genre.
 ●The genre page has a title that clearly identifies the genre being viewed.
 
@@ -314,8 +313,8 @@ As a reader, I want to search for books by their title or an author's name, so t
 
 Back of the Card:
 ●A search bar is present and functional in the site header.
-●Searching by a known book title returns that book in the results.
-●Searching by a known author's name returns books by that author.
+●Searching by a book title returns that book in the results.
+●Searching by a author's name returns books by that author.
 ●A "No results found" message is shown for searches that have no matches.
 
 User Story 3: View Trending Books
@@ -335,18 +334,9 @@ As a reader, I want to easily find a dedicated section for 'New Releases,' so th
 
 Back of the Card:
 ●A clickable link or section for "New Releases" is present on the homepage.
-●The "New Releases" page displays books sorted with the newest publications first.
+●The "New Releases" section on the homepage displays books sorted with the newest publications first.
 ●Only books published within the last 30 days are included in this section.
 
-User Story 5: Track Explored Books
-
-Front of the Card:
-As a curious reader, I want to see a personal statistic of how many books I've explored from the total catalogue, so that I can track my discovery journey on the platform.
-
-Back of the Card:
-●The user's profile page displays a counter showing "X out of Y books explored".
-●The 'X' value increments by one after the user visits the detail page of a book for the first time.
-●The counter does not increment when visiting a previously explored book's page again.
 
 
                                              Payments & Subscriptions
