@@ -1,534 +1,541 @@
-                                               User Stories
+# User Stories  
 
-                                  Authentication & Profile Management
-                                     Actor : End User / Admin
+---
 
-User Story 1: User Registration
+## Authentication & Profile Management  
+**Actor:** End User / Admin  
 
-Front of the card:
-As a new user, I want to sign up using my email and password, so that I can create an account and access the system.
+### User Story 1: User Registration  
+**Front of the card:**  
+As a new user, I want to sign up using my email and password, so that I can create an account and access the system.  
 
-Back of the card:
-● User can provide a unique email and password.
-● Password must meet security rules (min length, special characters).
-● Account gets created only if details are valid.
-● Error shown if email already exists.
+**Back of the card:**  
+- User can provide a unique email and password.  
+- Password must meet security rules (min length, special characters).  
+- Account gets created only if details are valid.  
+- Error shown if email already exists.  
 
+---
 
-User Story 2: User Login
+### User Story 2: User Login  
+**Front of the card:**  
+As a registered user, I want to log in securely with my credentials, so that I can access my personal account.  
 
-Front of the card:
-As a registered user, I want to log in securely with my credentials, so that I can access my personal account.
+**Back of the card:**  
+- User can log in with valid email and password.  
+- Invalid credentials are rejected with an error message.  
+- Successful login starts a new session.  
+- Login attempts are rate-limited to prevent brute force attacks.  
 
-Back of the card:
-● User can log in with valid email and password.
-● Invalid credentials are rejected with an error message.
-● Successful login starts a new session.
-● Login attempts are rate-limited to prevent brute force attacks.
+---
 
+### User Story 3: Social Login  
+**Front of the card:**  
+As a user, I want to sign in using my social media accounts, so that I can log in quickly without creating a new password.  
 
-User Story 3: Social Login
+**Back of the card:**  
+- Support Google and Apple login via OAuth.  
+- Successful authentication creates or links to an account.  
+- Login failures handled gracefully with appropriate messages.  
 
-Front of the card:
-As a user, I want to sign in using my social media accounts, so that I can log in quickly without creating a new password.
+---
+
+### User Story 4: Password Recovery  
+**Front of the card:**  
+As a user who forgot my password, I want to reset it via email verification, so that I can regain access to my account.  
 
-Back of the card:
-● Support Google and apple login via OAuth.
-● Successful authentication creates or links to an account.
-● Login failures handled gracefully with appropriate messages.
+**Back of the card:**  
+- Password reset request triggers reset password link sent through email.  
+- User enters and confirms new password.  
+- User can now login with new password.  
+- Old password becomes invalid after reset.  
+- Reset link expires after a limited time.  
 
+---
+
+### User Story 5: Secure SignOut  
+**Front of the card:**  
+As a logged-in user, I want to sign out from the system, so that I can ensure no one else accesses my account.  
 
-User Story 4: Password Recovery
+**Back of the card:**  
+- User session ends immediately on sign out.  
+- Tokens/cookies invalidated on the server.  
+- User redirected to login page after logout.  
+- Logout option available on all screens.  
 
-Front of the card:
-As a user who forgot my password, I want to reset it via email verification, so that I can regain access to my account.
+---
+
+### User Story 6: View Profile  
+**Front of the card:**  
+As a user, I want to view my profile information, so that I can see my account details clearly.  
+
+**Back of the card:**  
+- Profile displays name, email, subscriptions, and activity.  
+- Data retrieved securely from the database.  
+- Profile page accessible only to authenticated users.  
+- Unauthorized access blocked with error/redirect.  
 
-Back of the card:
-● Password reset request triggers reset password link sent through email.
-● User enters and confirms new password.
-● User can now login with new password.
-● Old password becomes invalid after reset.
-● Reset link expires after a limited time.
+---
 
+### User Story 7: Update Profile  
+**Front of the card:**  
+As a user, I want to edit my profile details, so that I can keep my information up to date.  
+
+**Back of the card:**  
+- User can update username, password, and profile picture.  
+- Changes saved to the database and confirmed with a message.  
+- Updates validated before saving (e.g., strong password rules).  
+- System prevents updating with duplicate email/username.  
 
-User Story 5: Secure SignOut
+---
+
+### User Story 8: Security Notifications  
+**Front of the card:**  
+As a user, I want to get notified when my account is accessed from a new device, so that I can protect my account against unauthorized access.  
+
+**Back of the card:**  
+- System detects and logs new device/browser logins.  
+- Notification sent via email for new device access.  
+- User can review device activity from account settings.  
+- Option to block or sign out suspicious sessions.  
 
-Front of the card:
-As a logged-in user, I want to sign out from the system, so that I can ensure no one else accesses my account.
+---
+
+### User Story 9: Admin Authentication  
+**Front of the card:**  
+As an admin, I want to log in with secure admin credentials, so that I can manage books, authors, and users safely.  
+
+**Back of the card:**  
+- Admin login page is same as user login.  
+- Only accounts with admin role can access the dashboard.  
+- Failed login attempts logged for security monitoring.  
+- Admin sessions end securely on logout.  
+- Admin password policies stricter than regular users.  
+
+---
 
-Back of the card:
-● User session ends immediately on sign out.
-● Tokens/cookies invalidated on the server.
-● User redirected to login page after logout.
-● Logout option available on all screens.
+## Admin & Analytics  
+**Actor:** Admin / Manager  
+
+### User Story 1: Manage Books  
+**Front of the card:**  
+As an Admin, I want to add, update, or remove books, so that the bookstore’s catalog always stays relevant and accurate.  
+
+**Back of the card:**  
+- Admin can upload book details (title, author, publisher, genre, price, cover image, description).  
+- Admin can edit existing book details.  
+- Admin can remove books from the catalog.  
+- Changes should be reflected instantly in the user-facing store.  
+- System validates data before saving.  
+
+---
+
+### User Story 2: Manage Reviews  
+**Front of the card:**  
+As an Admin, I want to monitor and remove inappropriate reviews, so that the platform maintains quality and credibility.  
+
+**Back of the card:**  
+- Admin can view all user reviews.  
+- Admin can flag/remove reviews containing offensive or irrelevant content.  
+- Admin can restore mistakenly deleted reviews (soft delete).  
+- Admin can filter reviews by book, rating, or date.  
+- Notifications sent to users if their review is removed.  
+
+---
 
+### User Story 3: Manage Authors & Publishers  
+**Front of the card:**  
+As an Admin, I want to add and manage author and publisher information, so that books are accurately categorized and linked to their creators.  
+
+**Back of the card:**  
+- Admin can add author details (name, bio, photo, nationality, genre).  
+- Admin can add publisher details (name, logo, description, location).  
+- Admin can edit/update author and publisher information.  
+- Books can be linked to the respective author and publisher.  
+- Admin can deactivate authors/publishers if no longer active.  
+
+---
+
+### User Story 4: Analytics & Trends  
+**Front of the card:**  
+As a Manager, I want to view analytics on current trends and user preferences, so that I can make data-driven business decisions.  
+
+**Back of the card:**  
+- System displays most purchased, most viewed, and top-rated books.  
+- Manager can see user demographics.  
+- Graphs/charts showing trends over time.  
+- AI-driven insights on upcoming popular genres.  
+- Data export option (CSV/PDF) for reports.  
 
-User Story 6: View Profile
+---
+
+## Reading & Progress Tracking  
+**Actor:** End User  
+
+### User Story 1: Reading Books  
+**Front of the card:**  
+As a user, I want to open and read a book in the app so that I can enjoy the content directly within the platform.  
+
+**Back of the card:**  
+- Clicking a book opens the reader interface.  
+- The system loads book content (EPUB/PDF).  
+- User can navigate between chapters/pages.  
+- Book content is formatted for readability.  
+- Reading progress is tracked automatically.  
+
+---
+
+### User Story 2: Marking a Book as Read  
+**Front of the card:**  
+As a user, I want to mark a book as "Read" so that I can keep track of books I have completed.  
+
+**Back of the card:**  
+- A “Mark as Read” button must be visible on book details.  
+- Clicking updates library status in Firestore.  
+- Appears in the “Books Read” section of the profile.  
+- Status can be changed back if needed.  
+
+---
+
+### User Story 3: Marking a Book to Read in the Future  
+**Front of the card:**  
+As a user, I want to add a book to my "To Read" list so that I can plan future reading.  
+
+**Back of the card:**  
+- A “Save to To-Read List” button on book detail page.  
+- Clicking saves to user’s Firestore library.  
+- Accessible from user profile/dashboard.  
+- User can remove or update status anytime.  
 
-Front of the card:
-As a user, I want to view my profile information, so that I can see my account details clearly.
+---
+
+### User Story 4: Viewing Books Read  
+**Front of the card:**  
+As a user, I want to view a list of all books I’ve read so that I can see my completed reading history.  
 
-Back of the card:
-● Profile displays name, email, subscriptions, and activity.
-● Data retrieved securely from the database.
-● Profile page accessible only to authenticated users.
-● Unauthorized access blocked with error/redirect.
+**Back of the card:**  
+- Accessible from the user profile.  
+- Displays list/grid of all completed books.  
+- Shows cover, title, author, and date completed.  
+- User can revisit book details.  
+- Updates in real time.  
+
+---
 
+### User Story 5: Cross-Device Sync  
+**Front of the card:**  
+As a user, I want my reading progress, bookmarks, and highlights to sync across devices so that I can continue reading seamlessly.  
 
-User Story 7: Update Profile
+**Back of the card:**  
+- Progress/bookmarks/highlights stored in Firestore.  
+- Auto-synced every few seconds or on chapter change.  
+- Last saved progress loads on another device.  
+- Most recent update overrides old data.  
+- Bookmarks/notes synced in real time.  
 
-Front of the card:
-As a user, I want to edit my profile details, so that I can keep my information up to date.
+---
 
-Back of the card:
-● User can update username, password, and profile picture.
-● Changes saved to the database and confirmed with a message.
-● Updates validated before saving (e.g., strong password rules).
-● System prevents updating with duplicate email/username.
+## Engagement & Community  
+**Actor:** End User  
 
+### User Story 1: Rating the Book  
+**Front of the card:**  
+As a user, I want to give a star rating to a book I’ve read, so that I can express my overall opinion and help other readers decide if they want to read it.  
 
-User Story 8: Security Notifications
+**Back of the card:**  
+- User can select a rating (1–5 stars).  
+- Rating saved to the book.  
+- Average rating updates automatically.  
+- User can update/change their rating.  
 
-Front of the card:
-As a user, I want to get notified when my account is accessed from a new device, so that I can protect my account against unauthorized access.
+---
 
-Back of the card:
-● System detects and logs new device/browser logins.
-● Notification sent via email for new device access.
-● User can review device activity from account settings.
-● Option to block or sign out suspicious sessions.
+### User Story 2: Uploading Reviews  
+**Front of the card:**  
+As an end user, I want to write and upload detailed reviews of books I read, so that I can share my thoughts and recommendations.  
 
-User Story 9: Admin Authentication
+**Back of the card:**  
+- User can type and submit text review.  
+- Displayed below the correct book.  
+- Reviews are public.  
+- User can edit or delete own review.  
 
-Front of the card:
-As an admin, I want to log in with secure admin credentials, so that I can manage books, authors, and users safely.
+---
 
-Back of the card:
-● Admin login page is same as user login.
-● Only accounts with admin role can access the dashboard.
-● Failed login attempts logged for security monitoring.
-● Admin sessions end securely on logout.
-● Admin password policies stricter than regular users.
+### User Story 3: Discussing About the Book  
+**Front of the card:**  
+As an end user, I want to participate in discussions and comment on books I read, so that I can exchange perspectives.  
 
+**Back of the card:**  
+- User can comment on books or reviews.  
+- Discussion threads ordered correctly.  
+- Replies to comments supported.  
+- Notifications sent for replies.  
 
+---
 
-                                             Admin & Analytics
-                                           Actor : Admin/Manager
+### User Story 4: Bookmarking & Notes  
+**Front of the card:**  
+As an end user, I want to bookmark pages and add notes, so that I can revisit important sections later.  
 
-User Story 1: Manage Books
+**Back of the card:**  
+- User can bookmark a page.  
+- Notes can be attached to bookmarks.  
+- Saved persistently.  
+- User can edit/delete bookmarks & notes.  
 
-Front of the card:
-As an Admin, I want to add, update, or remove books, so that the bookstore’s catalog always stays relevant and accurate.
+---
 
-Back of the card:
-● Admin can upload book details (title, author, publisher, genre, price, cover image, description).
-● Admin can edit existing book details.
-● Admin can remove books from the catalog.
-● Changes should be reflected instantly in the user-facing store.
-● System validates data before saving (e.g., price must be numeric, cover image must be a valid format).
+### User Story 5: Highlighting  
+**Front of the card:**  
+As an end user, I want to highlight passages or words, so that I can mark meaningful content for later reference.  
 
+**Back of the card:**  
+- Select text and apply highlights.  
+- Highlights saved and shown on revisit.  
+- User can remove or change highlight color.  
+- Stored per book and per user.  
 
-User Story 2: Manage Reviews
+---
 
-Front of the card:
-As an Admin, I want to monitor and remove inappropriate reviews, so that the platform maintains quality and credibility.
+## Catalogue & Discovery  
+**Actor:** End User  
 
-Back of the card:
-● Admin can view all user reviews.
-● Admin can flag/remove reviews containing offensive or irrelevant content.
-● Admin can restore mistakenly deleted reviews (soft delete).
-● Admin can filter reviews by book, rating, or date.
-● Notifications sent to users if their review is removed.
+### User Story 1: Browse Catalogue by Genre  
+**Front of the Card:**  
+As a reader, I want to browse books by specific genres, so that I can discover new books when I'm in the mood for a certain type of story.  
 
+**Back of the Card:**  
+- Genres displayed on homepage.  
+- Clicking a genre shows only relevant books.  
+- Genre page has clear title.  
 
-User Story 3: Manage Authors & Publishers
+---
 
-Front of the card:
-As an Admin, I want to add and manage author and publisher information, so that books are accurately categorized and linked
-to their creators.
+### User Story 2: Basic Search  
+**Front of the Card:**  
+As a reader, I want to search for books by title or author’s name, so that I can find exactly what I'm looking for.  
 
-Back of the card:
-● Admin can add author details (name, bio, photo, nationality, genre).
-● Admin can add publisher details (name, logo, description, location).
-● Admin can edit/update author and publisher information.
-● Books can be linked to the respective author and publisher.
-● Admin can deactivate authors/publishers if no longer active.
+**Back of the Card:**  
+- Search bar available on header.  
+- Searching returns matching results.  
+- “No results found” message for empty results.  
 
+---
 
-User Story 4: Analytics & Trends
+### User Story 3: View Trending Books  
+**Front of the Card:**  
+As a reader, I want to see what’s currently trending, so that I can stay up-to-date with popular books.  
 
-Front of the card:
-As a Manager, I want to view analytics on current trends and user preferences, so that I can make data-driven business 
-decisions.
+**Back of the Card:**  
+- "Trending Now" section on homepage.  
+- Displays trending books.  
+- Clicking navigates to book details.  
 
+---
 
-Back of the card:
-● System displays most purchased books, most viewed books, and top-rated books.
-● Manager can see user demographics (age, location, genre preferences).
-● Graphs/charts showing trends over time (weekly, monthly, yearly).
-● AI-driven insights on upcoming popular genres.
-● Data export option (CSV/PDF) for reports.
+### User Story 4: Find New Releases  
+**Front of the Card:**  
+As a reader, I want a section for "New Releases," so that I can keep up with the latest books.  
 
+**Back of the Card:**  
+- "New Releases" link on homepage.  
+- Sorted by newest first.  
+- Only books from last 30 days included.  
 
+---
 
-                                         Reading & Progress Tracking
-                                              Actor: End User
+## Payments & Subscriptions  
+**Actor:** End User + Admin  
 
-User Story 1: Reading Books
+### User Story 1: Subscribing to a Plan  
+**Front of the card:**  
+As a user, I want to subscribe to a plan so that I can access premium features.  
 
-Front of the card:
-As a user, I want to open and read a book in the app so that I can enjoy the content directly within the platform.
+**Back of the card:**  
+- Subscription page shows available plans.  
+- Details like duration, benefits, and price visible.  
+- Payment completion activates subscription.  
+- Confirmation email sent.  
 
-Back of the card:
-● From the catalogue, clicking a book opens the reader interface.
-● The system loads the book content (text, EPUB/PDF) in a responsive reading view.
-● User can navigate between chapters/pages using scroll or navigation controls.
-● Book content is formatted for readability (font size, background theme options).
-● Reading progress is automatically tracked as the user moves through the content.
+---
 
-User Story 2: Marking a Book as Read
+### User Story 2: Managing Subscription Plans  
+**Front of the card:**  
+As an admin, I want to manage subscription details so that plans and pricing remain accurate.  
 
-Front of the card:
-As a user, I want to mark a book as "Read" so that I can keep track of books I have completed.
+**Back of the card:**  
+- Admin can create, edit, or delete plans.  
+- Update plan details.  
+- Validated changes apply immediately.  
+- Changes recorded for reference.  
 
-Back of the card:
-● A “Mark as Read” button/option must be visible on the book’s detail page and inside the reader.
-● Clicking it updates the user’s library status in Firestore (users/{uid}/library).
-● Once marked, the book appears in the “Books Read” section of the profile.
-● The status can be updated again (e.g., changed back to “Reading” if needed).
+---
 
-User Story 3: Marking a Book to Read in the Future
+### User Story 3: Completing Secure Payments  
+**Front of the card:**  
+As a user, I want to complete my payment securely so that my financial details remain safe.  
 
-Front of the card:
-As a user, I want to add a book to my "To Read" list so that I can plan future reading.
+**Back of the card:**  
+- Payment through secure gateway.  
+- Confirmation shown instantly.  
+- Receipt sent by email.  
+- Subscription/order status updates.  
 
-Back of the card:
-● A “Save to To-Read List” button must be visible on the book’s detail page.
-● Clicking it saves the book’s ID to the user’s Firestore library with status to_read.
-● The “To Read” list is accessible from the user profile/dashboard.
-● The user can remove the book from the list or change its status anytime.
+---
 
-User Story 4: Viewing Books Read
+### User Story 4: Monitoring Secure Payments  
+**Front of the card:**  
+As an admin, I want to monitor and verify payments so that all transactions remain trustworthy.  
 
-Front of the card:
-As a user, I want to view a list of all books I’ve read so that I can see my completed reading history.
+**Back of the card:**  
+- Dashboard shows payment logs.  
+- Verify gateway responses.  
+- Generate financial reports.  
+- Records stored securely.  
 
-Back of the card:
-● The “Books Read” section is accessible from the user profile.
-● It displays a list/grid of all books marked with status read.
-● Each entry shows cover image, title, author, and date completed.
-● The user can click any book to revisit its details or open it again.
-● The system updates this list in real time when new books are marked as read.
+---
 
-User Story 5: Cross-Device Sync
+### User Story 5: Viewing Order History  
+**Front of the card:**  
+As a user, I want to check my previous subscription orders so that I can track my payments and renewals.  
 
-Front of the card:
-As a user, I want my reading progress, bookmarks, and highlights to sync across devices so that I can continue reading seamlessly.
+**Back of the card:**  
+- Profile shows order history.  
+- Displays details of past subscriptions.  
+- Sorted by most recent.  
+- Cancelled orders clearly labeled.  
 
-Back of the card:
-● The system stores progress/bookmarks/highlights in Firestore under users/{uid}.
-● Progress is auto-synced every few seconds or on chapter change.
-● When the user opens the same book on another device, the system loads the last saved progress automatically.
-● If progress differs between devices, the system resolves by using the most recent update (updatedAt field).
-● Bookmarks and notes are synced in real time, ensuring consistency across devices.
+---
 
-                                          Engagement & Community
-                                             Actor: End User
+### User Story 6: Maintaining Order History  
+**Front of the card:**  
+As an admin, I want to maintain accurate order history so that users always see correct records.  
 
-User Story 1: Rating the Book
+**Back of the card:**  
+- Admin can access/verify order histories.  
+- Filter records by user, date, or plan.  
+- Records kept consistent with payments.  
+- Backups maintained.  
 
-Front of the card:
-As a user, I want to give a star rating to a book I’ve read, so that I can express my overall opinion and help other readers decide if they want to read it.
+---
 
-Back of the card:
-● User can select a rating (e.g., 1–5 stars).
-● The system saves the rating to the book.
-● Average rating of the book updates automatically.
-● User can update/change their rating.
+### User Story 7: Analyzing Retention Data  
+**Front of the card:**  
+As an admin, I want to analyze retention data so that I can improve subscription renewals and reduce churn.  
 
-User Story 2: Uploading Reviews
+**Back of the card:**  
+- Retention data available in analytics module.  
+- Metrics like renewal and churn rate shown.  
+- Reports filterable by time, plan, or user.  
+- Visual graphs for trends.  
 
-Front of the card:
-As an end user, I want to write and upload detailed reviews of books I read, so that I can share my thoughts, experiences, and recommendations with the community.
+---
 
-Back of the card:
-● User can type a text review and submit it.
-● Review gets displayed below the correct book.
-● Reviews are displayed publicly for other readers.
-● User can edit or delete their own review.
+## Personalization & Recommendations  
+**Actors:** End User + System (AI)  
 
-User Story 3: Discussing About the Book
+### User Story 1 – Selecting Favourite Authors & Genres  
+**Front of the card:**  
+As a user, I want to select my favourite authors and genres so that I can receive personalized recommendations.  
 
-Front of the card:
-As an end user, I want to participate in discussions and comment on books I read, so that I can exchange perspectives.
+**Back of the card:**  
+- Users can choose during signup or later.  
+- Choices can be updated anytime.  
+- Suggestions update automatically.  
+- Default shows popular books.  
 
-Back of the card:
-● User can comment on books or reviews.
-● Discussion threads display in proper order.
-● Users can reply to others’ comments.
-● Notifications are sent when someone replies.
+---
 
-User Story 4: Bookmarking & Notes
+### User Story 2 – AI Smart Suggestions  
+**Front of the card:**  
+As a user, I want AI to suggest books based on my reading so that I can easily find new books I’ll enjoy.  
 
-Front of the card:
-As an end user, I want to bookmark pages and add notes, so that I can continue where I left off and revisit important sections later.
+**Back of the card:**  
+- AI looks at history, ratings, and activity.  
+- Suggestions appear on home screen.  
+- Users can mark “Not Interested.”  
+- For new users, AI suggests books liked by similar readers.  
 
-Back of the card:
-● User can bookmark a page in a book.
-● Notes can be attached to bookmarks.
-● Bookmarks and notes are saved persistently.
-● User can view and manage (edit/delete) bookmarks & notes.
+---
 
-User Story 5: Highlighting
+### User Story 3 – AI Summary Generation  
+**Front of the card:**  
+As a user, I want short AI-made summaries of books so that I can quickly decide whether to read or skip.  
 
-Front of the card:
-As an end user, I want to highlight passages or words, so that I can mark meaningful content for later reference.
+**Back of the card:**  
+- Admin-approved books only.  
+- AI generates summaries.  
+- User clicks “Generate Summary.”  
+- Fiction avoids spoilers unless requested.  
 
-Back of the card:
-● User can select text and apply highlights.
-● Highlighted text is saved and shown on revisit.
-● User can remove or change highlight color.
-● Highlights are stored per book and per user.
+---
 
+### User Story 4 – AI Scene Generation  
+**Front of the card:**  
+As a user, I want AI to create pictures of book scenes so that I can imagine the story better.  
 
-                                    Catalogue & Discovery 
-                                      Actor: End User
+**Back of the card:**  
+- User highlights passage to request.  
+- AI generates an image.  
+- User can pick styles (sketch, realistic, etc.).  
 
+---
 
-User Story 1: Browse Catalogue by Genre
+### User Story 5 – Genre Reading Visualization  
+**Front of the card:**  
+As a user, I want to see which genres I read most so that I can track my habits.  
 
-Front of the Card:
-As a reader, I want to browse books by specific genres, so that I can discover new books when I'm in the mood for a certain type of story.
+**Back of the card:**  
+- System tags each book.  
+- Chart shows how many books read per genre.  
+- Filter by time.  
+- Clicking genre shows books in that category.  
 
-Back of the Card:
-●A list of available genres is displayed on the homepage.
-●Clicking a genre navigates to a new page that displays only books from that selected genre.
-●The genre page has a title that clearly identifies the genre being viewed.
+---
 
+### User Story 6 – Personalized Notifications & Alerts  
+**Front of the card:**  
+As a user, I want personalized notifications about new releases and suggestions so that I always have fresh options.  
 
-User Story 2: Basic Search
+**Back of the card:**  
+- Alerts for new releases/suggestions.  
+- Links to book details.  
+- Users can enable/disable alerts.  
 
-Front of the Card:
-As a reader, I want to search for books by their title or an author's name, so that I can find exactly what I'm looking for without having to browse.
+---
 
-Back of the Card:
-●A search bar is present and functional in the site header.
-●Searching by a book title returns that book in the results.
-●Searching by a author's name returns books by that author.
-●A "No results found" message is shown for searches that have no matches.
+### User Story 7 – AI-Curated Reading Digest  
+**Front of the card:**  
+As a user, I want a daily or weekly list of suggested books so that I always have fresh options to read.  
 
-User Story 3: View Trending Books
+**Back of the card:**  
+- AI generates 3–5 book digest.  
+- Shown in-app or via email.  
+- List updates with reading evolution.  
 
-Front of the Card:
-As a reader, I want to see a list of what's currently trending, so that I can stay up-to-date with popular books and see what others are enjoying.
+---
 
-Back of the Card:
-●A section titled "Trending Now" is visible on the homepage.
-●The section displays a collection of books.
-●Clicking on any book within the section navigates to that book's detail page.
+### User Story 8 – Reading Streaks & Personalized Challenges  
+**Front of the card:**  
+As a user, I want streaks and challenges so that I stay motivated to read more.  
 
-User Story 4: Find New Releases
+**Back of the card:**  
+- System tracks daily reading streaks.  
+- Challenges created by genre.  
+- Progress shown on dashboard.  
+- Badges for completing milestones.  
 
-Front of the Card:
-As a reader, I want to easily find a dedicated section for 'New Releases,' so that I can keep up with the latest books as soon as they become available.
+---
 
-Back of the Card:
-●A clickable link or section for "New Releases" is present on the homepage.
-●The "New Releases" section on the homepage displays books sorted with the newest publications first.
-●Only books published within the last 30 days are included in this section.
+### User Story 9 – Adaptive Learning Recommendations  
+**Front of the card:**  
+As a user, I want AI to suggest books outside my usual genres so that I can try new topics.  
 
+**Back of the card:**  
+- AI detects gaps in reading behaviour.  
+- Suggestions in “Explore” section.  
+- Users can accept/skip.  
+- AI adapts future recommendations.  
 
-
-                                             Payments & Subscriptions
-                                             Actor: End User + Admin
-
-User Story 1: Subscribing to a Plan
-
-Front of the card:
-As a user, I want to subscribe to a plan so that I can access premium features of the service.
-
-Back of the card:
-● From the subscription page, clicking "Subscribe" opens the available plans.
-● Details like plan duration, benefits, and price are visible.
-● A plan can be selected and payment completed.
-● On successful payment, subscription status updates to "Active."
-● A confirmation email with subscription details is received.
-
-
-User Story 2: Managing Subscription Plans
-
-Front of the card:
-As an admin, I want to manage subscription details so that plans and pricing remain accurate.
-
-Back of the card:
-● From the dashboard, clicking "Subscriptions" opens the management panel.
-● Subscription plans can be created, edited, or deleted.
-● Plan details like price, features, and duration can be updated.
-● Validated changes are applied immediately.
-● All modifications are recorded for future reference.
-
-
-User Story 3: Completing Secure Payments
-
-Front of the card:
-As a user, I want to complete my payment securely so that my financial details remain safe.
-
-Back of the card:
-● From the checkout page, payment details are entered and "Pay Now" is clicked.
-● Payment is processed through a secure gateway.
-● Confirmation of successful payment is shown instantly.
-● Receipt is generated and sent via email.
-● Subscription or order status updates automatically.
-
-
-User Story 4: Monitoring Secure Payments
-
-Front of the card:
-As an admin, I want to monitor and verify secure payments so that all transactions remain trustworthy.
-
-Back of the card:
-● From the dashboard, logs of successful payments are visible.
-● Payment gateway responses can be verified.
-● Daily, weekly, and monthly reports can be generated.
-● Reports provide accurate revenue tracking.
-● All payment records are stored for financial analysis.
-
-
-User Story 5: Viewing Order History
-
-Front of the card:
-As a user, I want to check my previous subscription orders so that I can track my payments and renewals.
-
-Back of the card:
-● From the profile, "Order History" displays past subscriptions.
-● Orders show details like plan name, amount paid, date, and status.
-● History is sorted with most recent first.
-● Cancelled orders are clearly labeled.
-● If no orders exist, a message "No order history found" is displayed.
-
-
-User Story 6: Maintaining Order History
-
-Front of the card:
-As an admin, I want to maintain accurate order history so that users always see correct records.
-
-Back of the card:
-● From the dashboard, user order histories can be accessed and verified.
-● History can be filtered by user, date range, or plan type.
-● Records are stored in database and kept consistent with payments.
-● Order records can be updated when needed.
-● Backups of order history are maintained for compliance.
-
-
-User Story 7: Analyzing Retention Data
-
-Front of the card:
-As an admin, I want to analyze retention data so that I can improve subscription renewals and reduce churn.
-
-Back of the card:
-● From the dashboard, "Retention Data" opens the analytics module.
-● Metrics like renewal rate, churn rate, and active users are available.
-● Reports can be filtered by time period, plan type, or user segment.
-● Visual graphs display retention trends.
-● Reports can be exported in CSV or PDF for analysis.
-
-
-                                                        Personalization & Recommendations
-                                                        Actors: End User + System (AI)
-
-User Story 1 – Selecting Favourite Authors & Genres
-
-Front of the card:
- As a user, I want to select my favourite authors and genres so that I can receive personalized recommendations that match my preferences.
-
-Back of the card:
-Users can choose authors/genres while signing up or later in their profile.
-Choices can be updated anytime.
-Suggestions update automatically based on favourites.
-If no favourites are set, the system shows general popular books.
-
-User Story 2 – AI Smart Suggestions
-
-Front of the card:
- As a user, I want AI to suggest books based on what I read and like so that I can easily find new books I’ll enjoy.
-
-Back of the card:
-AI looks at reading history, ratings, and time spent.
-Suggestions appear on the home screen and refresh regularly.
-Users can mark “Not Interested” to refine future results.
-For new users, AI suggests books liked by similar readers.
-
-User Story 3 – AI Summary Generation
-
-Front of the card:
- As a user, I want short AI-made summaries of books so that I can quickly decide whether to read or skip the book.
-
-Back of the card:
-The book is approved by the admin.
-AI generates a short summary for the approved book
-User clicks “Generate Summary” on a book.
-The already existing summary is fetched by the system and displayed to the user.
-Fiction summaries avoid spoilers unless requested.
-
-User Story 4 – AI Scene Generation
-
-Front of the card:
- As a user, I want AI to create pictures of book scenes so that I can imagine the story better.
-
-Back of the card:
-The user highlights a passage and requests a scene.
-AI generates an image based on the passage.
-Users can pick visual styles (sketch, realistic, etc.).
-
-User Story 5 – Genre Reading Visualization
-
-Front of the card:
- As a user, I want to see which genres I read most so that I can track my reading habits.
-
-Back of the card:
-The system tags each book with its genre.
-A chart shows how many books are read per genre.
-Users can filter results by time (month, year, all time).
-Clicking a genre displays books read in that category.
-
-User Story 6 – Personalized Notifications & Alerts
-
-Front of the card:
- As a user, I want personalized notifications about new releases and suggestions so that I always have fresh reading options.
-
-Back of the card:
-The system sends alerts for new releases or book suggestions.
-Alerts link directly to book detail pages.
-Users can enable or disable alerts anytime.
-
-User Story 7 – AI-Curated Reading Digest
-
-Front of the card:
- As a user, I want a daily or weekly list of suggested books so that I always have fresh options to read.
-
-Back of the card:
-AI generates a small digest of 3–5 books.
-Digest is shown in-app or sent by email.
-The list updates automatically as the user’s reading evolves.
-
-User Story 8 – Reading Streaks & Personalized Challenges
-
-Front of the card:
- As a user, I want reading streaks and challenges so that I stay motivated to read more.
-
-Back of the card:
-The system tracks daily reading streaks.
-Challenges are created based on favourite genres (e.g., “Read 5 thrillers this month”).
-Progress is shown on the dashboard.
-Users earn badges or milestones when challenges are completed.
-
-User Story 9 – Adaptive Learning Recommendations
-
-Front of the card:
- As a user, I want AI to suggest books outside my usual genres so that I can try new topics.
-
-Back of the card:
-AI detects gaps in the user’s reading behaviour.
-Suggestions appear in a separate “Explore” section.
-Users can accept or skip these suggestions.
-AI adapts future recommendations based on user response.
+---
