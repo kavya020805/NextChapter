@@ -41,13 +41,14 @@ Back of the card:
 User Story 4: Password Recovery
 
 Front of the card:
-As a user who forgot my password, I want to reset it via email/SMS verification, so that I can regain access to my account.
+As a user who forgot my password, I want to reset it via email verification, so that I can regain access to my account.
 
 Back of the card:
-● Password reset request triggers verification email or SMS.
-● User must confirm identity before setting a new password.
+● Password reset request triggers reset password link sent through email.
+● User enters and confirms new password.
+● User can now login with new password.
 ● Old password becomes invalid after reset.
-● Reset link/code expires after a limited time.
+● Reset link expires after a limited time.
 
 
 User Story 5: Secure SignOut
