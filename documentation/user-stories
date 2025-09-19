@@ -523,8 +523,10 @@ Front of the card:
  As a user, I want short AI-made summaries of books so that I can quickly decide whether to read or skip the book.
 
 Back of the card:
+The book is approved by the admin.
+AI generates a short summary for the approved book
 User clicks “Generate Summary” on a book.
-AI provides either short or detailed summaries.
+The already existing summary is fetched by the system and displayed to the user.
 Fiction summaries avoid spoilers unless requested.
 
 User Story 4 – AI Scene Generation
@@ -589,36 +591,3 @@ AI detects gaps in the user’s reading behaviour.
 Suggestions appear in a separate “Explore” section.
 Users can accept or skip these suggestions.
 AI adapts future recommendations based on user response.
-
-User Story 10 – Trending Reads
-
-Front of the card:
- As a user, I want to see trending books so that I know what others are reading right now.
-
-Back of the card:
-Displays a list of top trending books overall.
-Shows trending books within the user’s favourite genres.
-Updates weekly.
-Clicking a book opens its detail page.
-
-User Story 11 – New Releases
-
-Front of the card:
- As a user, I want to see new book releases so that I can read the latest titles.
-
-Back of the card:
-Shows new releases from favourite genres or authors.
-Can also display all global new releases.
-Alerts can be enabled for favourite authors.
-List updates automatically when a new book is added.
-
-User Story 12 – Retention-Based Re-Engagement
-
-Front of the card:
- As a system, I want to notify users who haven’t opened the app for a set number of days with personalized suggestions or updates on new releases, so that they are encouraged to return and keep reading.
-
-Back of the card:
-The system tracks user inactivity.
-AI sends reminders with personalized book suggestions.
-Notifications can include summaries of missed new releases.
-Users can turn off reminders if they don’t want them.
