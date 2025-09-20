@@ -673,9 +673,9 @@ As a user, I want to switch between dark/light mode and adjust font style/size s
 As a user, I want to listen to audiobooks so that I can enjoy books while multitasking or when reading isn’t possible. 
 
 **Back of the card:**  
--Users can switch between reading and listening modes.
--Audiobooks support play, pause, rewind, and speed control.
--Progress syncs between audiobook and ebook (resume where you left off).
--Available only if the book has an audiobook version.  
+- Users can switch between reading and listening modes.
+- Audiobooks support play, pause, rewind, and speed control.
+- Progress syncs between audiobook and ebook (resume where you left off).
+- Available only if the book has an audiobook version.  
 
 ---
