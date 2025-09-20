@@ -38,4 +38,55 @@ Readers can open, read, track progress, and personalize their reading.
 *Outcome:*  
 Users can engage with community in a controlled, moderated way.
 
+
+
 ---
+
+## Sprint 4: Personalization & AI Basics
+*Goal:* Make the experience personal & sticky.
+
+- *Epic 7:* US35 (select favourite authors/genres)  
+- *Epic 7:* US36 (AI smart suggestions)  
+- *Epic 7:* US39 (genre visualization)  
+- *Epic 7:* US40 (personalized alerts)  
+- *Epic 7:* US43 (adaptive learning recs)  
+
+*Outcome:*  
+Personalization kicks in → recommendations & alerts keep users engaged.
+
+---
+
+## Sprint 5: Advanced Reading & Retention
+*Goal:* Push engagement & retention features.
+
+- *Epic 4:* US52 (continue reading shortcut), US53 (offline access), US56 (audiobooks)  
+- *Epic 7:* US41 (AI-curated digest), US42 (reading streaks & challenges)  
+- *Epic 3:* US26–US27 (trending reads, new releases)  
+
+*Outcome:*  
+Users stay hooked with streaks, digests, and more convenient reading tools.
+
+---
+
+## Sprint 6: Payments & Monetization
+*Goal:* Add subscription, payments, trials once the platform has real value.
+
+- *Epic 6:* US28–US30 (subscribe, secure payments, monitor payments)  
+- *Epic 6:* US32 (order history), US50 (trial/free plans)  
+- *Epic 2:* US29, US31, US33, US34 (admin subscription/payment/order/retention tracking)  
+
+*Outcome:*  
+Payments only after catalogue + reading + AI are strong enough to justify it.
+
+---
+
+## Sprint 7: Power Features & Admin Enhancements
+*Goal:* Strengthen moderation, scalability, and transparency.
+
+- *Epic 2:* US12–US13 (manage authors/publishers, analytics & trends)  
+- *Epic 2:* US45 (bulk uploads), US54 (admin broadcast)  
+- *Epic 7:* US37 (AI summaries), US38 (AI scene generation)  
+- *Epic 3:* US49 (advanced search filters)  
+
+*Outcome:*  
+Admins get efficiency, AI “wow” features come last, advanced discovery added.
