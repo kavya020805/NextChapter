@@ -651,3 +651,31 @@ As an admin, I want to send notifications about new releases, offers, or updates
 - Admin can schedule or cancel notifications.  
 
 ---
+
+---
+
+### User Story 55 – Dark Mode & Font Customization  
+**Front of the card:**  
+As a user, I want to switch between dark/light mode and adjust font style/size so that reading is comfortable for my eyes. 
+
+**Back of the card:**  
+- Users can switch between light and dark themes anytime.
+- Font style (serif/sans-serif) and font size can be adjusted.
+- Settings are remembered across devices.
+- The default theme is light if no preference is set.  
+
+---
+
+---
+
+### User Story 56 – Audio Book Support
+**Front of the card:**  
+As a user, I want to listen to audiobooks so that I can enjoy books while multitasking or when reading isn’t possible. 
+
+**Back of the card:**  
+-Users can switch between reading and listening modes.
+-Audiobooks support play, pause, rewind, and speed control.
+-Progress syncs between audiobook and ebook (resume where you left off).
+-Available only if the book has an audiobook version.  
+
+---
