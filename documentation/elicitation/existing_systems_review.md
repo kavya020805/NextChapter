@@ -11,7 +11,7 @@ For detailed notes and observations, please refer to the following document:
 
 [View the full research document](https://docs.google.com/document/d/1cdiv76S4NJ5MWUvdIfUBhMkS664w70jJWg4Fk4mIAyU/edit?usp=sharing)
 
-# **NextChapter: Stakeholders, Users, and Requirements Documentation**
+# **NextChapter: Stakeholders, Users, and Requirements Documentation** from research documents
 
 ## **Section 2: Stakeholders & Users**
 
