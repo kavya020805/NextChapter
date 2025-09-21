@@ -1,12 +1,46 @@
 "use client"
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
 import Logo from "../components/Logo";
 import Link from "next/link";
+import { signinWithEmail, signInWithGooglePopup, setAuthPersistence } from "../firebase/auth";
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [remember, setRemember] = useState(false);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError("");
+    try {
+      await setAuthPersistence(remember);
+      await signinWithEmail(email, password);
+      router.push("/");
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      await signInWithGooglePopup();
+      router.push("/");
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FDF6EB] font-sans">
@@ -14,35 +48,36 @@ export default function Login() {
       <div className="p-4">
         <Logo />
       </div>
-
-     <div> <h1 className="text-5xl font-bold text-gray-800 text-center mb-2"> Log In to Next Chapter </h1> <p className="text-center text-gray-500 mb-6"> Don’t have an account?{" "}
-       <Link href="/signup" className="text-[#D47249] hover:underline">
+      <div>
+        <h1 className="text-5xl font-bold text-gray-800 text-center mb-2"> Log In to Next Chapter </h1>
+        <p className="text-center text-gray-500 mb-6"> Don’t have an account?{" "}
+          <Link href="/signup" className="text-[#D47249] hover:underline">
             Sign Up
           </Link>
-       </p> </div>
-
-      {/* Main Container */}
+        </p>
+      </div>
       <div className="flex flex-1 flex-col md:flex-row items-center justify-center gap-10 px-6">
-        {/* Left Side - Form */}
         <div className="flex-1 w-full max-w-md">
-          <form className="space-y-6">
-            {/* Email */}
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="relative">
               <input
                 type="email"
                 placeholder="Email"
                 className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249]"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
               />
             </div>
-
-            {/* Password */}
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249] pr-10"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
               />
-              {/* Eye icon for toggle */}
               <span
                 className="absolute right-0 top-2 cursor-pointer text-[#D47249]"
                 onClick={() => setShowPassword(!showPassword)}
@@ -85,51 +120,45 @@ export default function Login() {
                 )}
               </span>
             </div>
-
-            {/* Remember me and forgot password */}
             <div className="flex justify-between items-center text-sm">
               <label className="flex items-center gap-2 text-[#D47249]">
                 <input
                   type="checkbox"
                   className="h-4 w-4 rounded accent-[#D47249]"
+                  checked={remember}
+                  onChange={e => setRemember(e.target.checked)}
                 />
                 Remember Me
               </label>
-             <Link href="/ForgotPass" className="text-[#DFB3A1] hover:underline">
-            Forgot Password?
-          </Link>
+              <Link href="/ForgotPass" className="text-[#DFB3A1] hover:underline">
+                Forgot Password?
+              </Link>
             </div>
-
-            {/* Log In button */}
+            {error && <div className="text-red-500 text-sm">{error}</div>}
             <button
               type="submit"
               className="w-25 rounded-full bg-[#D47249] py-2 text-white font-semibold hover:bg-[#BF5F3B]"
+              disabled={loading}
             >
-              Log In
+              {loading ? "Logging in..." : "Log In"}
             </button>
           </form>
         </div>
-
-        {/* Divider */}
         <div className="hidden md:flex flex-col items-center justify-center relative">
           <div className="w-px h-64 bg-[#D47249]"></div>
           <span className="absolute bg-[#FDF6EB] px-2 text-sm text-[#D47249] -mt-32 font-bold">
             or
           </span>
         </div>
-
-        {/* Right Side - Social Login */}
         <div className="flex-1 w-full max-w-md space-y-4">
-          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100" onClick={handleGoogleLogin} disabled={loading}>
             <FcGoogle size={20} /> Continue with Google
           </button>
-
-          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100" disabled>
             <FaApple size={20} className="text-black" /> Continue with Apple
           </button>
         </div>
       </div>
-
       {/* Footer */}
       <div className="text-center text-xs mt-8 mb-6 text-[#D47249]">
         <p>

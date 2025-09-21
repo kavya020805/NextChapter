@@ -1,22 +1,63 @@
 "use client";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
 import Logo from "../components/Logo";
 import Link from "next/link";
+import { signupWithEmail, signInWithGooglePopup } from "../firebase/auth";
 
 export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [email, setEmail] = useState("");
+  const [confirmEmail, setConfirmEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    if (email !== confirmEmail) {
+      setError("Emails do not match.");
+      setLoading(false);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
+      setLoading(false);
+      return;
+    }
+    try {
+      await signupWithEmail(email, password);
+      router.push("/");
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleGoogleSignup = async () => {
+    setError("");
+    setLoading(true);
+    try {
+      await signInWithGooglePopup();
+      router.push("/");
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
 
   return (
     <div className="flex min-h-screen flex-col bg-[#FDF6EB] font-sans">
-      {/* Logo */}
       <div className="p-4">
         <Logo />
       </div>
-
-      {/* Header */}
       <div>
         <h1 className="text-5xl font-bold text-center mb-2 text-gray-800">
           Sign Up to Next Chapter
@@ -28,36 +69,37 @@ export default function SignUp() {
           </Link>
         </p>
       </div>
-
-      {/* Main Container */}
       <div className="flex flex-1 flex-col md:flex-row items-center justify-center gap-10 px-6">
-        {/* Left Side - Form */}
         <div className="flex-1 w-full max-w-md">
-          <form className="space-y-6">
-            {/* Email */}
+          <form className="space-y-6" onSubmit={handleSubmit}>
             <div className="relative">
               <input
                 type="email"
                 placeholder="Email"
                 className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249]"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                required
               />
             </div>
-
-            {/* Confirm Email */}
             <div className="relative">
               <input
                 type="email"
                 placeholder="Confirm Email"
                 className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249]"
+                value={confirmEmail}
+                onChange={e => setConfirmEmail(e.target.value)}
+                required
               />
             </div>
-
-            {/* Password */}
             <div className="relative">
               <input
                 type={showPassword ? "text" : "password"}
                 placeholder="Password"
                 className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249] pr-10"
+                value={password}
+                onChange={e => setPassword(e.target.value)}
+                required
               />
               <span
                 className="absolute right-0 top-2 cursor-pointer text-[#D47249]"
@@ -101,13 +143,14 @@ export default function SignUp() {
                 )}
               </span>
             </div>
-
-            {/* Confirm Password */}
             <div className="relative">
               <input
                 type={showConfirmPassword ? "text" : "password"}
                 placeholder="Confirm Password"
                 className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249] pr-10"
+                value={confirmPassword}
+                onChange={e => setConfirmPassword(e.target.value)}
+                required
               />
               <span
                 className="absolute right-0 top-2 cursor-pointer text-[#D47249]"
@@ -151,37 +194,31 @@ export default function SignUp() {
                 )}
               </span>
             </div>
-
-            {/* Sign Up button */}
+            {error && <div className="text-red-500 text-sm">{error}</div>}
             <button
               type="submit"
               className="w-25 rounded-full bg-[#D47249] py-2 text-white font-semibold hover:bg-[#BF5F3B]"
+              disabled={loading}
             >
-              Sign Up
+              {loading ? "Signing up..." : "Sign Up"}
             </button>
           </form>
         </div>
-
-        {/* Divider */}
         <div className="hidden md:flex flex-col items-center justify-center relative">
           <div className="w-px h-64 bg-[#D47249]"></div>
           <span className="absolute bg-[#FDF6EB] px-2 text-sm text-[#D47249] -mt-32 font-bold">
             or
           </span>
         </div>
-
-        {/* Right Side - Social Login */}
         <div className="flex-1 w-full max-w-md space-y-4">
-          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100" onClick={handleGoogleSignup} disabled={loading}>
             <FcGoogle size={20} /> Continue with Google
           </button>
-
-          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100" disabled>
             <FaApple size={20} className="text-black" /> Continue with Apple
           </button>
         </div>
       </div>
-
       {/* Footer */}
       <div className="text-center text-xs mt-8 mb-6 text-[#D47249]">
         <p>

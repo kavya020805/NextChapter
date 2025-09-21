@@ -27,7 +27,7 @@ export async function sendResetEmail(email, actionCodeSettings) {
   const settings =
     actionCodeSettings ||
     (typeof window !== "undefined"
-      ? { url: window.location.origin, handleCodeInApp: false }
+      ? { url: window.location.origin + "/login", handleCodeInApp: false }
       : undefined);
   return await sendPasswordResetEmail(auth, email, settings);
 }
