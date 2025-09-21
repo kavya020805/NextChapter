@@ -23,7 +23,7 @@ export default function Login() {
     try {
       await setAuthPersistence(remember);
       await signinWithEmail(email, password);
-      router.push("/");
+          router.push("/personalized");
     } catch (err) {
       setError(err.message);
     }
@@ -35,7 +35,7 @@ export default function Login() {
     setError("");
     try {
       await signInWithGooglePopup();
-      router.push("/");
+          router.push("/personalized");
     } catch (err) {
       setError(err.message);
     }

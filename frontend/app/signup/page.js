@@ -34,7 +34,7 @@ export default function SignUp() {
     }
     try {
       await signupWithEmail(email, password);
-      router.push("/");
+          router.push("/personalized");
     } catch (err) {
       setError(err.message);
     }
@@ -46,7 +46,7 @@ export default function SignUp() {
     setLoading(true);
     try {
       await signInWithGooglePopup();
-      router.push("/");
+          router.push("/personalized");
     } catch (err) {
       setError(err.message);
     }

@@ -1,9 +1,20 @@
 "use client";
 import { useAuth } from "./contexts/AuthContext";
+import { usePersonalized } from "./contexts/PersonalizedContext";
+import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import Navbar from "./components/Navbar";
 
 export default function HomePage() {
   const { user, loading } = useAuth();
+  const { isPersonalizedComplete } = usePersonalized();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!loading && user && !isPersonalizedComplete) {
+      router.push("/personalized");
+    }
+  }, [user, loading, isPersonalizedComplete, router]);
 
   if (loading) {
     return (
