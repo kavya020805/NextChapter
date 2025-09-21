@@ -1,253 +1,209 @@
 "use client";
-import { Component, useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
+import { FcGoogle } from "react-icons/fc";
+import { FaApple } from "react-icons/fa";
 import Logo from "../components/Logo";
-import { signupWithEmail, signInWithGooglePopup } from "../firebase/auth";
+import Link from "next/link";
 
-export default function SignupPage() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+export default function SignUp() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [strength, setStrength] = useState("");
-  const [acceptedTerms, setAcceptedTerms] = useState(false);
-
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("nc_terms_accepted");
-      if (saved) setAcceptedTerms(saved === "true");
-    } catch {}
-  }, []);
-
-  // Password strength checker
-  const checkStrength = (pwd) => {
-    let score = 0;
-    if (pwd.length >= 8) score++;
-    if (/[A-Z]/.test(pwd)) score++;
-    if (/[0-9]/.test(pwd)) score++;
-    if (/[^A-Za-z0-9]/.test(pwd)) score++;
-
-    switch (score) {
-      case 0: return "";
-      case 1: return "Weak";
-      case 2: return "Medium";
-      case 3:
-      case 4: return "Strong";
-      default: return "";
-    }
-  };
-
-  const handlePasswordChange = (e) => {
-    const pwd = e.target.value;
-    setPassword(pwd);
-    setStrength(checkStrength(pwd));
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (password !== confirmPassword) {
-      alert("Passwords do not match!");
-      return;
-    }
-    try {
-      if (!acceptedTerms) {
-        alert("Please accept Terms of Use and Privacy Policy");
-        return;
-      }
-      await signupWithEmail(email, password);
-      try { localStorage.setItem("nc_terms_accepted", String(acceptedTerms)); } catch {}
-      router.push("/");
-    } catch (err) {
-      alert(err?.message || "Signup failed");
-    }
-  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#975DCF] to-[#6F12C9] px-4 ">
-      <div className="w-full max-w-md rounded-2xl bg-gradient-to-b from-[rgba(26,26,26,0.72)] to-[rgba(26,26,26,0.48)] p-7 shadow-xl backdrop-blur text-white"> 
-        
-        {/* Logo */}
-        <div className="mb-6 text-center">
-        <div className="flex justify-center">
-          <Logo/>
-        </div>
-          <h2 className="mt-4 text-2xl font-[var(--font-merriweather)]">Sign Up</h2>
-        </div>
-        <div className="my-4 flex items-center text-gray-400 text-xs">
-          <hr className="flex-grow border-gray-700" />
-          <span className="mx-2">Continue with</span>
-          <hr className="flex-grow border-gray-700" />
-        </div>
-        {/* Social Sign Up */}
-        <div className="flex space-x-3 mb-6">
-          <button
-            onClick={async () => {
-              try {
-                await signInWithGooglePopup();
-                router.push("/");
-              } catch (err) {
-                alert(err?.message || "Google sign-in failed");
-              }
-            }}
-            className="flex w-1/2 items-center justify-center space-x-2 rounded-lg border border-purple-500 py-2 text-sm font-medium hover:bg-white/10 transition"
-          >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google"
-              className="h-5 w-5"
-            />
-            <span>Google</span>
-          </button>
-          <button
-            onClick={() => alert("Apple Sign Up")}
-            className="flex w-1/2 items-center justify-center space-x-2 rounded-lg border border-purple-500 py-2 text-sm font-medium hover:bg-white/10 transition"
-          >
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
-              alt="Apple"
-              className="h-5 w-5 invert"
-            />
-            <span>Apple</span>
-          </button>
-        </div>
-        {/* Divider */}
-         <div className="my-4 flex items-center text-gray-400 text-xs">
-          <hr className="flex-grow border-gray-700" />
-          <span className="mx-2">or Continue with email</span>
-          <hr className="flex-grow border-gray-700" />
-        </div>
+    <div className="flex min-h-screen flex-col bg-[#FDF6EB] font-sans">
+      {/* Logo */}
+      <div className="p-4">
+        <Logo />
+      </div>
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Email */}
-          <div>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 text-sm text-[#57534E] placeholder-[#57534E]
-                         focus:ring-2 focus:ring-purple-500 focus:outline-none"
-              required
-            />
-          </div>
-
-          {/* Password */}
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              value={password}
-              onChange={handlePasswordChange}
-              placeholder="Password"
-              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 pr-10 text-sm text-[#57534E] placeholder-[#57534E] 
-                         focus:ring-2 focus:ring-purple-500 focus:outline-none"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-[#57534E] hover:text-gray-500"
-            >
-              {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
-
-          {/* Password Strength */}
-          {strength && (
-            <p
-              className={`text-sm ${
-                strength === "Weak"
-                  ? "text-red-400"
-                  : strength === "Medium"
-                  ? "text-yellow-400"
-                  : "text-green-400"
-              }`}
-            >
-              Password Strength: {strength}
-            </p>
-          )}
-
-          {/* Confirm Password */}
-          <div className="relative">
-            <input
-              type={showConfirmPassword ? "text" : "password"}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Confirm Password"
-              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 pr-10 text-sm text-[#57534E] placeholder-[#57534E] 
-                         focus:ring-2 focus:ring-purple-500 focus:outline-none"
-              required
-            />
-            <button
-              type="button"
-              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-              className="absolute right-3 top-3 text-[#57534E] hover:text-gray-500"
-            >
-              {showConfirmPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-            </button>
-          </div>
-
-        {/* Terms & Conditions Checkbox */}
-<div className="flex items-center justify-between text-xs text-gray-300">
-  <label className="flex items-center space-x-2">
-    <input
-      type="checkbox"
-      className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
-      checked={acceptedTerms}
-      onChange={() => setAcceptedTerms(!acceptedTerms)}
-    />
-    <span>
-      I agree to the{" "}
-      <Link href="/terms" className="text-purple-400 hover:underline">
-        Terms of Use
-      </Link>
-      <span> & </span>
-      <Link href="/terms" className="text-purple-400 hover:underline">
-        Privacy policy
-      </Link>
-    </span>
-  </label>
-</div>
-
-          {/* Submit Button */}
-          <button
-            type="submit"
-            className="w-full rounded-lg bg-[#52148E] py-3 font-semibold text-white transition hover:bg-purple-800"
-          >
-            Sign Up
-          </button>
-        </form>
-
-        {/* Switch to Login */}
-        <p className="mt-6 text-center text-sm text-gray-400">
+      {/* Header */}
+      <div>
+        <h1 className="text-5xl font-bold text-center mb-2 text-gray-800">
+          Sign Up to Next Chapter
+        </h1>
+        <p className="text-center mb-6 text-gray-500">
           Already have an account?{" "}
-          <Link href="/login" className="text-purple-400 hover:underline">
-            Sign In
+          <Link href="/login" className="hover:underline text-[#D47249]">
+            Log In
           </Link>
         </p>
+      </div>
 
-        {/* Footer */}
-        
-         {/* Language */}
-        <div className="mt-6 flex justify-center">
-          <button className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white">
-            🌐 <span>English</span>
+      {/* Main Container */}
+      <div className="flex flex-1 flex-col md:flex-row items-center justify-center gap-10 px-6">
+        {/* Left Side - Form */}
+        <div className="flex-1 w-full max-w-md">
+          <form className="space-y-6">
+            {/* Email */}
+            <div className="relative">
+              <input
+                type="email"
+                placeholder="Email"
+                className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249]"
+              />
+            </div>
+
+            {/* Confirm Email */}
+            <div className="relative">
+              <input
+                type="email"
+                placeholder="Confirm Email"
+                className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249]"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249] pr-10"
+              />
+              <span
+                className="absolute right-0 top-2 cursor-pointer text-[#D47249]"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 10.05 0 012.224-3.825m2.551-2.551A9.969 9.969 0 0112 5c4.477 0 8.268 2.943 9.542 7a9.968 9.968 0 01-1.203 2.438M3 3l18 18"
+                    />
+                  </svg>
+                )}
+              </span>
+            </div>
+
+            {/* Confirm Password */}
+            <div className="relative">
+              <input
+                type={showConfirmPassword ? "text" : "password"}
+                placeholder="Confirm Password"
+                className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249] pr-10"
+              />
+              <span
+                className="absolute right-0 top-2 cursor-pointer text-[#D47249]"
+                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              >
+                {showConfirmPassword ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 10.05 0 012.224-3.825m2.551-2.551A9.969 9.969 0 0112 5c4.477 0 8.268 2.943 9.542 7a9.968 9.968 0 01-1.203 2.438M3 3l18 18"
+                    />
+                  </svg>
+                )}
+              </span>
+            </div>
+
+            {/* Sign Up button */}
+            <button
+              type="submit"
+              className="w-25 rounded-full bg-[#D47249] py-2 text-white font-semibold hover:bg-[#BF5F3B]"
+            >
+              Sign Up
+            </button>
+          </form>
+        </div>
+
+        {/* Divider */}
+        <div className="hidden md:flex flex-col items-center justify-center relative">
+          <div className="w-px h-64 bg-[#D47249]"></div>
+          <span className="absolute bg-[#FDF6EB] px-2 text-sm text-[#D47249] -mt-32 font-bold">
+            or
+          </span>
+        </div>
+
+        {/* Right Side - Social Login */}
+        <div className="flex-1 w-full max-w-md space-y-4">
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+            <FcGoogle size={20} /> Continue with Google
+          </button>
+
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+            <FaApple size={20} className="text-black" /> Continue with Apple
           </button>
         </div>
+      </div>
 
-        <div className="mt-8 text-center text-xs text-gray-500 space-x-4">
-          <Link href="/privacy" className="hover:text-purple-400">
-            Privacy Policy
-          </Link>
-          <Link href="/terms" className="hover:text-purple-400">
+      {/* Footer */}
+      <div className="text-center text-xs mt-8 mb-6 text-[#D47249]">
+        <p>
+          <a href="#" className="hover:underline text-[#D47249]">
             Terms of Use
-          </Link>
-        </div>
-        
+          </a>{" "}
+          ·{" "}
+          <a href="#" className="hover:underline text-[#D47249]">
+            Privacy Policy
+          </a>
+        </p>
+        <p className="mt-2">
+          This site is protected by reCAPTCHA Enterprise. Google’s{" "}
+          <a href="#" className="hover:underline text-[#D47249]">
+            Privacy Policy
+          </a>{" "}
+          and{" "}
+          <a href="#" className="hover:underline text-[#D47249]">
+            Terms of Service
+          </a>{" "}
+          apply.
+        </p>
       </div>
     </div>
   );

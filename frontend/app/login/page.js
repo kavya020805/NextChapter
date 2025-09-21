@@ -1,205 +1,157 @@
-"use client";
-import { useState, useEffect } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Eye, EyeOff } from "lucide-react";
+"use client"
+import { useState } from "react";
+import { FcGoogle } from "react-icons/fc";
+import { FaApple } from "react-icons/fa";
 import Logo from "../components/Logo";
-import { signinWithEmail, signInWithGooglePopup, setAuthPersistence } from "../firebase/auth";
+import Link from "next/link";
 
 export default function Login() {
-  const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  // Initialize rememberMe from localStorage on mount
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("nc_remember_me");
-      if (saved) setRememberMe(saved === "true");
-    } catch {}
-  }, []);
-
-  const [errors, setErrors] = useState({ email: "", password: "" });
-  const [loading, setLoading] = useState(false);
-
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setErrors({ email: "", password: "" });
-
-    if (!email) return setErrors((p) => ({ ...p, email: "Email is required" }));
-    if (!password)
-      return setErrors((p) => ({ ...p, password: "Password is required" }));
-
-    try {
-      setLoading(true);
-      await setAuthPersistence(rememberMe);
-      await signinWithEmail(email, password);
-      try { localStorage.setItem("nc_remember_me", String(rememberMe)); } catch {}
-      router.push("/");
-    } catch (err) {
-      setErrors((p) => ({ ...p, password: err?.message || "Login failed" }));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
-      await setAuthPersistence(rememberMe);
-      await signInWithGooglePopup();
-      try { localStorage.setItem("nc_remember_me", String(rememberMe)); } catch {}
-      router.push("/");
-    } catch (err) {
-      alert(err?.message || "Google sign-in failed");
-    } finally {
-      setLoading(false);
-    }
-  };
-  const handleAppleLogin = () => alert("Apple login clicked!");
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-[#975DCF] to-[#6F12C9] px-4 ">
-      <div className="w-full max-w-md rounded-2xl bg-gradient-to-b from-[rgba(26,26,26,0.72)] to-[rgba(26,26,26,0.48)] p-7 shadow-xl backdrop-blur text-white">
-        {/* Logo */}
-        <div className="mb-6 text-center">
-          <div className="flex justify-center m-2 p-2">
-            <Logo/>
-          </div>
-          <p className="text-3xl font-[var(--font-merriweather)]">Welcome to NextChapter</p>
+    <div className="flex min-h-screen flex-col bg-[#FDF6EB] font-sans">
+      {/* Logo in top-left */}
+      <div className="p-4">
+        <Logo />
+      </div>
 
-        </div>
-         <div className="my-4 flex items-center text-gray-400 text-xs">
-          <hr className="flex-grow border-gray-700" />
-          <span className="mx-2">Continue with</span>
-          <hr className="flex-grow border-gray-700" />
-        </div>
-        {/* Social Login */}
-        <div className="flex space-x-4 mb-6">
-          <button
-            onClick={handleGoogleLogin}
-            className="flex w-1/2 items-center justify-center space-x-2 rounded-lg border border-purple-400 py-2.5 hover:bg-white/10 transition"
-          >
-            <img
-              src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg"
-              alt="Google"
-              className="h-5 w-5"
-            />
-            <span className="text-sm font-medium">Google</span>
-          </button>
-          <button
-            onClick={handleAppleLogin}
-            className="flex w-1/2 items-center justify-center space-x-2 rounded-lg border border-purple-400 py-2.5 hover:bg-white/10 transition"
-          >
-            <img
-              src="https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg"
-              alt="Apple"
-              className="h-5 w-5 invert"
-            />
-            <span className="text-sm font-medium">Apple</span>
-          </button>
+     <div> <h1 className="text-5xl font-bold text-gray-800 text-center mb-2"> Log In to Next Chapter </h1> <p className="text-center text-gray-500 mb-6"> Don’t have an account?{" "}
+       <Link href="/signup" className="text-[#D47249] hover:underline">
+            Sign Up
+          </Link>
+       </p> </div>
+
+      {/* Main Container */}
+      <div className="flex flex-1 flex-col md:flex-row items-center justify-center gap-10 px-6">
+        {/* Left Side - Form */}
+        <div className="flex-1 w-full max-w-md">
+          <form className="space-y-6">
+            {/* Email */}
+            <div className="relative">
+              <input
+                type="email"
+                placeholder="Email"
+                className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249]"
+              />
+            </div>
+
+            {/* Password */}
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                placeholder="Password"
+                className="w-full border-b border-[#D47249] bg-transparent py-2 px-1 text-[#D47249] placeholder-[#D47249] focus:outline-none focus:border-[#D47249] pr-10"
+              />
+              {/* Eye icon for toggle */}
+              <span
+                className="absolute right-0 top-2 cursor-pointer text-[#D47249]"
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M2.458 12C3.732 7.943 7.523 5 12 5c4.477 0 8.268 2.943 9.542 7-1.274 4.057-5.065 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"
+                    />
+                  </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth={2}
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M13.875 18.825A10.05 10.05 0 0112 19c-4.477 0-8.268-2.943-9.542-7a10.05 10.05 0 012.224-3.825m2.551-2.551A9.969 9.969 0 0112 5c4.477 0 8.268 2.943 9.542 7a9.968 9.968 0 01-1.203 2.438M3 3l18 18"
+                    />
+                  </svg>
+                )}
+              </span>
+            </div>
+
+            {/* Remember me and forgot password */}
+            <div className="flex justify-between items-center text-sm">
+              <label className="flex items-center gap-2 text-[#D47249]">
+                <input
+                  type="checkbox"
+                  className="h-4 w-4 rounded accent-[#D47249]"
+                />
+                Remember Me
+              </label>
+             <Link href="/ForgotPass" className="text-[#DFB3A1] hover:underline">
+            Forgot Password?
+          </Link>
+            </div>
+
+            {/* Log In button */}
+            <button
+              type="submit"
+              className="w-25 rounded-full bg-[#D47249] py-2 text-white font-semibold hover:bg-[#BF5F3B]"
+            >
+              Log In
+            </button>
+          </form>
         </div>
 
         {/* Divider */}
-        <div className="my-4 flex items-center text-gray-400 text-xs">
-          <hr className="flex-grow border-gray-700" />
-          <span className="mx-2">or Continue with email</span>
-          <hr className="flex-grow border-gray-700" />
+        <div className="hidden md:flex flex-col items-center justify-center relative">
+          <div className="w-px h-64 bg-[#D47249]"></div>
+          <span className="absolute bg-[#FDF6EB] px-2 text-sm text-[#D47249] -mt-32 font-bold">
+            or
+          </span>
         </div>
 
-        {/* Form */}
-        <form onSubmit={handleLogin} className="space-y-4">
-          {/* Email */}
-          <div>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 text-sm text-[#57534E] placeholder-[#57534E] focus:ring-2 focus:ring-purple-500 focus:outline-none"
-            />
-            {errors.email && (
-              <p className="mt-1 text-xs text-red-400">{errors.email}</p>
-            )}
-          </div>
-
-          {/* Password */}
-          <div className="relative">
-            <input
-              type={showPassword ? "text" : "password"}
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password"
-              className="w-full rounded-lg bg-[#C4A1E6] px-4 py-3 text-sm text-[#57534E] placeholder-[#57534E]
-                         focus:ring-2 focus:ring-purple-500 focus:outline-none"
-            />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-3 top-3 text-gray-500 hover:text-white"
-            >
-              {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-            </button>
-            {errors.password && (
-              <p className="mt-1 text-xs text-red-400">{errors.password}</p>
-            )}
-          </div>
-
-          {/* Remember Me + Forgot Password */}
-          <div className="flex items-center justify-between text-xs text-gray-300">
-            <label className="flex items-center space-x-2">
-              <input
-                type="checkbox"
-                checked={rememberMe}
-                onChange={() => setRememberMe(!rememberMe)}
-                className="h-3.5 w-3.5 rounded border-gray-600 bg-gray-800 text-purple-500 focus:ring-purple-500"
-              />
-              <span>Remember me</span>
-            </label>
-             <Link href="/ForgotPass" className="text-purple-400 hover:underline">
-            Forgot Password ?
-          </Link>
-          </div>
-
-          {/* Login button */}
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full rounded-lg bg-[#52148E] py-3 font-semibold text-white transition hover:bg-purple-800 ${
-              loading ? "opacity-70 cursor-not-allowed" : ""
-            }`}
-          >
-            {loading ? "Loading..." : "Sign in"}
+        {/* Right Side - Social Login */}
+        <div className="flex-1 w-full max-w-md space-y-4">
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+            <FcGoogle size={20} /> Continue with Google
           </button>
-        </form>
 
-        {/* Switch to Signup */}
-        <p className="mt-6 text-center text-sm text-gray-400">
-          Not registered yet?{" "}
-          <Link href="/signup" className="text-purple-400 hover:underline">
-            SignUp
-          </Link>
-        </p>
-
-        {/* Language */}
-        <div className="mt-6 flex justify-center">
-          <button className="flex items-center space-x-2 text-sm text-gray-400 hover:text-white">
-            🌐 <span>English</span>
+          <button className="w-80 flex items-center justify-center gap-2 rounded-4xl border-2 border-[#D47249] px-4 py-2 text-[#D47249] hover:bg-gray-100">
+            <FaApple size={20} className="text-black" /> Continue with Apple
           </button>
         </div>
+      </div>
 
-        {/* Footer */}
-        <div className="mt-6 text-center text-xs text-gray-400 space-x-4">
-          <Link href="/privacy" className="hover:text-purple-300">
-            Privacy Policy
-          </Link>
-          <Link href="/terms" className="hover:text-purple-300">
+      {/* Footer */}
+      <div className="text-center text-xs mt-8 mb-6 text-[#D47249]">
+        <p>
+          <a href="#" className="hover:underline text-[#D47249]">
             Terms of Use
-          </Link>
-        </div>
+          </a>{" "}
+          ·{" "}
+          <a href="#" className="hover:underline text-[#D47249]">
+            Privacy Policy
+          </a>
+        </p>
+        <p className="mt-2">
+          This site is protected by reCAPTCHA Enterprise. Google’s{" "}
+          <a href="#" className="hover:underline text-[#D47249]">
+            Privacy Policy
+          </a>{" "}
+          and{" "}
+          <a href="#" className="hover:underline text-[#D47249]">
+            Terms of Service
+          </a>{" "}
+          apply.
+        </p>
       </div>
     </div>
   );
