@@ -26,7 +26,7 @@ export default function HomePage() {
           {user ? (
             <div className="space-y-4">
               <p className="text-xl text-gray-600">
-                Hello, {user.displayName || user.email}! You're successfully logged in.
+                Hello, {user.displayName || user.email}! You&apos;re successfully logged in.
               </p>
               <div className="bg-white rounded-lg shadow-sm p-6 max-w-md mx-auto">
                 <h2 className="text-lg font-semibold mb-2">Your Account</h2>

@@ -1,5 +1,5 @@
 "use client"
-import React, { useState } from "react";
+import React, { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { FcGoogle } from "react-icons/fc";
 import { FaApple } from "react-icons/fa";
@@ -9,7 +9,7 @@ import { sendResetEmail } from "../firebase/auth";
 import { getFirebaseAuth } from "../firebase/client";
 import { confirmPasswordReset } from "firebase/auth";
 
-export default function ForgotPass() {
+function ForgotPassContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -166,5 +166,13 @@ export default function ForgotPass() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function ForgotPass() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+      <ForgotPassContent />
+    </Suspense>
   );
 }
