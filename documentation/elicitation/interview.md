@@ -147,7 +147,7 @@ The full audio interview is available here:
 
 ---
 
-## Interview 10 – Professor
+## Interview 10 – Student
 **Q1:** I read academic and leisure books.  
 **Q2:** I sign up via email; sometimes I use social login. Password recovery works fine.  
 **Q3:** Analytics for trends, AI summaries, and adaptive learning recommendations are valuable.  
