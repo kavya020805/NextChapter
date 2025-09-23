@@ -28,7 +28,7 @@ As a registered user, I want to log in securely with my credentials so that I ca
 
 ### User Story 3: Social Login  
 **Front of the card:**  
-As a user, I want to sign in using my social media accounts, so that I can log in quickly without creating a new password.  
+As a user, I want to log in using my social accounts (Google, Facebook, etc.), and still receive the same security notifications (e.g., suspicious login, new device) as with standard login.  
 
 **Back of the card:**  
 - Support Google and Apple login via OAuth.  
@@ -52,7 +52,7 @@ As a user who has forgotten my password, I want to reset it via email verificati
 
 ### User Story 5: Secure SignOut  
 **Front of the card:**  
-As a logged-in user, I want to sign out of the system so that I can ensure no one else accesses my account.  
+As a user, I want to securely sign out from all devices, ensuring that even if "Remember Me" was enabled, my sessions are fully terminated.  
 
 **Back of the card:**  
 - User session ends immediately on sign out.  
@@ -152,7 +152,7 @@ As an Admin, I want to add and manage author and publisher information, so that 
 
 ### User Story 13: Analytics & Trends  
 **Front of the card:**  
-As a Manager, I want to view analytics on current trends and user preferences so that I can make data-driven business decisions.  
+As an admin, I want access to analytics dashboards showing general book trends, unified under the same system that powers retention analysis, so that metrics are consistent.  
 
 **Back of the card:**  
 - System displays most viewed, and top-rated books.  
@@ -178,11 +178,11 @@ As a user, I want to open and read a book in the app so that I can enjoy the con
 
 ### User Story 15: Automatic Marking a Book as Read  
 **Front of the card:**  
-As a user, I want the system to automatically mark a book as "Read" when I finish reading.  
+As a user, I want books to be marked "Completed" only when I reach the last page/chapter, with an option to manually override if I skip or abandon a book.  
 
 **Back of the card:**  
 - When the user reaches the last page of the book, its status is auto-updated to "Read" in Firestore.  
-- The book immediately appears in the “Books Read” section of the profile.  
+- The book immediately appears in the “Books Read” section of the profile. 
 - The user can manually revert the status if marked incorrectly.  
 - A confirmation toast/notification is shown to inform the user.  
 
@@ -252,7 +252,7 @@ As an end user, I want to write and upload detailed reviews of books I read, so 
 
 ### User Story 21: Discussing About the Book  
 **Front of the card:**  
-As an end user, I want to participate in discussions and comment on books I read, so that I can exchange perspectives.  
+As a user, I want to participate in book discussions, knowing that moderation rules and transparent community voting help prevent abuse and false reports.  
 
 **Back of the card:**  
 - The user can comment on books or reviews.  
@@ -299,7 +299,7 @@ As a reader, I want to browse books by specific genres, so that I can discover n
 
 ### User Story 25: Basic Search  
 **Front of the Card:**  
-As a reader, I want to search for books by title or author’s name, so that I can find exactly what I'm looking for.  
+As a user, I want a simple search box that gives me broad results, with an option to "Refine Results" using advanced filters.
 
 **Back of the Card:**  
 - Search bar available on header.  
@@ -310,7 +310,7 @@ As a reader, I want to search for books by title or author’s name, so that I c
 
 ### User Story 26: View Trending Books  
 **Front of the Card:**  
-As a reader, I want to see what’s currently trending, so that I can stay up-to-date with popular books.  
+As a user, I want to see a list of trending books, distinct from new releases, with badges highlighting overlaps.  
 
 **Back of the Card:**  
 - "Trending Now" section on homepage.  
@@ -321,7 +321,7 @@ As a reader, I want to see what’s currently trending, so that I can stay up-to
 
 ### User Story 27: Find New Releases  
 **Front of the Card:**  
-As a reader, I want a section for "New Releases," so that I can keep up with the latest books.  
+As a user, I want to see newly released books as a separate section, but if a new release is also trending, it should show with a special badge instead of duplication.
 
 **Back of the Card:**  
 - "New Releases" link on homepage.  
@@ -332,7 +332,7 @@ As a reader, I want a section for "New Releases," so that I can keep up with the
 
 ### User Story 28: Subscribing to a Plan  
 **Front of the card:**  
-As a user, I want to subscribe to a plan so that I can access premium features.  
+As a user, I want a seamless upgrade option from trial to paid plan, with transparent comparisons so I understand what I gain.
 
 **Back of the card:**  
 - Subscription page shows available plans.  
@@ -356,7 +356,7 @@ As an admin, I want to manage subscription details so that plans and pricing rem
 
 ### User Story 30: Completing Secure Payments  
 **Front of the card:**  
-As a user, I want to complete my payment securely so that my financial details remain safe.  
+As a user, I want secure payment processing where transactions are logged with statuses (Pending, Failed, Successful) for accuracy.
 
 **Back of the card:**  
 - Payment through a secure gateway.  
@@ -380,7 +380,7 @@ As an admin, I want to monitor and verify payments so that all transactions rema
 
 ### User Story 32: Viewing Order History  
 **Front of the card:**  
-As a user, I want to check my previous subscription orders so that I can track my payments and renewals.  
+As a user, I want an order history that shows all my transactions, including failed or pending payments, so I have full clarity.  
 
 **Back of the card:**  
 - Profile shows order history.  
@@ -404,7 +404,7 @@ As an admin, I want to maintain accurate order history so that users always see 
 
 ### User Story 34: Analyzing Retention Data  
 **Front of the card:**  
-As an admin, I want to analyze retention data so that I can improve subscription renewals and reduce churn.  
+As an admin, I want detailed insights into user retention using the same unified analytics warehouse, with options to filter between retention-specific and general trends.
 
 **Back of the card:**  
 - Retention data available in analytics module.  
@@ -509,7 +509,7 @@ As a user, I want streaks and challenges so that I stay motivated to read more.
 
 ### User Story 43 – Adaptive Learning Recommendations  
 **Front of the card:**  
-As a user, I want AI to suggest books outside my usual genres so that I can try new topics.  
+As a user, I want long-term, personalized book suggestions that refine smart suggestions using my reading history and behavior.  
 
 **Back of the card:**  
 - AI detects gaps in reading behaviour.  
@@ -521,7 +521,7 @@ As a user, I want AI to suggest books outside my usual genres so that I can try 
 
 ### User Story 44 – Remember User  
 **Front of the card:**  
-As a user, I want a "Remember me" option so that I don’t need to log in every time I return to the app.  
+As a user, I want a "Remember Me" option that saves my login for convenience, but this should not override secure sign-out. If I sign out, all remembered sessions are invalidated.  
 
 **Back of the card:**  
 - Checkbox option on the login screen for session persistence.  
@@ -533,7 +533,7 @@ As a user, I want a "Remember me" option so that I don’t need to log in every 
 
 ### User Story 45 – Bulk Operations for Book Upload  
 **Front of the card:**  
-As an admin, I want to upload multiple books at once so that I can save time when updating the catalog.  
+As an admin, I want to upload books in bulk, and each book in the batch should pass through AI-powered moderation before being published.
 
 **Back of the card:**  
 - Support for bulk CSV/Excel uploads.  
@@ -545,7 +545,7 @@ As an admin, I want to upload multiple books at once so that I can save time whe
 
 ### User Story 46 – AI-Powered Content Moderation  
 **Front of the card:**  
-As an admin, I want AI to pre-flag inappropriate reviews so that moderation is faster and more efficient.  
+As an admin, I want AI moderation to automatically review books, even during bulk uploads, so that no content skips approval.  
 
 **Back of the card:**  
 - AI scans new reviews before publishing.  
@@ -581,7 +581,7 @@ As an admin, I want moderation tools for discussions so that I can maintain a sa
 
 ### User Story 49 – Advanced Search Filters  
 **Front of the card:**  
-As a reader, I want advanced filters in search so that I can refine my results more precisely.  
+As a user, I want advanced filters to refine my search results, seamlessly extending the basic search engine rather than using a separate one.
 
 **Back of the card:**  
 - Filters for year, language, publisher, and price.  
@@ -593,7 +593,7 @@ As a reader, I want advanced filters in search so that I can refine my results m
 
 ### User Story 50 – Trial/Free Plans  
 **Front of the card:**  
-As a user, I want the option of a trial or free plan so that I can explore premium features before committing.  
+As a user, I want to explore books with a free trial plan, and when the trial ends, I should see a clear upgrade path with subscription benefits explained. 
 
 **Back of the card:**  
 - Free trial available for 1month.  
@@ -605,7 +605,7 @@ As a user, I want the option of a trial or free plan so that I can explore premi
 
 ### User Story 51 – Reporting Inappropriate Content  
 **Front of the card:**  
-As a user, I want to report inappropriate reviews or comments so that the admin can take quick action against them.  
+As a user, I want to report inappropriate posts, with community voting and moderation filters ensuring fair handling before admin action.  
 
 **Back of the card:**  
 - Each review/comment has a “Report” option.  
@@ -617,7 +617,7 @@ As a user, I want to report inappropriate reviews or comments so that the admin 
 
 ### User Story 52 – Continue Reading Shortcut  
 **Front of the card:**  
-As a user, I want a “Continue Reading” option on my homepage so that I can quickly resume my last-read book.  
+As a user, I want to resume exactly where I left off, even if a book was mistakenly marked as read, by using the "Continue Reading" feature.  
 
 **Back of the card:**  
 - Homepage shows the last-read book with a progress bar.  
