@@ -5,46 +5,58 @@
 ### Stakeholders Identified
 
 #### Primary Users – Readers/Students
-- **How Identified:** From surveys (Google Forms) and student interview
+- **How Identified:** Recognized as the main audience for an online book store and reader system, since students and readers form the majority of book consumers in both academic and casual contexts
 - **Role & Needs:** Want easy access to books, personalized suggestions, summaries, and features such as inbuilt dictionaries, bookmarks, and AI-powered assistants. They are the largest and most important user group
 - **Elicitation Evidence:**
   - Survey respondents frequently mentioned frustration with fake PDFs, unsafe download links, wrong editions, and distracting ads
   - Student interview highlighted difficulty locating books in RC, long waiting lists, poor physical conditions, and need for one-click reservations
 
 #### Librarians & Academic Staff
-- **How Identified:** Through direct interview with the RC librarian
+- **How Identified:** They are involved in the management of book inventories and circulation in both physical and digital formats, making them critical stakeholders
 - **Role & Needs:** Manage catalogues, book metadata, availability, and track circulation. Require a system that reduces manual record-keeping and ensures better accuracy of holdings
 - **Elicitation Evidence:**
   - Librarian complained about outdated OPAC, missing books, and manual dependency
   - Requested a digitized catalogue and better reservation systems
 
 #### Administrators / System Managers
-- **How Identified:** Derived from both librarian interview and survey responses requiring management of reviews, editions, subscriptions, payments, and analytics
+- **How Identified:** Responsible for overseeing platform operations, managing users, and ensuring overall system reliability, which makes them central to governance.
 - **Role & Needs:** Maintain the system, ensure quality control, manage users, books, authors, and publishers. Require dashboards for analytics and oversight
 
 #### Authors & Publishers
-- **How Identified:** Inferred from survey feedback on wrong editions, incomplete books, and poor formatting
-- **Role & Needs:** Ensure correct versions are available, manage copyrights, and publish content securely
+- **How Identified:** Directly connected to content creation and distribution, they ensure the availability of legitimate and high quality books.
+- **Role & Needs:** Ensure correct versions are available, manage copyrights, and publish content securely. They will require data analytics from the website to improve their publications.
 
 
 
 ### Elicitation Techniques Used & How Applied
 
 #### Survey (Questionnaire via Google Forms)
-- **Why Used:** To capture diverse opinions from a wide audience quickly and with minimal resource.
-- **How Applied:** Questions targeted book formats, device preferences, frustrations, desired features, and opinions on AI support
+- **Why Used:** To efficiently gather quantitative and qualitative insights from a large and diverse audience. Surveys provide structured data that can reveal common trends, user frustrations, and feature requests.
+- **How Applied:**
+  - Designed questions covering preferred book formats, reading devices, frequency of reading, frustrations with current book sources, and desired features.
+  - Included multiple-choice, Likert scale, and open-ended questions to capture both measurable data and detailed opinions.
+  - Distributed online to reach a wider audience beyond the immediate academic community.
 - **Outcome:**
   - Identified pain points: unsafe links, lack of free editions, confusing discovery process, excessive ads
   - Identified desired features: inbuilt dictionary, AI summaries, image generation, audiobooks, personalized recommendations
-  - Stakeholders Identified: Casual readers, digital book users, audiobook listeners
+  - Helped prioritize system functionality based on user demand
+  - Subclassifcation of Stakeholders Identified: Casual readers, digital book users, audiobook listeners
 
-####  Interviews (Librarian & Student)
-- **Why Used:** To gain in-depth qualitative insights and context behind survey responses
-- **How Applied:** Used open-ended questions about borrowing issues, frustrations with physical libraries, expectations from online systems, and thoughts on AI features
+####  Interviews (Librarian, Author, and Students)
+- **Why Used:** To gain deeper qualitative understanding of user needs and operational challenges that surveys alone cannot capture. Interviews provide context, anecdotes, and insights into workflow inefficiencies and content creation concerns.
+- **How Applied:**
+  - Conducted semi-structured interviews with open-ended questions to encourage detailed responses.
+  - Librarian: Focused on day-to-day library operations, cataloguing issues, borrowing challenges, and workflow inefficiencies.
+  - Multiple Students: Explored difficulties locating books, waiting times, device preferences, and expectations for digital reading and personalization features. Patterns and common pain points were noted across respondents.
+  - Authors: Discussed content accuracy, correct editions, metadata management, and expectations for online publication.
+All interviews also explored thoughts on AI, automation, and personalized reading experiences.
+
 - **Outcome:**
   - Librarian revealed systemic issues: inaccurate OPAC, lost books, damaged copies
-  - Student shared frustrations about waiting lists, poor physical condition of books, and suggested features like one-click reservations and AI-based recommendations
-  - Stakeholders Identified: Academic staff and regular student readers
+  - Students shared frustrations about waiting lists, poor physical condition of books, and suggested features like one-click reservations and AI-based recommendations
+  - Helped prioritize system functionality based on user demand
+  - Some more users Identified: Academic staff and regular student readers
+  - Librarian highlighted systemic issues: outdated catalogues, missing books, and manual dependency.
 
 #### Observation (Research of Resources Online)
 - **Why Used:** To explore common practices, features, and challenges in existing online bookstores and book readers.
@@ -53,6 +65,21 @@
   - Identified standard features such as catalog browsing, search filters, reviews, and subscription models.
   - Highlighted recurring issues like poor recommendation accuracy, limited offline access, and payment-related frustrations.
   - Revealed emerging expectations around AI features, accessibility (fonts, modes), and multi-device sync.
+ 
+#### Brainstorming (Project Team Collaboration)
+- **Why Used:** To collaboratively identify, discuss, and finalize the key features, UI/UX decisions, and technical choices for the NextChapter platform. This allowed the project team to prioritize features based on feasibility and user impact.
+- **How Applied:** Conducted multiple brainstorming sessions with developers, designers, and analysts. Ideas were generated, debated, and either finalized, accepted, deferred, or rejected.
+  - Session 1 – Platform & Access Model: Subscription model, online book reading platform, and basic user/admin login & profiles were finalized.
+  - Session 2 – Feature Exploration: Finalized features include books catalogue, AI recommendations, AI summaries, AI image generation, personalization, AI chatbot, wishlist/mark-as-read, streaks/challenges, admin analytics, and user behavior tracking. AI translation and vocabulary search were deferred; book downloads were rejected.
+  - Session 3 – UI/UX & Technical Decisions: Light warm colour theme finalized; Firebase chosen as the database; light/dark/reading mode discussed for refinement later.
+
+- **Outcome:**
+  - Adopted Model: Subscription-based, online reading platform
+  - Core Features Finalized: User/Admin login & profiles, books catalogue with search/filtering, AI-powered recommendations, summaries, chatbot, personalization, image generation, gamification (streaks/challenges), wishlist & reading tracker, analytics for admin & users, controlled offline access
+  - UI/UX & Technical Choices: Light warm colour theme; Firebase database
+  - More Subclassifications of Stakeholders Identified: Project team (developers, designers, analysts)
+ 
+
 
 
 ## 3. Identify Functional Requirements (FRs) & Non-Functional Requirements (NFRs)
@@ -122,7 +149,7 @@
 - Easy updates to catalogue, editions, and metadata
 - **Elicitation Source:** Librarian requirement for less manual management
 
-### Artefacts Produced
+### Artefacts Noted
 - **Survey Dataset (Quantitative Evidence)** – Google Form responses
 - **Interview Transcripts (Qualitative Evidence)** – Librarian + student interviews
 - **Observation Notes** – On-site library walkthrough
@@ -130,43 +157,20 @@
 - **Personas** – Student Reader, Casual Digital Reader, Librarian, Administrator
 - **User Stories** – Already written, validated against elicitation results
 
-## Differences & Gaps Between Elicitation Data and User Stories
 
-### Search & Discovery
-
-
-### Reading Features
-- Elicitation included offline reading and continue reading shortcut, which are present in the stories
-- Some users wanted read-aloud / audio features (conversion to audiobook-like reading), which isn't in the stories
-- Highlighting, bookmarking, notes, and syncing are well-covered
-
-### Community & Social
-- Elicitation mentioned discussion forums, commenting, and sharing experiences → reflected in "discussions," "comments," and "reporting content"
-- But elicitation also suggested friend/follower features or book clubs, which don't appear in the stories
-
-### AI Features
-- Stories cover AI suggestions, summaries, image generation, adaptive learning recommendations, and digests
-- But elicitation also hinted at AI automating repetitive admin tasks (e.g., cataloging, metadata entry, or recommending purchase decisions for physical libraries), which isn't included in the user stories
-
-### Subscription & Payments
-- User stories include subscriptions, trials, payments, retention, and order history
-- From elicitation: some users mentioned frustration with hidden costs / pricing transparency → this isn't directly addressed in stories (maybe needs a user story for "clear plan transparency")
-
-### Notifications & Alerts
-- User stories have personalized notifications and admin broadcast notifications
-- Elicitation also mentioned wanting reminders to finish books (like nudges for inactive readers), which isn't included
-
-### Accessibility & UI Preferences
-- Some elicitation feedback asked for customizable reading modes (dark mode, fonts, dyslexia-friendly features). This is missing from the user stories
 
 ## Data Sources & References
 
-### Interview Transcription
+### Interviews Transcription and Audio
 - **File:** [Interview Transcription Document](https://docs.google.com/document/d/1mjiYrRuteAumUyz2FEPEEhUJZaq33pdh--r6bB1W0Ho/edit?usp=sharing)
 
 
 ### Survey Responses Dataset
 - **File:** [Survey Responses Spreadsheet](https://docs.google.com/spreadsheets/d/1t97h9EEFIMxAgdlXUpb7ohQJUHxxEZC30ZY06N2Nhdg/edit?usp=sharing)
+
+### Brainstorming Report Document
+- **File:** 
+  https://docs.google.com/document/d/1MJYVDuJ5MjT6kmxLBwk-GQpTeD28-90QEy0y8CwYvqg/edit?usp=sharing
 
 ### Elicitaion Research  File
 - **File:** https://docs.google.com/document/d/1cdiv76S4NJ5MWUvdIfUBhMkS664w70jJWg4Fk4mIAyU/edit?tab=t.0#heading=h.2tx37yetbfjy
