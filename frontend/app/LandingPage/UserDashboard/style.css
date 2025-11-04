@@ -1,0 +1,24 @@
+body {
+  scroll-behavior: smooth;
+}
+
+.genre-btn.active {
+  background-color: #b4512f;
+  color: white;
+  border: none;
+}
+
+
+#userProfileBtn {
+  transition: transform 0.2s ease;
+}
+#userProfileBtn:hover {
+  transform: scale(1.1);
+}
+
+#bookGrid > div {
+  perspective: 1000px;
+  will-change: transform;
+}
+
+

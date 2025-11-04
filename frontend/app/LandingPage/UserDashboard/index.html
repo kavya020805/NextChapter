@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Dashboard | Next Chapter</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="style.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600&family=Inter&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+
+</head>
+<body class="bg-[#fef9f4] text-[#2c2c2c] font-['Inter'] min-h-screen">
+
+  <!-- Navbar -->
+  <header class="flex justify-between items-center px-8 py-4 bg-white shadow-sm sticky top-0 z-50">
+    <div class="flex items-center space-x-3">
+      <!--Logo-->
+      <img src="assets/logo/NextChapter_logo.png" 
+           alt="Next Chapter Logo" 
+           class="w-12 h-12 object-contain">
+    </div>
+
+     <!-- Right side: Search bar + User icon -->
+  <div class="flex items-center space-x-4">
+    <input type="text" id="searchBar" placeholder="Search books, authors..." 
+      class="px-4 py-2 rounded-lg border border-gray-300 focus:ring-2 focus:ring-[#b4512f] outline-none w-72">
+    
+    <!-- User Icon -->
+    <button id="userProfileBtn" class="text-[#b4512f] text-2xl hover:text-[#a34423]">
+      <i class="fa-solid fa-user"></i>
+    </button>
+  </div>
+  </header>
+
+  <!-- Browse Section -->
+  <section class="px-10 py-6">
+    <h2 class="text-2xl font-semibold mb-4">Browse Books</h2>
+    <div class="flex flex-wrap gap-3">
+      <button class="genre-btn bg-[#b4512f] text-white px-4 py-2 rounded-full hover:bg-[#a34423]" data-genre="All">All</button>
+      <button class="genre-btn border border-[#b4512f] text-[#b4512f] px-4 py-2 rounded-full hover:bg-[#f8ebe4]" data-genre="Fiction">Fiction</button>
+      <button class="genre-btn border border-[#b4512f] text-[#b4512f] px-4 py-2 rounded-full hover:bg-[#f8ebe4]" data-genre="Science">Science</button>
+      <button class="genre-btn border border-[#b4512f] text-[#b4512f] px-4 py-2 rounded-full hover:bg-[#f8ebe4]" data-genre="Romance">Romance</button>
+      <button class="genre-btn border border-[#b4512f] text-[#b4512f] px-4 py-2 rounded-full hover:bg-[#f8ebe4]" data-genre="Mystery">Mystery</button>
+      <button class="genre-btn border border-[#b4512f] text-[#b4512f] px-4 py-2 rounded-full hover:bg-[#f8ebe4]" data-genre="Fantasy">Fantasy</button>
+    </div>
+  </section>
+
+  <!-- Books Grid -->
+  <main id="bookGrid" class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 px-10 py-4"></main>
+
+  <!-- Book Details Modal -->
+<div id="bookModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+  <div class="bg-white rounded-2xl shadow-lg p-6 w-11/12 md:w-2/3 lg:w-1/2 relative">
+    <button id="closeModal" class="absolute top-3 right-4 text-gray-500 text-2xl">&times;</button>
+    
+    <div class="flex flex-col md:flex-row gap-6">
+      <img id="modalCover" src="" alt="" class="w-40 h-56 object-cover rounded-lg">
+      <div>
+        <h3 id="modalTitle" class="text-2xl font-semibold mb-2"></h3>
+        <p id="modalAuthor" class="text-gray-600 mb-3"></p>
+        <p id="modalSummary" class="text-sm text-gray-700 leading-relaxed mb-4"></p>
+
+        <div class="flex flex-wrap gap-3">
+          <button id="addToLibrary" class="bg-[#b4512f] text-white px-4 py-2 rounded-lg hover:bg-[#a34423]">Add to Library</button>
+          <button id="startReading" class="border border-[#b4512f] text-[#b4512f] px-4 py-2 rounded-lg hover:bg-[#f8ebe4]">Start Reading</button>
+          <button id="downloadBook" class="border border-green-600 text-green-600 px-4 py-2 rounded-lg hover:bg-green-50">Download</button>
+        </div>
+
+        <!-- Rating + Review -->
+        <div class="mt-6">̥
+          <h4 class="font-semibold text-lg mb-2">Rate & Review</h4>
+          <div id="ratingStars" class="flex space-x-1 text-2xl text-gray-400 cursor-pointer">
+            <i class="fa-solid fa-star" data-value="1"></i>
+            <i class="fa-solid fa-star" data-value="2"></i>
+            <i class="fa-solid fa-star" data-value="3"></i>
+            <i class="fa-solid fa-star" data-value="4"></i>
+            <i class="fa-solid fa-star" data-value="5"></i>
+          </div>
+          <textarea id="reviewText" placeholder="Write your review..." class="mt-3 w-full border rounded-md p-2 text-sm focus:ring-1 focus:ring-[#b4512f]"></textarea>
+          <button id="submitReview" class="mt-2 bg-[#b4512f] text-white px-4 py-2 rounded-md hover:bg-[#a34423]">Submit Review</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reviews List -->
+    <div class="mt-6 border-t pt-4">
+      <h4 class="text-lg font-semibold mb-2">Reviews</h4>
+      <ul id="reviewList" class="text-sm text-gray-600 space-y-2"></ul>
+    </div>
+  </div>
+</div>
+
+
+  <!-- eBook Reader Modal -->
+<div id="readerModal" class="hidden fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center z-50">
+  <div class="bg-white rounded-lg shadow-lg w-11/12 md:w-3/4 lg:w-2/3 h-[85vh] relative flex flex-col">
+    <button id="closeReader" class="absolute top-3 right-4 text-gray-500 text-2xl">&times;</button>
+    
+    <!-- Reader Header -->
+    <div class="flex justify-between items-center p-3 border-b">
+      <h3 id="readerBookTitle" class="text-lg font-semibold text-[#b4512f]"></h3>
+      <div class="flex space-x-3 items-center">
+        <span id="progressText" class="text-sm text-gray-600 ">Progress: 0%</span>
+        <button id="bookmarkBtn" class="text-[#b4512f] hover:text-[#a34423]" title="Bookmark Page">
+          <i class="fa-solid fa-bookmark"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Reader Content -->
+    <iframe id="ebookFrame" src="" class="w-full flex-grow rounded-b-lg"></iframe>
+
+    <!-- Notes Section -->
+    <div class="border-t p-3 bg-gray-50">
+      <textarea id="highlightNote" placeholder="Add a highlight or note..." class="w-full p-2 border rounded-md text-sm"></textarea>
+      <button id="saveNoteBtn" class="mt-2 bg-[#b4512f] text-white px-3 py-1 rounded-md hover:bg-[#a34423]">Save Note</button>
+      <ul id="notesList" class="mt-3 text-sm text-gray-700 space-y-1"></ul>
+    </div>
+  </div>
+</div>
+
+
+
+  <script type="module" src="script.js"></script>
+</body>
+</html>
