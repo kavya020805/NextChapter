@@ -10,27 +10,16 @@ function Header() {
     <header className="bg-white/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-gray-100 dark:border-gray-800 sticky top-0 z-50 shadow-sm transition-colors duration-300">
       <div className="max-w-7xl mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
-          {/* Left Side - Sign In and Toggle */}
-          <div className="hidden md:flex items-center space-x-4">
-            <button className="text-gray-700 dark:text-gray-300 hover:text-coral dark:hover:text-coral font-medium transition-colors">
-              Sign In
-            </button>
-            
-            {/* Dark Mode Toggle */}
-            <button 
-              onClick={toggleTheme}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              aria-label="Toggle dark mode"
-            >
-              {isDark ? (
-                <Sun className="w-6 h-6 text-gray-300" />
-              ) : (
-                <Moon className="w-6 h-6 text-gray-700" />
-              )}
-            </button>
-          </div>
+          {/* Logo */}
+          <a href="#home" className="flex items-center">
+            <img 
+              src={isDark ? "/Union-dark.svg" : "/Union.svg"} 
+              alt="NextChapter Logo" 
+              className="h-8 w-auto transition-opacity duration-300"
+            />
+          </a>
           
-          {/* Center Navigation */}
+          {/* Desktop Navigation - Centered */}
           <nav className="hidden md:flex items-center space-x-8 absolute left-1/2 transform -translate-x-1/2">
             <a href="#home" className="text-gray-700 dark:text-gray-300 hover:text-coral dark:hover:text-coral font-medium transition-colors">
               Home
@@ -43,17 +32,28 @@ function Header() {
             </button>
           </nav>
 
-          {/* Logo - Right Side */}
-          <a href="#home" className="flex items-center ml-auto md:ml-0">
-            <img 
-              src={isDark ? "/Union-dark.svg" : "/Union.svg"} 
-              alt="NextChapter Logo" 
-              className="h-12 w-auto transition-opacity duration-300"
-            />
-          </a>
+          {/* Right Side Actions */}
+          <div className="hidden md:flex items-center space-x-4">
+            <button className="text-gray-700 dark:text-gray-300 hover:text-coral dark:hover:text-coral font-medium transition-colors">
+              Sign In
+            </button>
+            
+            {/* Dark Mode Toggle */}
+            <button 
+              onClick={toggleTheme}
+              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              aria-label="Toggle dark mode"
+            >
+              {isDark ? (
+                <Sun className="w-5 h-5 text-gray-300" />
+              ) : (
+                <Moon className="w-5 h-5 text-gray-700" />
+              )}
+            </button>
+          </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center space-x-2 ml-4">
+          <div className="md:hidden flex items-center space-x-2">
             <button 
               onClick={toggleTheme}
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
