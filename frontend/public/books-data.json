@@ -1,0 +1,32 @@
+[
+  {
+    "id": "gutendex_31552",
+    "title": "Novo dicionário da língua portuguesa",
+    "author": "Figueiredo, Cândido de",
+    "description": "Portuguese language -- Dictionaries",
+    "pdfUrl": "/pdfs/31552-pdf.pdf",
+    "coverUrl": "https://www.gutenberg.org/cache/epub/31552/pg31552.cover.medium.jpg",
+    "subjects": [
+      "Portuguese language -- Dictionaries"
+    ],
+    "languages": [
+      "pt"
+    ],
+    "downloadCount": 10705
+  },
+  {
+    "id": "gutendex_33283",
+    "title": "Calculus Made Easy: Being a very-simplest introduction to those beautiful methods which are generally called by the terrifying names of the Differential Calculus and the Integral Calculus",
+    "author": "Thompson, Silvanus P. (Silvanus Phillips)",
+    "description": "Calculus",
+    "pdfUrl": "/pdfs/33283-pdf.pdf",
+    "coverUrl": "https://www.gutenberg.org/cache/epub/33283/pg33283.cover.medium.jpg",
+    "subjects": [
+      "Calculus"
+    ],
+    "languages": [
+      "en"
+    ],
+    "downloadCount": 14119
+  }
+]

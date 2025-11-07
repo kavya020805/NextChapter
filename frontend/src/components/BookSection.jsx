@@ -7,7 +7,7 @@ function BookCard({ book }) {
         <img
           src={book.cover}
           alt={book.title}
-          className="w-full aspect-[2/3] object-cover group-hover:scale-105 transition-transform duration-300"
+          className="w-full aspect-2/3 object-cover group-hover:scale-105 transition-transform duration-300"
         />
         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
           <p className="text-white font-semibold text-sm text-center px-4">
