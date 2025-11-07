@@ -623,7 +623,7 @@ Provide helpful, concise responses about the book considering the context of the
       <div className="reader-main">
         <div className="reader-header">
           <div className="reader-header-left">
-            <Link to="/gallery-local" className="back-btn">← Back to Library</Link>
+            <Link to="/books" className="back-btn">← Back to Library</Link>
             <h1 className="book-title">{bookTitle || 'Loading…'}</h1>
           </div>
           <button className="dark-mode-toggle" onClick={toggleDarkMode}>
