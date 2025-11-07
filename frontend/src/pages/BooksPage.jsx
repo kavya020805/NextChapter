@@ -1,39 +1,42 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../components/Header'
-import { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Search } from 'lucide-react'
 
 function BooksPage() {
-  const [books, setBooks] = useState([])
+  const [allBooks, setAllBooks] = useState([])
+  const [filteredBooks, setFilteredBooks] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [page, setPage] = useState(1)
-  const [hasNext, setHasNext] = useState(false)
-  const [hasPrev, setHasPrev] = useState(false)
-  const [count, setCount] = useState(0)
 
   useEffect(() => {
     loadBooks()
-  }, [page])
+  }, [])
 
-  const buildUrl = () => {
-    const params = new URLSearchParams()
-    if (searchTerm) params.set('search', searchTerm)
-    params.set('page', page)
-    return `https://gutendex.com/books/?${params.toString()}`
-  }
+  useEffect(() => {
+    if (!searchTerm) {
+      setFilteredBooks(allBooks)
+    } else {
+      const filtered = allBooks.filter(book => 
+        book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        book.subjects?.some(subject => subject.toLowerCase().includes(searchTerm.toLowerCase()))
+      )
+      setFilteredBooks(filtered)
+    }
+  }, [searchTerm, allBooks])
 
   const loadBooks = async () => {
     setLoading(true)
     try {
-      const res = await fetch(buildUrl())
-      if (!res.ok) throw new Error('Network error')
-      const data = await res.json()
+      const response = await fetch('/books-data.json')
+      if (!response.ok) {
+        throw new Error('books-data.json not found')
+      }
       
-      setBooks(data.results || [])
-      setHasNext(!!data.next)
-      setHasPrev(!!data.previous)
-      setCount(data.count || 0)
+      const booksData = await response.json()
+      setAllBooks(booksData)
+      setFilteredBooks(booksData)
     } catch (e) {
       console.error('Failed to load books:', e)
     } finally {
@@ -43,8 +46,6 @@ function BooksPage() {
 
   const handleSearch = (e) => {
     e.preventDefault()
-    setPage(1)
-    loadBooks()
   }
 
   return (
@@ -74,37 +75,8 @@ function BooksPage() {
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="bg-transparent border-none outline-none ml-3 w-full text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400"
                 />
-                <button
-                  type="submit"
-                  className="bg-coral hover:bg-pink-500 text-white px-6 py-2 rounded-full font-semibold transition-all duration-300"
-                >
-                  Search
-                </button>
               </div>
             </form>
-            
-            {/* Pagination */}
-            <div className="flex items-center justify-center gap-4 mt-8">
-              <button
-                onClick={() => setPage(p => Math.max(1, p - 1))}
-                disabled={!hasPrev}
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border border-white/30 px-6 py-2 rounded-full font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <ChevronLeft className="w-5 h-5" />
-                <span>Previous</span>
-              </button>
-              <span className="text-white font-medium px-4 py-2 bg-white/10 backdrop-blur-sm rounded-full">
-                Page {page}
-              </span>
-              <button
-                onClick={() => setPage(p => p + 1)}
-                disabled={!hasNext}
-                className="flex items-center space-x-2 bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border border-white/30 px-6 py-2 rounded-full font-semibold transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span>Next</span>
-                <ChevronRight className="w-5 h-5" />
-              </button>
-            </div>
           </div>
         </div>
       </section>
@@ -116,38 +88,48 @@ function BooksPage() {
             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-coral"></div>
             <p className="mt-4 text-gray-600 dark:text-gray-400">Loading books...</p>
           </div>
-        ) : books.length === 0 ? (
+        ) : filteredBooks.length === 0 ? (
           <div className="text-center py-20">
-            <p className="text-xl text-gray-600 dark:text-gray-400">No books found</p>
+            <p className="text-xl text-gray-600 dark:text-gray-400">
+              {allBooks.length === 0 ? 'No books found. Please add books to books-data.json' : 'No books match your search'}
+            </p>
           </div>
         ) : (
           <>
             <div className="mb-6">
               <p className="text-gray-600 dark:text-gray-400">
-                Showing <span className="font-semibold text-coral">{books.length}</span> books
-                {count > 0 && <span> of <span className="font-semibold">{count.toLocaleString()}</span> total</span>}
+                Showing <span className="font-semibold text-coral">{filteredBooks.length}</span> books
+                {searchTerm && allBooks.length > filteredBooks.length && (
+                  <span> (filtered from <span className="font-semibold">{allBooks.length}</span> total)</span>
+                )}
               </p>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
-              {books.map((book) => (
+              {filteredBooks.map((book) => (
                 <Link
                   key={book.id}
-                  to={`/reader?id=${encodeURIComponent(book.id)}`}
+                  to={`/reader-local?id=${encodeURIComponent(book.id)}`}
                   className="group"
                 >
                   <div className="relative overflow-hidden rounded-lg shadow-md group-hover:shadow-xl transition-all duration-300">
-                    <img
-                      src={book.formats['image/jpeg'] || book.formats['image/png'] || 'https://via.placeholder.com/200x300?text=No+Cover'}
-                      alt={book.title}
-                      className="w-full aspect-2/3 object-cover group-hover:scale-105 transition-transform duration-300"
-                      loading="lazy"
-                    />
+                    {book.coverUrl ? (
+                      <img
+                        src={book.coverUrl}
+                        alt={book.title}
+                        className="w-full aspect-2/3 object-cover group-hover:scale-105 transition-transform duration-300"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full aspect-2/3 bg-gradient-to-br from-coral to-pink-500 flex items-center justify-center text-white text-6xl">
+                        📚
+                      </div>
+                    )}
                     <div className="absolute inset-0 bg-linear-to-t from-black/80 via-black/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-4">
                       <h3 className="text-white font-semibold text-sm line-clamp-2 mb-1">
                         {book.title}
                       </h3>
                       <p className="text-gray-300 text-xs line-clamp-1">
-                        {book.authors?.[0]?.name || 'Unknown Author'}
+                        {book.author || 'Unknown Author'}
                       </p>
                     </div>
                   </div>
@@ -156,7 +138,7 @@ function BooksPage() {
                       {book.title}
                     </h3>
                     <p className="text-gray-600 dark:text-gray-400 text-xs line-clamp-1">
-                      {book.authors?.[0]?.name || 'Unknown Author'}
+                      {book.author || 'Unknown Author'}
                     </p>
                   </div>
                 </Link>
