@@ -2,19 +2,10 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import { useAuth } from '../contexts/AuthContext'
-import { User, Mail, Calendar, ArrowRight, X, Edit2, Save } from 'lucide-react'
+import { User, Mail, Calendar, ArrowRight, X, Edit2, Save, ArrowUpRight } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { getUserProfile } from '../lib/personalizationUtils'
-import ReadingHeatmap from '../components/dashboard/ReadingHeatmap'
-import ReadingStats from '../components/dashboard/ReadingStats'
-import FavoriteBooks from '../components/dashboard/FavoriteBooks'
-import ChallengeProgress from '../components/dashboard/ChallengeProgress'
-import KeyStatsCards from '../components/dashboard/KeyStatsCards'
-import OngoingBooks from '../components/dashboard/OngoingBooks'
-import AchievementCard from '../components/dashboard/AchievementCard'
-import GenreChart from '../components/dashboard/GenreChart'
-import MonthlyChart from '../components/dashboard/MonthlyChart'
-import DashboardFooter from '../components/dashboard/DashboardFooter'
+import ReadingActivityCard from '../components/ReadingActivityCard'
 
 function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -23,6 +14,7 @@ function ProfilePage() {
   const [profileLoading, setProfileLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState(null)
+  const [subscriptionPlan, setSubscriptionPlan] = useState('Free')
   
   // Form state
   const [username, setUsername] = useState('')
@@ -76,6 +68,14 @@ function ProfilePage() {
         setSelectedAuthors((profile.favorite_authors || []).map(name => ({ name, key: name })))
         setSelectedGenres(profile.genres || [])
         setSelectedLanguages(profile.languages || [])
+        // Get subscription plan from profile or default to 'Free'
+        setSubscriptionPlan(profile.subscription_plan || localStorage.getItem('subscription_plan') || 'Free')
+      } else {
+        // If no profile, check localStorage for subscription
+        const storedPlan = localStorage.getItem('subscription_plan')
+        if (storedPlan) {
+          setSubscriptionPlan(storedPlan)
+        }
       }
     } catch (error) {
       console.error('Error loading profile:', error)
@@ -240,68 +240,92 @@ function ProfilePage() {
                 ) : (
                   <>
                     {/* User Info Card */}
-                    <div className="bg-white dark:bg-dark-gray border border-dark-gray/10 dark:border-white/10 p-4 mb-4">
+                    <div className="bg-dark-gray dark:bg-white border border-white/10 dark:border-dark-gray/10 p-4 mb-4">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-full border border-dark-gray dark:border-white flex items-center justify-center">
-                            <User className="w-6 h-6 text-dark-gray dark:text-white" />
+                          <div className="w-12 h-12 rounded-full border border-white dark:border-dark-gray flex items-center justify-center">
+                            <User className="w-6 h-6 text-white dark:text-dark-gray" />
                           </div>
-                          <div>
-                            <h2 className="text-lg text-dark-gray dark:text-white font-medium mb-0.5">
+                          <div className="flex-1">
+                            <h2 className="text-lg text-white dark:text-dark-gray font-medium mb-0.5">
                               {isEditing ? (
                                 <input
                                   type="text"
                                   value={username}
                                   onChange={(e) => setUsername(e.target.value)}
                                   placeholder="Username"
-                                  className="bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1 text-dark-gray dark:text-white text-lg font-medium focus:outline-none focus:border-dark-gray dark:focus:border-white"
+                                  className="w-full bg-transparent border-0 border-b border-white/20 dark:border-dark-gray/20 px-0 py-0.5 text-white dark:text-dark-gray text-lg font-medium focus:outline-none focus:border-white/40 dark:focus:border-dark-gray/40 transition-colors"
                                 />
                               ) : (
                                 profileData?.username || user.email?.split('@')[0] || 'User'
                               )}
                             </h2>
-                            <p className="text-xs text-dark-gray/60 dark:text-white/60 uppercase tracking-wider">
-                              Member
-                            </p>
+                            <div className="flex items-center gap-1.5">
+                              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider bg-white/5 dark:bg-dark-gray/5 text-white/70 dark:text-dark-gray/70 border border-white/10 dark:border-dark-gray/10">
+                                {subscriptionPlan}
+                              </span>
+                              {subscriptionPlan !== 'Premium' && (
+                                <Link
+                                  to="/subscription"
+                                  className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] text-white/70 dark:text-dark-gray/70 hover:text-white dark:hover:text-dark-gray border border-white/20 dark:border-dark-gray/20 hover:border-white/40 dark:hover:border-dark-gray/40 rounded transition-all"
+                                  title="Upgrade plan"
+                                >
+                                  Upgrade
+                                  <ArrowUpRight className="w-2.5 h-2.5" />
+                                </Link>
+                              )}
+                            </div>
                           </div>
                         </div>
-                        {!isEditing ? (
-                          <button
-                            onClick={() => setIsEditing(true)}
-                            className="flex items-center gap-2 px-3 py-1.5 border border-dark-gray dark:border-white text-dark-gray dark:text-white text-[10px] font-medium uppercase tracking-wider hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray transition-all"
-                          >
-                            <Edit2 className="w-3 h-3" />
-                            Edit
-                          </button>
-                        ) : (
-                          <button
-                            onClick={handleSave}
-                            disabled={loading}
-                            className="flex items-center gap-2 px-3 py-1.5 bg-dark-gray dark:bg-white text-white dark:text-dark-gray text-[10px] font-medium uppercase tracking-wider hover:opacity-80 transition-opacity disabled:opacity-50"
-                          >
-                            <Save className="w-3 h-3" />
-                            Save
-                          </button>
-                        )}
+                        <div className="flex items-center gap-1.5">
+                          {isEditing ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  setIsEditing(false)
+                                  loadProfile()
+                                }}
+                                className="px-2 py-1 text-[10px] text-white/60 dark:text-dark-gray/60 hover:text-white dark:hover:text-dark-gray transition-colors"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                onClick={handleSave}
+                                disabled={loading}
+                                className="px-2 py-1 text-[10px] text-white/70 dark:text-dark-gray/70 hover:text-white dark:hover:text-dark-gray transition-colors disabled:opacity-50"
+                              >
+                                {loading ? 'Saving...' : 'Save'}
+                              </button>
+                            </>
+                          ) : (
+                            <button
+                              onClick={() => setIsEditing(true)}
+                              className="p-1.5 text-white/50 dark:text-dark-gray/50 hover:text-white dark:hover:text-dark-gray transition-colors"
+                              title="Edit profile"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
                       </div>
 
                       <div className="space-y-3">
-                        <div className="flex items-center gap-3 pb-3 border-b border-dark-gray/10 dark:border-white/10">
-                          <Mail className="w-4 h-4 text-dark-gray dark:text-white" />
+                        <div className="flex items-center gap-3 pb-3 border-b border-white/10 dark:border-dark-gray/10">
+                          <Mail className="w-4 h-4 text-white dark:text-dark-gray opacity-60" />
                           <div className="flex-1">
-                            <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-0.5">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-white/60 dark:text-dark-gray/60 mb-0.5">
                               Email
                             </p>
-                            <p className="text-xs text-dark-gray dark:text-white">
+                            <p className="text-xs text-white dark:text-dark-gray">
                               {user.email}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 pb-3 border-b border-dark-gray/10 dark:border-white/10">
-                          <Calendar className="w-4 h-4 text-dark-gray dark:text-white" />
+                        <div className="flex items-center gap-3 pb-3 border-b border-white/10 dark:border-dark-gray/10">
+                          <Calendar className="w-4 h-4 text-white dark:text-dark-gray opacity-60" />
                           <div className="flex-1">
-                            <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-0.5">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-white/60 dark:text-dark-gray/60 mb-0.5">
                               Date of Birth
                             </p>
                             {isEditing ? (
@@ -309,10 +333,10 @@ function ProfilePage() {
                                 type="date"
                                 value={dateOfBirth}
                                 onChange={(e) => setDateOfBirth(e.target.value)}
-                                className="bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1 text-dark-gray dark:text-white text-xs focus:outline-none focus:border-dark-gray dark:focus:border-white"
+                                className="w-full bg-transparent border-0 border-b border-white/20 dark:border-dark-gray/20 px-0 py-0.5 text-white dark:text-dark-gray text-xs focus:outline-none focus:border-white/40 dark:focus:border-dark-gray/40 transition-colors"
                               />
                             ) : (
-                              <p className="text-xs text-dark-gray dark:text-white">
+                              <p className="text-xs text-white dark:text-dark-gray">
                                 {dateOfBirth ? new Date(dateOfBirth).toLocaleDateString('en-US', { 
                                   year: 'numeric', 
                                   month: 'long', 
@@ -324,20 +348,20 @@ function ProfilePage() {
                         </div>
 
                         {/* Gender */}
-                        <div className="pb-3 border-b border-dark-gray/10 dark:border-white/10">
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
+                        <div className="pb-3 border-b border-white/10 dark:border-dark-gray/10">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-white/60 dark:text-dark-gray/60 mb-2">
                             Gender
                           </p>
                           {isEditing ? (
-                            <div className="grid grid-cols-3 gap-2">
+                            <div className="flex gap-1.5">
                               {['Male', 'Female', 'Other'].map((option) => (
                                 <button
                                   key={option}
                                   onClick={() => setGender(option)}
-                                  className={`py-1.5 border text-[10px] font-medium uppercase tracking-wider transition-all ${
+                                  className={`px-2.5 py-1 text-[10px] font-medium tracking-wide transition-all rounded ${
                                     gender === option
-                                      ? 'bg-dark-gray dark:bg-white border-dark-gray dark:border-white text-white dark:text-dark-gray'
-                                      : 'bg-transparent border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/10 dark:hover:bg-white/10'
+                                      ? 'bg-white/10 dark:bg-dark-gray/10 text-white dark:text-dark-gray border border-white/30 dark:border-dark-gray/30'
+                                      : 'bg-transparent text-white/50 dark:text-dark-gray/50 hover:text-white dark:hover:text-dark-gray hover:bg-white/5 dark:hover:bg-dark-gray/5 border border-transparent'
                                   }`}
                                 >
                                   {option}
@@ -345,30 +369,30 @@ function ProfilePage() {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-xs text-dark-gray dark:text-white">
+                            <p className="text-xs text-white dark:text-dark-gray">
                               {gender || 'Not set'}
                             </p>
                           )}
                         </div>
 
                         {/* Favorite Authors */}
-                        <div className="pb-3 border-b border-dark-gray/10 dark:border-white/10">
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
+                        <div className="pb-3 border-b border-white/10 dark:border-dark-gray/10">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-white/60 dark:text-dark-gray/60 mb-2">
                             Favorite Authors
                           </p>
                           {isEditing ? (
                             <div className="space-y-2">
                               {selectedAuthors.length > 0 && (
-                                <div className="flex flex-wrap gap-1.5">
+                                <div className="flex flex-wrap gap-1">
                                   {selectedAuthors.map((author) => (
                                     <div
                                       key={author.key}
-                                      className="flex items-center gap-1.5 px-2 py-1 bg-dark-gray/10 dark:bg-white/10 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white text-[10px]"
+                                      className="flex items-center gap-1 px-2 py-0.5 bg-white/5 dark:bg-dark-gray/5 text-white dark:text-dark-gray text-[10px] rounded"
                                     >
                                       <span>{author.name}</span>
                                       <button
                                         onClick={() => removeAuthor(author.name)}
-                                        className="hover:opacity-70 transition-opacity"
+                                        className="hover:opacity-60 transition-opacity text-white/40 dark:text-dark-gray/40"
                                       >
                                         <X className="w-2.5 h-2.5" />
                                       </button>
@@ -386,25 +410,25 @@ function ProfilePage() {
                                       setShowAuthorDropdown(true)
                                     }
                                   }}
-                                  placeholder="Search authors..."
-                                  className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1.5 text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none text-[10px]"
+                                  placeholder="Add author..."
+                                  className="w-full bg-transparent border-0 border-b border-white/20 dark:border-dark-gray/20 px-0 py-1 text-white dark:text-dark-gray placeholder-white/30 dark:placeholder-dark-gray/30 focus:outline-none focus:border-white/40 dark:focus:border-dark-gray/40 text-[10px] transition-colors"
                                 />
                                 {showAuthorDropdown && (
-                                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-dark-gray border border-dark-gray dark:border-white max-h-40 overflow-y-auto">
+                                  <div className="absolute z-10 w-full mt-0.5 bg-dark-gray dark:bg-white border border-white/20 dark:border-dark-gray/20 shadow-sm max-h-36 overflow-y-auto">
                                     {loadingAuthors ? (
-                                      <div className="px-2 py-1.5 text-[10px] text-dark-gray dark:text-white">Loading...</div>
+                                      <div className="px-2 py-1.5 text-[10px] text-white/60 dark:text-dark-gray/60">Loading...</div>
                                     ) : authorSuggestions.length > 0 ? (
                                       authorSuggestions.map((author) => (
                                         <button
                                           key={author.key}
                                           onClick={() => addAuthor(author)}
-                                          className="w-full px-2 py-1.5 text-left hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors border-b border-dark-gray/10 dark:border-white/10 last:border-b-0 text-[10px] text-dark-gray dark:text-white"
+                                          className="w-full px-2 py-1.5 text-left hover:bg-white/5 dark:hover:bg-dark-gray/5 transition-colors border-b border-white/5 dark:border-dark-gray/5 last:border-b-0 text-[10px] text-white dark:text-dark-gray"
                                         >
                                           {author.name}
                                         </button>
                                       ))
                                     ) : (
-                                      <div className="px-2 py-1.5 text-[10px] text-dark-gray/60 dark:text-white/60">No authors found</div>
+                                      <div className="px-2 py-1.5 text-[10px] text-white/60 dark:text-dark-gray/60">No authors found</div>
                                     )}
                                   </div>
                                 )}
@@ -414,32 +438,32 @@ function ProfilePage() {
                             <div className="flex flex-wrap gap-1.5">
                               {selectedAuthors.length > 0 ? (
                                 selectedAuthors.map((author) => (
-                                  <span key={author.key} className="px-2 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-[10px]">
+                                  <span key={author.key} className="px-2 py-0.5 bg-white/5 dark:bg-dark-gray/5 text-white dark:text-dark-gray text-[10px] rounded">
                                     {author.name}
                                   </span>
                                 ))
                               ) : (
-                                <p className="text-xs text-dark-gray/60 dark:text-white/60">No authors added</p>
+                                <p className="text-xs text-white/60 dark:text-dark-gray/60">No authors added</p>
                               )}
                             </div>
                           )}
                         </div>
 
                         {/* Genres */}
-                        <div className="pb-3 border-b border-dark-gray/10 dark:border-white/10">
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
+                        <div className="pb-3 border-b border-white/10 dark:border-dark-gray/10">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-white/60 dark:text-dark-gray/60 mb-2">
                             Favorite Genres
                           </p>
                           {isEditing ? (
-                            <div className="grid grid-cols-2 gap-1.5">
+                            <div className="flex flex-wrap gap-1">
                               {genres.map((genre) => (
                                 <button
                                   key={genre}
                                   onClick={() => handleGenreToggle(genre)}
-                                  className={`py-1.5 border text-[10px] font-medium uppercase tracking-wider transition-all ${
+                                  className={`px-2.5 py-1 text-[10px] font-medium tracking-wide transition-all rounded ${
                                     selectedGenres.includes(genre)
-                                      ? 'bg-dark-gray dark:bg-white border-dark-gray dark:border-white text-white dark:text-dark-gray'
-                                      : 'bg-transparent border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/10 dark:hover:bg-white/10'
+                                      ? 'bg-white/10 dark:bg-dark-gray/10 text-white dark:text-dark-gray border border-white/30 dark:border-dark-gray/30'
+                                      : 'bg-transparent text-white/50 dark:text-dark-gray/50 hover:text-white dark:hover:text-dark-gray hover:bg-white/5 dark:hover:bg-dark-gray/5 border border-transparent'
                                   }`}
                                 >
                                   {genre}
@@ -450,12 +474,12 @@ function ProfilePage() {
                             <div className="flex flex-wrap gap-1.5">
                               {selectedGenres.length > 0 ? (
                                 selectedGenres.map((genre) => (
-                                  <span key={genre} className="px-2 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-[10px]">
+                                  <span key={genre} className="px-2 py-0.5 bg-white/5 dark:bg-dark-gray/5 text-white dark:text-dark-gray text-[10px] rounded">
                                     {genre}
                                   </span>
                                 ))
                               ) : (
-                                <p className="text-xs text-dark-gray/60 dark:text-white/60">No genres selected</p>
+                                <p className="text-xs text-white/60 dark:text-dark-gray/60">No genres selected</p>
                               )}
                             </div>
                           )}
@@ -463,19 +487,19 @@ function ProfilePage() {
 
                         {/* Languages */}
                         <div>
-                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-white/60 dark:text-dark-gray/60 mb-2">
                             Languages
                           </p>
                           {isEditing ? (
-                            <div className="grid grid-cols-2 gap-1.5">
+                            <div className="flex flex-wrap gap-1">
                               {languages.map((language) => (
                                 <button
                                   key={language}
                                   onClick={() => handleLanguageToggle(language)}
-                                  className={`py-1.5 border text-[10px] font-medium uppercase tracking-wider transition-all ${
+                                  className={`px-2.5 py-1 text-[10px] font-medium tracking-wide transition-all rounded ${
                                     selectedLanguages.includes(language)
-                                      ? 'bg-dark-gray dark:bg-white border-dark-gray dark:border-white text-white dark:text-dark-gray'
-                                      : 'bg-transparent border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/10 dark:hover:bg-white/10'
+                                      ? 'bg-white/10 dark:bg-dark-gray/10 text-white dark:text-dark-gray border border-white/30 dark:border-dark-gray/30'
+                                      : 'bg-transparent text-white/50 dark:text-dark-gray/50 hover:text-white dark:hover:text-dark-gray hover:bg-white/5 dark:hover:bg-dark-gray/5 border border-transparent'
                                   }`}
                                 >
                                   {language}
@@ -486,12 +510,12 @@ function ProfilePage() {
                             <div className="flex flex-wrap gap-1.5">
                               {selectedLanguages.length > 0 ? (
                                 selectedLanguages.map((language) => (
-                                  <span key={language} className="px-2 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-[10px]">
+                                  <span key={language} className="px-2 py-0.5 bg-white/5 dark:bg-dark-gray/5 text-white dark:text-dark-gray text-[10px] rounded">
                                     {language}
                                   </span>
                                 ))
                               ) : (
-                                <p className="text-xs text-dark-gray/60 dark:text-white/60">No languages selected</p>
+                                <p className="text-xs text-white/60 dark:text-dark-gray/60">No languages selected</p>
                               )}
                             </div>
                           )}
@@ -499,44 +523,14 @@ function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Dashboard Section */}
-                    <div className="space-y-4">
-                      {/* Reading Stats and Heatmap */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <ReadingStats />
-                        <ReadingHeatmap />
-                      </div>
-
-                      {/* Challenge Progress */}
-                      <ChallengeProgress target={52} />
-
-                      {/* Key Statistics Cards */}
-                      <KeyStatsCards />
-
-                      {/* Favorite Books and Ongoing Books */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <FavoriteBooks />
-                        <OngoingBooks />
-                      </div>
-
-                      {/* Achievement Card */}
-                      <AchievementCard />
-
-                      {/* Charts */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        <GenreChart />
-                        <MonthlyChart />
-                      </div>
-
-                      {/* Dashboard Footer */}
-                      <DashboardFooter />
-                    </div>
+                    {/* Reading Activity Card */}
+                    <ReadingActivityCard />
 
                     {/* Actions */}
-                    <div className="space-y-4 mt-6">
+                    <div className="space-y-4 mt-4">
                       <Link
                         to="/books"
-                        className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 py-3 text-xs font-medium uppercase tracking-wider border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
+                        className="group inline-flex items-center gap-3 bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-wider border border-dark-gray dark:border-white transition-all duration-300 hover:bg-white dark:hover:bg-dark-gray hover:text-dark-gray dark:hover:text-white overflow-hidden relative"
                       >
                         <span className="relative z-10 transition-colors duration-300">Back to Books</span>
                         <ArrowRight 
@@ -547,7 +541,7 @@ function ProfilePage() {
                       <button
                         onClick={handleSignOut}
                         disabled={loading}
-                        className="group w-full inline-flex items-center justify-center gap-3 bg-transparent border border-white dark:border-dark-gray text-white dark:text-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="group w-full inline-flex items-center justify-center gap-3 bg-transparent border border-dark-gray dark:border-white text-dark-gray dark:text-white px-6 py-3 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className="relative z-10 transition-colors duration-300">
                           {loading ? 'Signing Out...' : 'Sign Out'}
