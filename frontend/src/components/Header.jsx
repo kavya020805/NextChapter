@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
 import { Menu, X, Moon, Sun, ChevronDown, LogOut, User, UserCircle } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
@@ -6,68 +6,67 @@ import { useAuth } from '../contexts/AuthContext'
 
 function LibraryDropdown({ location }) {
   const [isOpen, setIsOpen] = useState(false)
-  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
-  const libraryFilter = searchParams.get('library') || 'all'
+  const closeTimeoutRef = useRef(null)
 
   const options = [
-    { value: 'all', label: 'All' },
-    { value: 'readinglist', label: 'Reading List' },
-    { value: 'read', label: 'Already Read' }
+    { value: 'all', label: 'All Books', path: '/books' },
+    { value: 'wishlist', label: 'Reading List', path: '/reading-list' },
+    { value: 'read', label: 'Already Read', path: '/already-read' }
   ]
 
-  const handleSelect = (value) => {
-    const newParams = new URLSearchParams(searchParams)
-    if (value === 'all') {
-      newParams.delete('library')
-    } else {
-      newParams.set('library', value)
-    }
-    
-    // Navigate to /books with the new params if not already there
-    if (location.pathname !== '/books') {
-      navigate(`/books?${newParams.toString()}`)
-    } else {
-      setSearchParams(newParams)
-    }
+  const handleSelect = (option) => {
+    navigate(option.path)
     setIsOpen(false)
   }
 
-  const currentLabel = options.find(opt => opt.value === libraryFilter)?.label || 'All'
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+    setIsOpen(true)
+  }
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false)
+    }, 200) // 200ms delay before closing
+  }
+
+  const currentOption = options.find(opt => location.pathname === opt.path) || options[0]
+  const currentLabel = currentOption.label
 
   return (
-    <div className="relative">
+    <div 
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <button
-        onClick={() => setIsOpen(!isOpen)}
         className={`text-xs font-medium uppercase tracking-widest transition-colors flex items-center space-x-2 cursor-pointer ${
           location.pathname === '/books' ? 'text-dark-gray dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-dark-gray dark:hover:text-white'
         }`}
       >
-        <span>My Library</span>
+        <span>My Shelf</span>
         <ChevronDown className={`w-3 h-3 transition-transform duration-300 ease-in-out ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
       </button>
       {isOpen && (
-        <>
-          <div 
-            className="fixed inset-0 z-10 bg-dark-gray/5 dark:bg-dark-gray/20"
-            onClick={() => setIsOpen(false)}
-            style={{ 
-              animation: 'fadeIn 0.15s ease-out',
-            }}
-          />
-          <div 
-            className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white z-20"
-            style={{ 
-              animation: 'slideDown 0.2s ease-out',
-              transformOrigin: 'top center',
-            }}
-          >
+        <div 
+          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white z-20"
+          style={{ 
+            animation: 'slideDown 0.2s ease-out',
+            transformOrigin: 'top center',
+          }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
             {options.map((option, index) => (
               <button
                 key={option.value}
-                onClick={() => handleSelect(option.value)}
+                onClick={() => handleSelect(option)}
                 className={`w-full text-left px-4 py-3 text-xs font-medium uppercase tracking-widest transition-colors duration-200 ease-out cursor-pointer border-b-2 border-dark-gray dark:border-white last:border-b-0 ${
-                  libraryFilter === option.value
+                  location.pathname === option.path
                     ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
                     : 'text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5'
                 }`}
@@ -78,8 +77,7 @@ function LibraryDropdown({ location }) {
                 {option.label}
               </button>
             ))}
-          </div>
-        </>
+        </div>
       )}
     </div>
   )
@@ -87,35 +85,22 @@ function LibraryDropdown({ location }) {
 
 function LibraryDropdownMobile() {
   const [isOpen, setIsOpen] = useState(false)
-  const [searchParams, setSearchParams] = useSearchParams()
   const navigate = useNavigate()
   const location = useLocation()
-  const libraryFilter = searchParams.get('library') || 'all'
 
   const options = [
-    { value: 'all', label: 'All' },
-    { value: 'wishlist', label: 'Wishlist' },
-    { value: 'read', label: 'Already Read' }
+    { value: 'all', label: 'All Books', path: '/books' },
+    { value: 'wishlist', label: 'Reading List', path: '/reading-list' },
+    { value: 'read', label: 'Already Read', path: '/already-read' }
   ]
 
-  const handleSelect = (value) => {
-    const newParams = new URLSearchParams(searchParams)
-    if (value === 'all') {
-      newParams.delete('library')
-    } else {
-      newParams.set('library', value)
-    }
-    
-    // Navigate to /books with the new params if not already there
-    if (location.pathname !== '/books') {
-      navigate(`/books?${newParams.toString()}`)
-    } else {
-      setSearchParams(newParams)
-    }
+  const handleSelect = (option) => {
+    navigate(option.path)
     setIsOpen(false)
   }
 
-  const currentLabel = options.find(opt => opt.value === libraryFilter)?.label || 'All'
+  const currentOption = options.find(opt => location.pathname === opt.path) || options[0]
+  const currentLabel = currentOption.label
 
   return (
     <div className="relative">
@@ -123,7 +108,7 @@ function LibraryDropdownMobile() {
         onClick={() => setIsOpen(!isOpen)}
         className="w-full text-left font-medium py-2 text-gray-700 dark:text-gray-300 hover:text-coral flex items-center justify-between transition-colors duration-200 cursor-pointer"
       >
-        <span>My Library: {currentLabel}</span>
+        <span>My Shelf: {currentLabel}</span>
         <ChevronDown className={`w-4 h-4 transition-transform duration-300 ease-in-out ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
       </button>
       {isOpen && (
@@ -134,9 +119,9 @@ function LibraryDropdownMobile() {
           {options.map((option, index) => (
             <button
               key={option.value}
-              onClick={() => handleSelect(option.value)}
+              onClick={() => handleSelect(option)}
               className={`w-full text-left py-2 px-3 text-sm rounded transition-colors duration-200 ease-out cursor-pointer ${
-                libraryFilter === option.value
+                location.pathname === option.path
                   ? 'bg-coral/10 text-coral font-medium'
                   : 'text-gray-600 dark:text-gray-400 hover:text-coral hover:bg-gray-100 dark:hover:bg-gray-700'
               }`}
@@ -257,7 +242,7 @@ function Header() {
           {/* Desktop Navigation - Centered grid */}
           <nav className="hidden md:flex items-center justify-center col-span-6 gap-12">
             <Link to="/books" className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === '/books' ? 'text-dark-gray dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-dark-gray dark:hover:text-white'}`}>
-              Home
+              Library
             </Link>
             <LibraryDropdown location={location} />
             <Link 
@@ -332,7 +317,7 @@ function Header() {
           <div className="md:hidden mt-4 pb-4 border-t border-dark-gray/20 dark:border-white/20 pt-4 animate-fade-in">
             <nav className="flex flex-col space-y-3">
               <Link to="/books" className={`font-medium py-2 transition-colors ${location.pathname === '/books' ? 'text-coral' : 'text-dark-gray/70 dark:text-white/70 hover:text-coral'}`}>
-                Home
+                Library
               </Link>
               <LibraryDropdownMobile />
               <Link 

@@ -1,6 +1,9 @@
 import { Routes, Route } from 'react-router-dom'
 import LandingPage from './pages/LandingPage'
 import BooksPage from './pages/BooksPage'
+import ReadingListPage from './pages/ReadingListPage'
+import AlreadyReadPage from './pages/AlreadyReadPage'
+import BookDetailPage from './pages/BookDetailPage'
 import SubscriptionPage from './pages/SubscriptionPage'
 import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
@@ -32,6 +35,30 @@ function App() {
           element={
             <ProtectedRoute>
               <BooksPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reading-list" 
+          element={
+            <ProtectedRoute>
+              <ReadingListPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/already-read" 
+          element={
+            <ProtectedRoute>
+              <AlreadyReadPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/book/:id" 
+          element={
+            <ProtectedRoute>
+              <BookDetailPage />
             </ProtectedRoute>
           } 
         />

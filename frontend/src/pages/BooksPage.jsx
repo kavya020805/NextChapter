@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Header from '../components/Header'
 import { Search } from 'lucide-react'
 
@@ -8,8 +8,6 @@ function BooksPage() {
   const [filteredBooks, setFilteredBooks] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [searchParams] = useSearchParams()
-  const libraryFilter = searchParams.get('library') || 'all'
 
   // Clean up hash from URL (OAuth callback)
   useEffect(() => {
@@ -39,29 +37,9 @@ function BooksPage() {
     loadBooks()
   }, [])
 
-  // Get user's library data from localStorage
-  const getLibraryData = () => {
-    try {
-      const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]')
-      const read = JSON.parse(localStorage.getItem('read') || '[]')
-      return { wishlist, read }
-    } catch {
-      return { wishlist: [], read: [] }
-    }
-  }
 
   useEffect(() => {
-    const { wishlist, read } = getLibraryData()
-    
     let filtered = allBooks
-
-    // Apply library filter
-    if (libraryFilter === 'wishlist') {
-      filtered = filtered.filter(book => wishlist.includes(book.id))
-    } else if (libraryFilter === 'read') {
-      filtered = filtered.filter(book => read.includes(book.id))
-    }
-    // 'all' shows all books, no filtering needed
 
     // Apply search filter
     if (searchTerm) {
@@ -73,7 +51,7 @@ function BooksPage() {
     }
 
     setFilteredBooks(filtered)
-  }, [searchTerm, allBooks, libraryFilter])
+  }, [searchTerm, allBooks])
 
   const loadBooks = async () => {
     setLoading(true)
@@ -114,7 +92,7 @@ function BooksPage() {
             </div>
             <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
               <p className="text-lg text-white/70 dark:text-dark-gray/70 mb-8 font-light">
-                Explore thousands of free books from Project Gutenberg
+                Browse all available books from Project Gutenberg
               </p>
               
               {/* Search Bar - Swiss Style */}
@@ -148,30 +126,16 @@ function BooksPage() {
             <p className="text-xl text-gray-600 dark:text-gray-400">
               {allBooks.length === 0 
                 ? 'No books found. Please add books to books-data.json'
-                : libraryFilter === 'wishlist'
-                ? 'Your wishlist is empty. Add books to your wishlist to see them here.'
-                : libraryFilter === 'read'
-                ? "You haven't marked any books as read yet. Start reading to build your collection!"
                 : 'No books match your search'}
             </p>
           </div>
         ) : (
           <>
             <div className="mb-6">
-              <p className="text-white/60 dark:text-dark-gray/60">
-                {libraryFilter === 'wishlist' && (
-                  <span>Showing <span className="font-medium text-coral">{filteredBooks.length}</span> books in your wishlist</span>
-                )}
-                {libraryFilter === 'read' && (
-                  <span>Showing <span className="font-medium text-coral">{filteredBooks.length}</span> books you've already read</span>
-                )}
-                {libraryFilter === 'all' && (
-                  <>
-                    Showing <span className="font-medium text-coral">{filteredBooks.length}</span> books
-                    {searchTerm && allBooks.length > filteredBooks.length && (
-                      <span> (filtered from <span className="font-medium">{allBooks.length}</span> total)</span>
-                    )}
-                  </>
+              <p className="text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-widest">
+                Showing <span className="font-medium text-coral">{filteredBooks.length}</span> books
+                {searchTerm && allBooks.length > filteredBooks.length && (
+                  <span> (filtered from <span className="font-medium">{allBooks.length}</span> total)</span>
                 )}
               </p>
             </div>
@@ -179,7 +143,7 @@ function BooksPage() {
               {filteredBooks.map((book) => (
                 <Link
                   key={book.id}
-                  to={`/reader-local?id=${encodeURIComponent(book.id)}`}
+                  to={`/book/${encodeURIComponent(book.id)}`}
                   className="group"
                 >
                   <div className="relative overflow-hidden border-2 border-white dark:border-dark-gray group hover:bg-white dark:hover:bg-dark-gray transition-colors">

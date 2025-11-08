@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
+import { useTheme } from '../contexts/ThemeContext';
+import { ArrowLeft, ArrowRight, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, MessageSquare, Image as ImageIcon, X, Menu } from 'lucide-react';
 
 const ReaderLocal = () => {
   const [searchParams] = useSearchParams();
   const bookId = searchParams.get('id');
+  const { isDark, toggleTheme } = useTheme();
   
   const [bookTitle, setBookTitle] = useState('');
+  const [bookDescription, setBookDescription] = useState('');
+  const [bookCover, setBookCover] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
-  const [darkMode, setDarkMode] = useState(false);
   const [zoomLevel, setZoomLevel] = useState(100);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -22,6 +26,7 @@ const ReaderLocal = () => {
   const [imageProvider, setImageProvider] = useState('pollinations');
   const [imageKey, setImageKey] = useState('');
   const [imageGenResult, setImageGenResult] = useState(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const pdfFrameRef = useRef(null);
   const viewerRef = useRef(null);
@@ -30,14 +35,9 @@ const ReaderLocal = () => {
   const viewerContainerRef = useRef(null);
   const lastTrackedPageRef = useRef(1);
   const isNavigatingRef = useRef(false);
+  const headerRef = useRef(null);
 
   useEffect(() => {
-    const savedMode = localStorage.getItem('darkMode');
-    if (savedMode === 'enabled') {
-      setDarkMode(true);
-      document.body.classList.add('dark-mode');
-    }
-    
     const savedKey = localStorage.getItem('ai_api_key');
     const savedProvider = localStorage.getItem('ai_api_provider');
     if (savedKey) setApiKey(savedKey);
@@ -57,13 +57,34 @@ const ReaderLocal = () => {
 
   const estimateTotalPages = async (url) => {
     try {
-      if (typeof pdfjsLib === 'undefined') return;
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      const loadingTask = pdfjsLib.getDocument(url);
+      // Wait for pdfjsLib to be available
+      if (typeof window.pdfjsLib === 'undefined') {
+        // Try again after a short delay
+        setTimeout(() => estimateTotalPages(url), 500);
+        return;
+      }
+      
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      const loadingTask = window.pdfjsLib.getDocument(url);
       const pdf = await loadingTask.promise;
+      console.log('Total pages detected:', pdf.numPages);
       setTotalPages(pdf.numPages);
     } catch (e) {
-      console.log('Could not determine page count');
+      console.error('Could not determine page count:', e);
+      // Try alternative method: fetch and count pages
+      try {
+        const response = await fetch(url);
+        const arrayBuffer = await response.arrayBuffer();
+        if (typeof window.pdfjsLib !== 'undefined') {
+          window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+          const loadingTask = window.pdfjsLib.getDocument({ data: arrayBuffer });
+          const pdf = await loadingTask.promise;
+          console.log('Total pages detected (alternative method):', pdf.numPages);
+          setTotalPages(pdf.numPages);
+        }
+      } catch (err) {
+        console.error('Failed to get page count:', err);
+      }
     }
   };
 
@@ -215,6 +236,8 @@ const ReaderLocal = () => {
         
         console.log('Book found:', book);
         setBookTitle(book.title || 'Untitled');
+        setBookDescription(book.description || book.subtitle || '');
+        setBookCover(book.coverUrl || book.thumbnail || '');
         
         const pdfUrl = book.pdfUrl;
         if (!pdfUrl) {
@@ -241,6 +264,7 @@ const ReaderLocal = () => {
             frame.style.height = '100%';
             frame.style.border = 'none';
             frame.style.minHeight = '500px';
+            frame.style.overflowX = 'hidden';
             frame.id = 'pdfViewer';
             frame.title = 'PDF Viewer';
             frame.allow = 'fullscreen';
@@ -401,12 +425,6 @@ const ReaderLocal = () => {
     }
   }, [totalPages, zoomLevel, currentPage]);
 
-  const toggleDarkMode = () => {
-    const newMode = !darkMode;
-    setDarkMode(newMode);
-    document.body.classList.toggle('dark-mode', newMode);
-    localStorage.setItem('darkMode', newMode ? 'enabled' : 'disabled');
-  };
 
   const handleZoom = (delta) => {
     const newZoom = Math.max(100, Math.min(200, zoomLevel + delta));
@@ -618,23 +636,68 @@ Provide helpful, concise responses about the book considering the context of the
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [currentPage, totalPages, navigateToPage]);
 
+  // Update header height CSS variable for sidebar positioning
+  useEffect(() => {
+    if (headerRef.current) {
+      const height = headerRef.current.offsetHeight;
+      document.documentElement.style.setProperty('--header-height', `${height}px`);
+    }
+    
+    // Update on window resize
+    const handleResize = () => {
+      if (headerRef.current) {
+        const height = headerRef.current.offsetHeight;
+        document.documentElement.style.setProperty('--header-height', `${height}px`);
+      }
+    };
+    
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [bookTitle]);
+
   return (
-    <div className="reader-container">
-      <div className="reader-main">
-        <div className="reader-header">
-          <div className="reader-header-left">
-            <Link to="/books" className="back-btn">← Back to Library</Link>
-            <h1 className="book-title">{bookTitle || 'Loading…'}</h1>
+    <div className="min-h-screen bg-dark-gray dark:bg-white">
+      <div className="flex h-screen">
+        {/* Main Reader Area */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Reader Header */}
+          <div ref={headerRef} className="bg-white dark:bg-dark-gray border-b-2 border-dark-gray dark:border-white px-8 py-3">
+            <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
+              <Link 
+                to="/books" 
+                className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white transition-colors flex-shrink-0"
+              >
+                ← Back
+              </Link>
+              <h1 className="text-sm md:text-base text-dark-gray dark:text-white font-light leading-tight truncate flex-1 text-center px-4">
+                {bookTitle || 'Loading…'}
+              </h1>
+              <button
+                onClick={() => {
+                  if (chatbotOpen) {
+                    setChatbotOpen(false);
+                  } else if (imageGenOpen) {
+                    setImageGenOpen(false);
+                  } else {
+                    setSidebarOpen(!sidebarOpen);
+                  }
+                }}
+                className="w-8 h-8 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors flex-shrink-0"
+                title={chatbotOpen || imageGenOpen ? "Close" : (sidebarOpen ? "Close Controls" : "Open Controls")}
+              >
+                {(sidebarOpen || chatbotOpen || imageGenOpen) ? (
+                  <X className="w-4 h-4" />
+                ) : (
+                  <Menu className="w-4 h-4" />
+                )}
+              </button>
+            </div>
           </div>
-          <button className="dark-mode-toggle" onClick={toggleDarkMode}>
-            <span>{darkMode ? '☀️' : '🌙'}</span>
-            <span>{darkMode ? 'Light' : 'Dark'}</span>
-          </button>
-        </div>
-        <div className="reader-content">
-          <div className="pdf-viewer-container">
+          
+          {/* PDF Viewer */}
+          <div className="flex-1 relative bg-white/5 dark:bg-dark-gray/5 overflow-hidden">
             <button 
-              className="page-nav prev" 
+              className="absolute left-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -645,23 +708,15 @@ Provide helpful, concise responses about the book considering the context of the
               disabled={currentPage <= 1}
               title="Previous Page"
             >
-              ‹
+              <ArrowLeft className="w-4 h-4" />
             </button>
             <div 
               id="viewer" 
               ref={viewerRef} 
-              style={{ 
-                width: '100%', 
-                height: '100%', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'center', 
-                position: 'relative',
-                overflow: 'auto'
-              }}
+              className="w-full h-full flex items-center justify-center relative overflow-y-auto overflow-x-hidden"
             ></div>
             <button 
-              className="page-nav next" 
+              className="absolute right-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -672,139 +727,163 @@ Provide helpful, concise responses about the book considering the context of the
               disabled={totalPages > 0 && currentPage >= totalPages}
               title="Next Page"
             >
-              ›
+              <ArrowRight className="w-4 h-4" />
             </button>
             {loading && (
-              <div className="empty" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-dark-gray dark:text-white text-sm uppercase tracking-widest">
                 Loading PDF…
               </div>
             )}
             {error && (
-              <div className="empty" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', color: '#c00' }}>
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-red-500 text-sm uppercase tracking-widest">
                 {error}
               </div>
             )}
           </div>
         </div>
-      </div>
-      
-      <div className="reader-sidebar">
-        <div className="sidebar-section">
-          <h3>Page Counter</h3>
-          <div className="page-counter">
-            <div className="page-display">
-              <span>{currentPage}</span>
-              <span style={{ fontSize: '16px', color: '#999', display: 'block', marginTop: '4px' }}>
-                of {totalPages || '?'}
-              </span>
-            </div>
-            <div className="page-controls">
-              <button 
-                className="page-btn" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (currentPage > 1) {
-                    navigateToPage(currentPage - 1);
-                  }
-                }} 
-                disabled={currentPage <= 1}
-              >
-                Previous
-              </button>
-              <input 
-                type="number" 
-                className="page-input" 
-                value={currentPage}
-                min="1"
-                max={totalPages || undefined}
-                onChange={(e) => {
-                  const page = parseInt(e.target.value) || 1;
-                  navigateToPage(page);
-                }}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    const page = parseInt(e.target.value) || 1;
-                    navigateToPage(page);
-                  }
-                }}
-              />
-              <button 
-                className="page-btn" 
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (totalPages === 0 || currentPage < totalPages) {
-                    navigateToPage(currentPage + 1);
-                  }
-                }}
-                disabled={totalPages > 0 && currentPage >= totalPages}
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        </div>
         
-        <div className="sidebar-section">
-          <h3>Zoom</h3>
-          <div className="zoom-controls" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button className="page-btn" onClick={() => handleZoom(-10)}>−</button>
-              <span style={{ minWidth: '60px', textAlign: 'center', fontWeight: 600 }}>{zoomLevel}%</span>
-              <button className="page-btn" onClick={() => handleZoom(10)}>+</button>
+        {/* Sidebar */}
+        <div className={`fixed right-0 w-80 bg-white dark:bg-dark-gray border-l-2 border-dark-gray dark:border-white overflow-y-auto transform transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{ top: 'var(--header-height, 73px)', height: 'calc(100vh - var(--header-height, 73px))' }}>
+          <div className="p-4 space-y-4">
+            {/* Page Counter */}
+            <div className="space-y-2 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                Page
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  className="w-7 h-7 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (currentPage > 1) {
+                      navigateToPage(currentPage - 1);
+                    }
+                  }} 
+                  disabled={currentPage <= 1}
+                >
+                  <ArrowLeft className="w-3 h-3" />
+                </button>
+                <div className="flex-1 text-center">
+                  <div className="text-lg text-dark-gray dark:text-white leading-none">
+                    {currentPage}
+                  </div>
+                  <div className="text-[9px] font-medium uppercase tracking-widest text-dark-gray/50 dark:text-white/50">
+                    of {totalPages || '?'}
+                  </div>
+                </div>
+                <button 
+                  className="w-7 h-7 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors disabled:opacity-20 disabled:cursor-not-allowed"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (totalPages === 0 || currentPage < totalPages) {
+                      navigateToPage(currentPage + 1);
+                    }
+                  }}
+                  disabled={totalPages > 0 && currentPage >= totalPages}
+                >
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              </div>
             </div>
-            <input 
-              type="range" 
-              min="100" 
-              max="200" 
-              value={zoomLevel}
-              step="10"
-              onChange={(e) => {
-                const newZoom = parseInt(e.target.value);
-                setZoomLevel(newZoom);
-                updateZoomInPDF(newZoom);
-              }}
-            />
-            <button className="page-btn" onClick={resetZoom} style={{ width: '100%' }}>
-              Reset Zoom
-            </button>
-          </div>
-        </div>
-        
-        <div className="sidebar-section">
-          <h3>AI Features</h3>
-          <div className="ai-actions">
-            <button 
-              className="ai-btn" 
-              onClick={() => setChatbotOpen(!chatbotOpen)}
-              title="Open AI Chat"
-            >
-              <span>💬</span>
-              <span>Chat</span>
-            </button>
-            <button 
-              className="ai-btn" 
-              onClick={() => setImageGenOpen(!imageGenOpen)}
-              title="Generate AI Image"
-            >
-              <span>🎨</span>
-              <span>Image</span>
-            </button>
+            
+            {/* Zoom */}
+            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                Zoom
+              </div>
+              <div className="flex items-center gap-2">
+                <button 
+                  className="w-7 h-7 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => handleZoom(-10)}
+                >
+                  <ZoomOut className="w-3 h-3" />
+                </button>
+                <span className="text-xs font-medium text-dark-gray dark:text-white min-w-[40px] text-center">
+                  {zoomLevel}%
+                </span>
+                <button 
+                  className="w-7 h-7 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => handleZoom(10)}
+                >
+                  <ZoomIn className="w-3 h-3" />
+                </button>
+                <button 
+                  className="w-7 h-7 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={resetZoom}
+                  title="Reset"
+                >
+                  <RotateCcw className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+            
+            {/* AI Features */}
+            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                AI Features
+              </div>
+              <div className="flex gap-2">
+                <button 
+                  className="flex-1 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 flex items-center justify-center gap-2 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setChatbotOpen(!chatbotOpen);
+                    setSidebarOpen(false);
+                  }}
+                >
+                  <MessageSquare className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-medium uppercase tracking-widest">Chat</span>
+                </button>
+                <button 
+                  className="flex-1 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 flex items-center justify-center gap-2 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setImageGenOpen(!imageGenOpen);
+                    setSidebarOpen(false);
+                  }}
+                >
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  <span className="text-[10px] font-medium uppercase tracking-widest">Image</span>
+                </button>
+              </div>
+            </div>
+            
+            {/* Book Cover & Description */}
+            {(bookCover || bookDescription) && (
+              <div className="space-y-3 pt-4">
+                <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                  About This Book
+                </div>
+                {bookCover && (
+                  <div className="w-full aspect-[2/3] bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/20 dark:border-white/20 overflow-hidden">
+                    <img 
+                      src={bookCover} 
+                      alt={bookTitle}
+                      className="w-full h-full object-cover"
+                      onError={(e) => {
+                        e.target.style.display = 'none';
+                      }}
+                    />
+                  </div>
+                )}
+                {bookDescription && (
+                  <p className="text-xs text-dark-gray/70 dark:text-white/70 leading-relaxed font-light line-clamp-4">
+                    {bookDescription}
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
       
       {/* Chatbot Panel */}
       {chatbotOpen && (
-        <div className="chatbot-panel open">
-          <div className="chatbot-header">
-            <h3>AI Book Assistant</h3>
-            <button className="chatbot-close" onClick={() => setChatbotOpen(false)}>×</button>
+        <div className="fixed right-0 w-96 bg-white dark:bg-dark-gray border-l-2 border-dark-gray dark:border-white shadow-lg z-50 flex flex-col transform transition-transform duration-300" style={{ top: 'var(--header-height, 73px)', height: 'calc(100vh - var(--header-height, 73px))' }}>
+          <div className="p-4 border-b border-dark-gray/10 dark:border-white/10">
+            <h3 className="text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white">AI Book Assistant</h3>
           </div>
-          <div className="chatbot-settings">
-            <div style={{ fontSize: '11px', color: '#666', marginBottom: '4px' }}>
-              Enter your API key (OpenAI: sk-... or Groq: gsk_...):
+          <div className="p-4 border-b border-dark-gray/10 dark:border-white/10">
+            <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+              API Key
             </div>
             <input 
               type="password" 
@@ -822,12 +901,12 @@ Provide helpful, concise responses about the book considering the context of the
                 }
               }}
               placeholder="sk-... or gsk_..." 
-              style={{ width: '100%', padding: '8px', marginBottom: '8px', borderRadius: '6px', border: '1px solid #ddd' }}
+              className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors mb-2"
             />
             <select 
               value={apiProvider}
               onChange={(e) => setApiProvider(e.target.value)}
-              style={{ width: '100%', padding: '8px', marginBottom: '8px', borderRadius: '6px', border: '1px solid #ddd' }}
+              className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors mb-2"
             >
               <option value="groq">Groq (FREE, fast) ⭐</option>
               <option value="openai">OpenAI GPT-4o-mini</option>
@@ -838,74 +917,92 @@ Provide helpful, concise responses about the book considering the context of the
                 localStorage.setItem('ai_api_provider', apiProvider);
                 alert('API key saved!');
               }}
-              style={{ width: '100%', padding: '8px', borderRadius: '6px', border: '1px solid #ddd', background: '#f5f5f5', cursor: 'pointer' }}
+              className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
             >
               Save API Key
             </button>
           </div>
-          <div className="chatbot-context">
-            📖 {bookTitle} - Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
+          <div className="p-3 bg-dark-gray/5 dark:bg-white/5 border-b border-dark-gray/10 dark:border-white/10">
+            <div className="text-[10px] text-dark-gray/70 dark:text-white/70">
+              📖 {bookTitle} - Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
+            </div>
           </div>
-          <div className="chatbot-messages">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && (
-              <div className="chatbot-message ai">
+              <div className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 p-3 rounded text-xs text-dark-gray dark:text-white">
                 {apiKey ? `Hello! I'm your AI assistant for "${bookTitle}". How can I help you?` : 'Please enter your API key to use the AI assistant.'}
               </div>
             )}
             {messages.map((msg, idx) => (
-              <div key={idx} className={`chatbot-message ${msg.role}`}>
+              <div 
+                key={idx} 
+                className={`p-3 rounded text-xs ${
+                  msg.role === 'user' 
+                    ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray ml-auto max-w-[85%]' 
+                    : 'bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white max-w-[85%]'
+                }`}
+              >
                 {msg.text}
               </div>
             ))}
           </div>
-          <div className="chatbot-input-area">
-            <input 
-              type="text" 
-              className="chatbot-input" 
-              value={chatbotInput}
-              onChange={(e) => setChatbotInput(e.target.value)}
-              onKeyPress={(e) => {
-                if (e.key === 'Enter') {
-                  handleChatSend();
-                }
-              }}
-              placeholder="Ask about the book..."
-            />
-            <button 
-              className="chatbot-send" 
-              onClick={handleChatSend}
-              disabled={!chatbotInput.trim() || !apiKey}
-            >
-              Send
-            </button>
+          <div className="p-4 border-t border-dark-gray/10 dark:border-white/10">
+            <div className="flex gap-2">
+              <input 
+                type="text" 
+                className="flex-1 bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                value={chatbotInput}
+                onChange={(e) => setChatbotInput(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleChatSend();
+                  }
+                }}
+                placeholder="Ask about the book..."
+              />
+              <button 
+                className="bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-4 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                onClick={handleChatSend}
+                disabled={!chatbotInput.trim() || !apiKey}
+              >
+                Send
+              </button>
+            </div>
           </div>
         </div>
       )}
       
       {/* Image Generation Panel */}
       {imageGenOpen && (
-        <div className="image-gen-panel open">
-          <div className="image-gen-header">
-            <h3>🎨 AI Image Generator</h3>
-            <button className="chatbot-close" onClick={() => setImageGenOpen(false)}>×</button>
+        <div className="fixed right-0 w-96 bg-white dark:bg-dark-gray border-l-2 border-dark-gray dark:border-white shadow-lg z-50 flex flex-col transform transition-transform duration-300" style={{ top: 'var(--header-height, 73px)', height: 'calc(100vh - var(--header-height, 73px))' }}>
+          <div className="p-4 border-b border-dark-gray/10 dark:border-white/10">
+            <h3 className="text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white">Image Generator</h3>
           </div>
-          <div className="image-gen-content">
-            <div className="image-gen-settings">
-              <label>Image Provider:</label>
-              <select 
-                value={imageProvider}
-                onChange={(e) => {
-                  setImageProvider(e.target.value);
-                  localStorage.setItem('image_provider', e.target.value);
-                }}
-              >
-                <option value="pollinations">Pollinations.ai (FREE, no key needed) ⭐</option>
-                <option value="dalle">OpenAI DALL-E 3 (Premium, requires API key)</option>
-              </select>
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="space-y-3">
+              <div>
+                <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                  Image Provider
+                </label>
+                <select 
+                  value={imageProvider}
+                  onChange={(e) => {
+                    setImageProvider(e.target.value);
+                    localStorage.setItem('image_provider', e.target.value);
+                  }}
+                  className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                >
+                  <option value="pollinations">Pollinations.ai (FREE, no key needed) ⭐</option>
+                  <option value="dalle">OpenAI DALL-E 3 (Premium, requires API key)</option>
+                </select>
+              </div>
               
               {imageProvider === 'dalle' && (
-                <div>
-                  <label>OpenAI API Key:</label>
+                <div className="space-y-2">
+                  <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                    OpenAI API Key
+                  </label>
                   <input 
                     type="password" 
                     value={imageKey.startsWith('••••') ? imageKey : '••••••••' + imageKey.slice(-4)}
@@ -917,48 +1014,69 @@ Provide helpful, concise responses about the book considering the context of the
                       }
                     }}
                     placeholder="sk-..." 
+                    className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors mb-2"
                   />
                   <button 
                     onClick={() => {
                       localStorage.setItem('dalle_api_key', imageKey);
                       alert('API key saved!');
                     }}
+                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
                   >
                     Save API Key
                   </button>
                 </div>
               )}
               
-              <label>What would you like to visualize?</label>
-              <textarea 
-                value={imagePrompt}
-                onChange={(e) => setImagePrompt(e.target.value)}
-                placeholder="Describe the scene, character, or concept from the book..."
-                rows={3}
-              />
+              <div>
+                <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                  Image Prompt
+                </label>
+                <textarea 
+                  value={imagePrompt}
+                  onChange={(e) => setImagePrompt(e.target.value)}
+                  placeholder="Describe the scene, character, or concept from the book..."
+                  rows={4}
+                  className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors resize-none"
+                />
+              </div>
               
-              <label>Image Size:</label>
-              <select>
-                <option value="1024x1024">Square (1024x1024)</option>
-                <option value="1792x1024">Landscape (1792x1024)</option>
-                <option value="1024x1792">Portrait (1024x1792)</option>
-              </select>
+              <div>
+                <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                  Image Size
+                </label>
+                <select className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors">
+                  <option value="1024x1024">Square (1024x1024)</option>
+                  <option value="1792x1024">Landscape (1792x1024)</option>
+                  <option value="1024x1792">Portrait (1024x1792)</option>
+                </select>
+              </div>
             </div>
             
             <button 
-              className="image-gen-button"
+              className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={handleGenerateImage}
               disabled={!imagePrompt.trim() || (imageProvider === 'dalle' && !imageKey)}
             >
-              ✨ Generate Image
+              Generate Image
             </button>
             
             {imageGenResult && (
-              <div className="image-gen-result">
-                <img src={imageGenResult.url} alt="Generated" />
-                <div className="image-gen-actions">
-                  <button onClick={() => window.open(imageGenResult.url, '_blank')}>🔍 View Full Size</button>
-                  <button onClick={() => downloadImage(imageGenResult.url, `${bookTitle}-${Date.now()}.png`)}>💾 Download</button>
+              <div className="space-y-3 pt-3 border-t border-dark-gray/10 dark:border-white/10">
+                <img src={imageGenResult.url} alt="Generated" className="w-full rounded border border-dark-gray/30 dark:border-white/30" />
+                <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    onClick={() => window.open(imageGenResult.url, '_blank')}
+                    className="bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  >
+                    View Full Size
+                  </button>
+                  <button 
+                    onClick={() => downloadImage(imageGenResult.url, `${bookTitle}-${Date.now()}.png`)}
+                    className="bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  >
+                    Download
+                  </button>
                 </div>
               </div>
             )}
