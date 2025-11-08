@@ -5,6 +5,16 @@ import { useAuth } from '../contexts/AuthContext'
 import { User, Mail, Calendar, ArrowRight, X, Edit2, Save } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { getUserProfile } from '../lib/personalizationUtils'
+import ReadingHeatmap from '../components/dashboard/ReadingHeatmap'
+import ReadingStats from '../components/dashboard/ReadingStats'
+import FavoriteBooks from '../components/dashboard/FavoriteBooks'
+import ChallengeProgress from '../components/dashboard/ChallengeProgress'
+import KeyStatsCards from '../components/dashboard/KeyStatsCards'
+import OngoingBooks from '../components/dashboard/OngoingBooks'
+import AchievementCard from '../components/dashboard/AchievementCard'
+import GenreChart from '../components/dashboard/GenreChart'
+import MonthlyChart from '../components/dashboard/MonthlyChart'
+import DashboardFooter from '../components/dashboard/DashboardFooter'
 
 function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -221,7 +231,7 @@ function ProfilePage() {
 
             {/* Right Column - Profile Info */}
             <div className="col-span-12 md:col-span-8 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
-              <div className="max-w-2xl">
+              <div className="max-w-full">
                 {profileLoading ? (
                   <div className="text-center py-20">
                     <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-coral mb-4"></div>
@@ -230,27 +240,27 @@ function ProfilePage() {
                 ) : (
                   <>
                     {/* User Info Card */}
-                    <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-8 mb-6">
-                      <div className="flex items-center justify-between mb-6">
-                        <div className="flex items-center gap-4">
-                          <div className="w-16 h-16 rounded-full border-2 border-dark-gray dark:border-white flex items-center justify-center">
-                            <User className="w-8 h-8 text-dark-gray dark:text-white" />
+                    <div className="bg-white dark:bg-dark-gray border border-dark-gray/10 dark:border-white/10 p-4 mb-4">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-full border border-dark-gray dark:border-white flex items-center justify-center">
+                            <User className="w-6 h-6 text-dark-gray dark:text-white" />
                           </div>
                           <div>
-                            <h2 className="text-2xl text-dark-gray dark:text-white font-medium mb-1">
+                            <h2 className="text-lg text-dark-gray dark:text-white font-medium mb-0.5">
                               {isEditing ? (
                                 <input
                                   type="text"
                                   value={username}
                                   onChange={(e) => setUsername(e.target.value)}
                                   placeholder="Username"
-                                  className="bg-transparent border-2 border-dark-gray/30 dark:border-white/30 px-3 py-1 text-dark-gray dark:text-white text-2xl font-medium focus:outline-none focus:border-dark-gray dark:focus:border-white"
+                                  className="bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1 text-dark-gray dark:text-white text-lg font-medium focus:outline-none focus:border-dark-gray dark:focus:border-white"
                                 />
                               ) : (
                                 profileData?.username || user.email?.split('@')[0] || 'User'
                               )}
                             </h2>
-                            <p className="text-sm text-dark-gray/60 dark:text-white/60 uppercase tracking-widest">
+                            <p className="text-xs text-dark-gray/60 dark:text-white/60 uppercase tracking-wider">
                               Member
                             </p>
                           </div>
@@ -258,40 +268,40 @@ function ProfilePage() {
                         {!isEditing ? (
                           <button
                             onClick={() => setIsEditing(true)}
-                            className="flex items-center gap-2 px-4 py-2 border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white text-xs font-medium uppercase tracking-widest hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray transition-all"
+                            className="flex items-center gap-2 px-3 py-1.5 border border-dark-gray dark:border-white text-dark-gray dark:text-white text-[10px] font-medium uppercase tracking-wider hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray transition-all"
                           >
-                            <Edit2 className="w-4 h-4" />
+                            <Edit2 className="w-3 h-3" />
                             Edit
                           </button>
                         ) : (
                           <button
                             onClick={handleSave}
                             disabled={loading}
-                            className="flex items-center gap-2 px-4 py-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray text-xs font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-50"
+                            className="flex items-center gap-2 px-3 py-1.5 bg-dark-gray dark:bg-white text-white dark:text-dark-gray text-[10px] font-medium uppercase tracking-wider hover:opacity-80 transition-opacity disabled:opacity-50"
                           >
-                            <Save className="w-4 h-4" />
+                            <Save className="w-3 h-3" />
                             Save
                           </button>
                         )}
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-3 pb-4 border-b border-dark-gray/10 dark:border-white/10">
-                          <Mail className="w-5 h-5 text-dark-gray dark:text-white" />
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 pb-3 border-b border-dark-gray/10 dark:border-white/10">
+                          <Mail className="w-4 h-4 text-dark-gray dark:text-white" />
                           <div className="flex-1">
-                            <p className="text-xs font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-1">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-0.5">
                               Email
                             </p>
-                            <p className="text-sm text-dark-gray dark:text-white">
+                            <p className="text-xs text-dark-gray dark:text-white">
                               {user.email}
                             </p>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3 pb-4 border-b border-dark-gray/10 dark:border-white/10">
-                          <Calendar className="w-5 h-5 text-dark-gray dark:text-white" />
+                        <div className="flex items-center gap-3 pb-3 border-b border-dark-gray/10 dark:border-white/10">
+                          <Calendar className="w-4 h-4 text-dark-gray dark:text-white" />
                           <div className="flex-1">
-                            <p className="text-xs font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-1">
+                            <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-0.5">
                               Date of Birth
                             </p>
                             {isEditing ? (
@@ -299,10 +309,10 @@ function ProfilePage() {
                                 type="date"
                                 value={dateOfBirth}
                                 onChange={(e) => setDateOfBirth(e.target.value)}
-                                className="bg-transparent border-2 border-dark-gray/30 dark:border-white/30 px-3 py-2 text-dark-gray dark:text-white text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white"
+                                className="bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1 text-dark-gray dark:text-white text-xs focus:outline-none focus:border-dark-gray dark:focus:border-white"
                               />
                             ) : (
-                              <p className="text-sm text-dark-gray dark:text-white">
+                              <p className="text-xs text-dark-gray dark:text-white">
                                 {dateOfBirth ? new Date(dateOfBirth).toLocaleDateString('en-US', { 
                                   year: 'numeric', 
                                   month: 'long', 
@@ -313,8 +323,9 @@ function ProfilePage() {
                           </div>
                         </div>
 
-                        <div className="pb-4 border-b border-dark-gray/10 dark:border-white/10">
-                          <p className="text-xs font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                        {/* Gender */}
+                        <div className="pb-3 border-b border-dark-gray/10 dark:border-white/10">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
                             Gender
                           </p>
                           {isEditing ? (
@@ -323,7 +334,7 @@ function ProfilePage() {
                                 <button
                                   key={option}
                                   onClick={() => setGender(option)}
-                                  className={`py-2 border-2 text-xs font-medium uppercase tracking-widest transition-all ${
+                                  className={`py-1.5 border text-[10px] font-medium uppercase tracking-wider transition-all ${
                                     gender === option
                                       ? 'bg-dark-gray dark:bg-white border-dark-gray dark:border-white text-white dark:text-dark-gray'
                                       : 'bg-transparent border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/10 dark:hover:bg-white/10'
@@ -334,32 +345,32 @@ function ProfilePage() {
                               ))}
                             </div>
                           ) : (
-                            <p className="text-sm text-dark-gray dark:text-white">
+                            <p className="text-xs text-dark-gray dark:text-white">
                               {gender || 'Not set'}
                             </p>
                           )}
                         </div>
 
                         {/* Favorite Authors */}
-                        <div className="pb-4 border-b border-dark-gray/10 dark:border-white/10">
-                          <p className="text-xs font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                        <div className="pb-3 border-b border-dark-gray/10 dark:border-white/10">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
                             Favorite Authors
                           </p>
                           {isEditing ? (
-                            <div className="space-y-3">
+                            <div className="space-y-2">
                               {selectedAuthors.length > 0 && (
-                                <div className="flex flex-wrap gap-2">
+                                <div className="flex flex-wrap gap-1.5">
                                   {selectedAuthors.map((author) => (
                                     <div
                                       key={author.key}
-                                      className="flex items-center gap-2 px-3 py-1 bg-dark-gray/10 dark:bg-white/10 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white text-xs"
+                                      className="flex items-center gap-1.5 px-2 py-1 bg-dark-gray/10 dark:bg-white/10 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white text-[10px]"
                                     >
                                       <span>{author.name}</span>
                                       <button
                                         onClick={() => removeAuthor(author.name)}
                                         className="hover:opacity-70 transition-opacity"
                                       >
-                                        <X className="w-3 h-3" />
+                                        <X className="w-2.5 h-2.5" />
                                       </button>
                                     </div>
                                   ))}
@@ -376,56 +387,56 @@ function ProfilePage() {
                                     }
                                   }}
                                   placeholder="Search authors..."
-                                  className="w-full bg-transparent border-2 border-dark-gray/30 dark:border-white/30 px-3 py-2 text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none text-xs"
+                                  className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1.5 text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none text-[10px]"
                                 />
                                 {showAuthorDropdown && (
-                                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white max-h-48 overflow-y-auto">
+                                  <div className="absolute z-10 w-full mt-1 bg-white dark:bg-dark-gray border border-dark-gray dark:border-white max-h-40 overflow-y-auto">
                                     {loadingAuthors ? (
-                                      <div className="px-3 py-2 text-xs text-dark-gray dark:text-white">Loading...</div>
+                                      <div className="px-2 py-1.5 text-[10px] text-dark-gray dark:text-white">Loading...</div>
                                     ) : authorSuggestions.length > 0 ? (
                                       authorSuggestions.map((author) => (
                                         <button
                                           key={author.key}
                                           onClick={() => addAuthor(author)}
-                                          className="w-full px-3 py-2 text-left hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors border-b border-dark-gray/10 dark:border-white/10 last:border-b-0 text-xs text-dark-gray dark:text-white"
+                                          className="w-full px-2 py-1.5 text-left hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors border-b border-dark-gray/10 dark:border-white/10 last:border-b-0 text-[10px] text-dark-gray dark:text-white"
                                         >
                                           {author.name}
                                         </button>
                                       ))
                                     ) : (
-                                      <div className="px-3 py-2 text-xs text-dark-gray/60 dark:text-white/60">No authors found</div>
+                                      <div className="px-2 py-1.5 text-[10px] text-dark-gray/60 dark:text-white/60">No authors found</div>
                                     )}
                                   </div>
                                 )}
                               </div>
                             </div>
                           ) : (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                               {selectedAuthors.length > 0 ? (
                                 selectedAuthors.map((author) => (
-                                  <span key={author.key} className="px-3 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-xs">
+                                  <span key={author.key} className="px-2 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-[10px]">
                                     {author.name}
                                   </span>
                                 ))
                               ) : (
-                                <p className="text-sm text-dark-gray/60 dark:text-white/60">No authors added</p>
+                                <p className="text-xs text-dark-gray/60 dark:text-white/60">No authors added</p>
                               )}
                             </div>
                           )}
                         </div>
 
                         {/* Genres */}
-                        <div className="pb-4 border-b border-dark-gray/10 dark:border-white/10">
-                          <p className="text-xs font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                        <div className="pb-3 border-b border-dark-gray/10 dark:border-white/10">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
                             Favorite Genres
                           </p>
                           {isEditing ? (
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 gap-1.5">
                               {genres.map((genre) => (
                                 <button
                                   key={genre}
                                   onClick={() => handleGenreToggle(genre)}
-                                  className={`py-2 border-2 text-xs font-medium uppercase tracking-widest transition-all ${
+                                  className={`py-1.5 border text-[10px] font-medium uppercase tracking-wider transition-all ${
                                     selectedGenres.includes(genre)
                                       ? 'bg-dark-gray dark:bg-white border-dark-gray dark:border-white text-white dark:text-dark-gray'
                                       : 'bg-transparent border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/10 dark:hover:bg-white/10'
@@ -436,15 +447,15 @@ function ProfilePage() {
                               ))}
                             </div>
                           ) : (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                               {selectedGenres.length > 0 ? (
                                 selectedGenres.map((genre) => (
-                                  <span key={genre} className="px-3 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-xs">
+                                  <span key={genre} className="px-2 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-[10px]">
                                     {genre}
                                   </span>
                                 ))
                               ) : (
-                                <p className="text-sm text-dark-gray/60 dark:text-white/60">No genres selected</p>
+                                <p className="text-xs text-dark-gray/60 dark:text-white/60">No genres selected</p>
                               )}
                             </div>
                           )}
@@ -452,16 +463,16 @@ function ProfilePage() {
 
                         {/* Languages */}
                         <div>
-                          <p className="text-xs font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                          <p className="text-[10px] font-medium uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2">
                             Languages
                           </p>
                           {isEditing ? (
-                            <div className="grid grid-cols-2 gap-2">
+                            <div className="grid grid-cols-2 gap-1.5">
                               {languages.map((language) => (
                                 <button
                                   key={language}
                                   onClick={() => handleLanguageToggle(language)}
-                                  className={`py-2 border-2 text-xs font-medium uppercase tracking-widest transition-all ${
+                                  className={`py-1.5 border text-[10px] font-medium uppercase tracking-wider transition-all ${
                                     selectedLanguages.includes(language)
                                       ? 'bg-dark-gray dark:bg-white border-dark-gray dark:border-white text-white dark:text-dark-gray'
                                       : 'bg-transparent border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/10 dark:hover:bg-white/10'
@@ -472,15 +483,15 @@ function ProfilePage() {
                               ))}
                             </div>
                           ) : (
-                            <div className="flex flex-wrap gap-2">
+                            <div className="flex flex-wrap gap-1.5">
                               {selectedLanguages.length > 0 ? (
                                 selectedLanguages.map((language) => (
-                                  <span key={language} className="px-3 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-xs">
+                                  <span key={language} className="px-2 py-1 bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white text-[10px]">
                                     {language}
                                   </span>
                                 ))
                               ) : (
-                                <p className="text-sm text-dark-gray/60 dark:text-white/60">No languages selected</p>
+                                <p className="text-xs text-dark-gray/60 dark:text-white/60">No languages selected</p>
                               )}
                             </div>
                           )}
@@ -488,22 +499,55 @@ function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Actions */}
+                    {/* Dashboard Section */}
                     <div className="space-y-4">
+                      {/* Reading Stats and Heatmap */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <ReadingStats />
+                        <ReadingHeatmap />
+                      </div>
+
+                      {/* Challenge Progress */}
+                      <ChallengeProgress target={52} />
+
+                      {/* Key Statistics Cards */}
+                      <KeyStatsCards />
+
+                      {/* Favorite Books and Ongoing Books */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <FavoriteBooks />
+                        <OngoingBooks />
+                      </div>
+
+                      {/* Achievement Card */}
+                      <AchievementCard />
+
+                      {/* Charts */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <GenreChart />
+                        <MonthlyChart />
+                      </div>
+
+                      {/* Dashboard Footer */}
+                      <DashboardFooter />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="space-y-4 mt-6">
                       <Link
                         to="/books"
-                        className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-8 py-4 text-sm font-medium uppercase tracking-widest border-2 border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
+                        className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 py-3 text-xs font-medium uppercase tracking-wider border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
                       >
                         <span className="relative z-10 transition-colors duration-300">Back to Books</span>
                         <ArrowRight 
-                          className="w-4 h-4 relative z-10 transition-all duration-300 -translate-x-5 opacity-0 group-hover:translate-x-0 group-hover:opacity-100" 
+                          className="w-3 h-3 relative z-10 transition-all duration-300 -translate-x-5 opacity-0 group-hover:translate-x-0 group-hover:opacity-100" 
                         />
                       </Link>
 
                       <button
                         onClick={handleSignOut}
                         disabled={loading}
-                        className="group w-full inline-flex items-center justify-center gap-3 bg-transparent border-2 border-white dark:border-dark-gray text-white dark:text-dark-gray px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                        className="group w-full inline-flex items-center justify-center gap-3 bg-transparent border border-white dark:border-dark-gray text-white dark:text-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
                         <span className="relative z-10 transition-colors duration-300">
                           {loading ? 'Signing Out...' : 'Sign Out'}
