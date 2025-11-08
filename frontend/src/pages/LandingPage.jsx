@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../components/Header'
 import HeroSection from '../components/HeroSection'
-import { BookOpen, Sparkles, Brain, Search, BookMarked, Globe, ArrowRight } from 'lucide-react'
+import { BookOpen, Sparkles, Brain, Search, BookMarked, Globe, ArrowRight, TrendingUp, MessageCircle, Download, Trophy } from 'lucide-react'
 
 // Custom hook for counter animation
 function useCounter(target, duration = 2000, suffix = '', isDecimal = false) {
@@ -92,34 +92,34 @@ function CounterStat({ target, suffix, label, duration = 2000, isDecimal = false
 function LandingPage() {
   const features = [
     {
-      icon: <Search className="w-8 h-8" />,
-      title: "Smart Search",
-      description: "Find your next favorite book instantly with our intelligent search and advanced filters"
-    },
-    {
       icon: <Sparkles className="w-8 h-8" />,
       title: "AI Recommendations",
-      description: "Personalized book suggestions powered by advanced AI to match your unique reading taste"
-    },
-    {
-      icon: <BookOpen className="w-8 h-8" />,
-      title: "Online Reading",
-      description: "Elegant, distraction-free reader with customizable themes and seamless reading experience"
+      description: "Advanced AI-powered suggestions that learn from your reading preferences to discover your next favorite book"
     },
     {
       icon: <Brain className="w-8 h-8" />,
       title: "AI Summaries",
-      description: "Get quick insights and key takeaways with AI-generated book summaries"
+      description: "Get instant insights and key takeaways with unlimited AI-generated book summaries to enhance your understanding"
     },
     {
-      icon: <BookMarked className="w-8 h-8" />,
-      title: "Personal Library",
-      description: "Save and organize your collection across all devices with cloud sync"
+      icon: <TrendingUp className="w-8 h-8" />,
+      title: "Reading Analytics",
+      description: "Track your reading progress, history, and detailed personalized analytics to understand your reading habits"
+    },
+    {
+      icon: <MessageCircle className="w-8 h-8" />,
+      title: "AI Character Chatbot",
+      description: "Engage in personalized conversations with custom AI characters for deeper book discussions and insights"
+    },
+    {
+      icon: <Trophy className="w-8 h-8" />,
+      title: "Reading Streaks & Challenges",
+      description: "Stay motivated with reading streaks, challenges, and gamified achievements to build consistent reading habits"
     },
     {
       icon: <Globe className="w-8 h-8" />,
-      title: "Multimedia Content",
-      description: "Enhanced reading with interactive elements and multimedia experiences"
+      title: "Multiple Device Reading",
+      description: "Seamlessly sync your reading progress across all your devices and continue your journey from anywhere"
     }
   ]
 

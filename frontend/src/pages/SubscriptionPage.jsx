@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../components/Header'
-import { Check, ArrowRight } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 function SubscriptionPage() {
   const [billingCycle, setBillingCycle] = useState('monthly')
@@ -17,7 +17,7 @@ function SubscriptionPage() {
         'Basic AI recommendations',
         'Online reading',
         'Personal library',
-        'Standard support'
+        'Bookmarking and highlighting'
       ],
       popular: false
     },
@@ -31,9 +31,10 @@ function SubscriptionPage() {
         'Advanced AI recommendations',
         'AI-powered summaries',
         'Unlimited personal library',
-        'Priority support',
+        'Reading history and progress tracking',
         'Multimedia content access',
-        'Offline reading'
+        'Reading streaks and challenges',
+        'Personalized reading analytics'
       ],
       popular: true
     },
@@ -47,11 +48,11 @@ function SubscriptionPage() {
         'Premium AI recommendations',
         'Unlimited AI summaries',
         'Unlimited personal library',
-        '24/7 priority support',
-        'All multimedia content',
-        'Offline reading',
+        'Personal AI custom character chatbot',
+        'AI image generation for book scenes',
+        'Multiple device reading',
         'Early access to new features',
-        'Custom reading themes'
+        'Advanced personalized reading analytics'
       ],
       popular: false
     }
@@ -211,22 +212,13 @@ function SubscriptionPage() {
 
                   <Link
                     to="#"
-                    className={`group inline-flex items-center gap-3 w-full justify-center border-2 px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 overflow-hidden relative ${
+                    className={`inline-flex items-center justify-center w-full border-2 px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 ${
                       plan.popular
                         ? 'bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray'
                         : 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-dark-gray dark:border-white hover:bg-white dark:hover:bg-dark-gray hover:text-dark-gray dark:hover:text-white'
                     }`}
                   >
-                    <span className="relative z-10 transition-colors duration-300">
-                      Get Started
-                    </span>
-                    <ArrowRight 
-                      className={`w-4 h-4 relative z-10 transition-all duration-300 -translate-x-5 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 ${
-                        plan.popular
-                          ? 'text-dark-gray dark:text-white'
-                          : 'text-white dark:text-dark-gray'
-                      }`}
-                    />
+                    Get Started
                   </Link>
                 </div>
               )

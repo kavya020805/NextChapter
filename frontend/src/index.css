@@ -73,6 +73,19 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: -0.01em;
+  overflow-x: hidden; /* Prevent horizontal scrollbar */
+}
+
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Hide scrollbar for IE, Edge and Firefox */
+html {
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+  overflow-x: hidden; /* Prevent horizontal scrollbar */
 }
 
 /* Elegant typography - Playfair Display for headings */
@@ -114,6 +127,17 @@ p, span, a, button, input, textarea, select, label, li, td, th {
 /* Smooth scrolling */
 html {
   scroll-behavior: smooth;
+}
+
+/* Subscription button subtle white glow on hover */
+.subscription-glow {
+  box-shadow: none;
+  transition: box-shadow 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), 
+              transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.subscription-glow:hover {
+  box-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
 /* Reader Styles */

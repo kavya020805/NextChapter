@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
-import { Menu, X, Moon, Sun, ChevronDown, LogOut, User, UserCircle } from 'lucide-react'
+import { Menu, X, Moon, Sun, ChevronDown, LogOut, User, UserCircle, Grid3x3 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -53,10 +53,11 @@ function LibraryDropdown({ location }) {
       </button>
       {isOpen && (
         <div 
-          className="absolute top-full left-1/2 -translate-x-1/2 mt-2 w-48 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white z-20"
+          className="absolute top-full left-1/2 -translate-x-1/2 mt-3 w-56 bg-white dark:bg-dark-gray border border-dark-gray/20 dark:border-white/20 shadow-xl z-20 overflow-hidden backdrop-blur-sm"
           style={{ 
-            animation: 'slideDown 0.2s ease-out',
+            animation: 'slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
             transformOrigin: 'top center',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
           }}
           onMouseEnter={handleMouseEnter}
           onMouseLeave={handleMouseLeave}
@@ -65,15 +66,18 @@ function LibraryDropdown({ location }) {
               <button
                 key={option.value}
                 onClick={() => handleSelect(option)}
-                className={`w-full text-left px-4 py-3 text-xs font-medium uppercase tracking-widest transition-colors duration-200 ease-out cursor-pointer border-b-2 border-dark-gray dark:border-white last:border-b-0 ${
+                className={`w-full text-left px-5 py-3.5 text-xs font-medium uppercase tracking-widest transition-all duration-200 ease-out cursor-pointer relative ${
                   location.pathname === option.path
                     ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
-                    : 'text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5'
-                }`}
+                    : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-6'
+                } ${index < options.length - 1 ? 'border-b border-dark-gray/10 dark:border-white/10' : ''}`}
                 style={{
-                  animation: `fadeIn 0.15s ease-out ${index * 0.02}s both`
+                  animation: `fadeIn 0.2s ease-out ${index * 0.03}s both`
                 }}
               >
+                {location.pathname === option.path && (
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-white dark:bg-dark-gray rounded-full"></span>
+                )}
                 {option.label}
               </button>
             ))}
@@ -113,25 +117,161 @@ function LibraryDropdownMobile() {
       </button>
       {isOpen && (
         <div 
-          className="mt-2 space-y-1 pl-4 overflow-hidden"
-          style={{ animation: 'slideDown 0.2s ease-out' }}
+          className="mt-3 space-y-1.5 pl-4 overflow-hidden border-l-2 border-coral/20 dark:border-coral/30"
+          style={{ animation: 'slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }}
         >
           {options.map((option, index) => (
             <button
               key={option.value}
               onClick={() => handleSelect(option)}
-              className={`w-full text-left py-2 px-3 text-sm rounded transition-colors duration-200 ease-out cursor-pointer ${
+              className={`w-full text-left py-2.5 px-4 text-sm transition-all duration-200 ease-out cursor-pointer relative ${
                 location.pathname === option.path
-                  ? 'bg-coral/10 text-coral font-medium'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-coral hover:bg-gray-100 dark:hover:bg-gray-700'
+                  ? 'bg-coral/15 dark:bg-coral/20 text-coral font-semibold shadow-sm'
+                  : 'text-gray-600 dark:text-gray-400 hover:text-coral hover:bg-gray-100/80 dark:hover:bg-gray-700/80 hover:translate-x-1'
               }`}
               style={{
-                animation: `fadeIn 0.2s ease-out ${index * 0.03}s both`
+                animation: `fadeIn 0.2s ease-out ${index * 0.04}s both`
               }}
             >
+              {location.pathname === option.path && (
+                <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 w-1 h-6 bg-coral rounded-r-full"></span>
+              )}
               {option.label}
             </button>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilterDropdown({ location, navigate }) {
+  const [isOpen, setIsOpen] = useState(false)
+  const closeTimeoutRef = useRef(null)
+
+  const genres = [
+    'Fiction', 'Non-Fiction', 'Mystery', 'Romance', 'Science Fiction',
+    'Fantasy', 'Thriller', 'Horror', 'Biography', 'History',
+    'Philosophy', 'Poetry', 'Drama', 'Adventure', 'Comedy'
+  ]
+
+  const filterOptions = [
+    { label: 'Trending', value: 'trending', path: '/books?filter=trending' },
+    { label: 'New Releases', value: 'new', path: '/books?filter=new' },
+    { label: 'Most Popular', value: 'popular', path: '/books?filter=popular' },
+    { label: 'Highest Rated', value: 'rated', path: '/books?filter=rated' },
+    { label: 'Similar Books', value: 'similar', path: '/books?filter=similar' },
+    { label: 'Recently Added', value: 'recent', path: '/books?filter=recent' }
+  ]
+
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current)
+      closeTimeoutRef.current = null
+    }
+    setIsOpen(true)
+  }
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsOpen(false)
+    }, 200)
+  }
+
+  const handleGenreClick = (genre) => {
+    navigate(`/books?genre=${genre.toLowerCase()}`)
+    setIsOpen(false)
+  }
+
+  const handleFilterClick = (option) => {
+    navigate(option.path)
+    setIsOpen(false)
+  }
+
+  return (
+    <div 
+      className="relative"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center justify-center p-2 hover:opacity-80 transition-opacity"
+        aria-label="Filter and genres menu"
+      >
+        <div className="grid grid-cols-3 gap-0.5 w-4 h-4">
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+          <div className="w-0.5 h-0.5 rounded-full bg-dark-gray dark:bg-white"></div>
+        </div>
+      </button>
+      {isOpen && (
+        <div 
+          className="absolute top-full right-0 mt-3 w-96 bg-white dark:bg-dark-gray border border-dark-gray/20 dark:border-white/20 shadow-xl z-20 overflow-hidden backdrop-blur-sm"
+          style={{ 
+            animation: 'slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+            transformOrigin: 'top right',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          }}
+          onMouseEnter={handleMouseEnter}
+          onMouseLeave={handleMouseLeave}
+        >
+          <div className="grid grid-cols-2 divide-x divide-dark-gray/10 dark:divide-white/10">
+            {/* Genres Column */}
+            <div className="p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-dark-gray dark:text-white mb-3 pb-2 border-b border-dark-gray/10 dark:border-white/10">
+                Genres
+              </h3>
+              <div className="space-y-1 max-h-80 overflow-y-auto">
+                {genres.map((genre, index) => (
+                  <button
+                    key={genre}
+                    onClick={() => handleGenreClick(genre)}
+                    className="w-full text-left px-3 py-2 text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 transition-all duration-200 ease-out cursor-pointer hover:pl-4"
+                    style={{
+                      animation: `fadeIn 0.2s ease-out ${index * 0.02}s both`
+                    }}
+                  >
+                    {genre}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filter Options Column */}
+            <div className="p-4">
+              <h3 className="text-xs font-semibold uppercase tracking-widest text-dark-gray dark:text-white mb-3 pb-2 border-b border-dark-gray/10 dark:border-white/10">
+                Filters
+              </h3>
+              <div className="space-y-1">
+                {filterOptions.map((option, index) => (
+                  <button
+                    key={option.value}
+                    onClick={() => handleFilterClick(option)}
+                    className={`w-full text-left px-3 py-2 text-xs font-medium uppercase tracking-widest transition-all duration-200 ease-out cursor-pointer relative ${
+                      location.search.includes(option.value)
+                        ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
+                        : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-4'
+                    }`}
+                    style={{
+                      animation: `fadeIn 0.2s ease-out ${index * 0.02}s both`
+                    }}
+                  >
+                    {location.search.includes(option.value) && (
+                      <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-1 bg-white dark:bg-dark-gray rounded-full"></span>
+                    )}
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -146,7 +286,7 @@ function ProfileDropdown({ user, onSignOut }) {
     <div className="relative">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-dark-gray dark:border-white hover:opacity-80 transition-opacity"
+        className="flex items-center justify-center p-2 hover:opacity-80 transition-opacity"
         aria-label="User profile menu"
       >
         <User className="w-5 h-5 text-dark-gray dark:text-white" />
@@ -154,39 +294,46 @@ function ProfileDropdown({ user, onSignOut }) {
       {isOpen && (
         <>
           <div 
-            className="fixed inset-0 z-10 bg-dark-gray/5 dark:bg-dark-gray/20"
+            className="fixed inset-0 z-10 bg-dark-gray/10 dark:bg-black/20 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
             style={{ 
-              animation: 'fadeIn 0.15s ease-out',
+              animation: 'fadeIn 0.2s ease-out',
             }}
           />
           <div 
-            className="absolute top-full right-0 mt-2 w-56 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white z-20"
+            className="absolute top-full right-0 mt-3 w-64 bg-white dark:bg-dark-gray border border-dark-gray/20 dark:border-white/20 shadow-xl z-20 overflow-hidden backdrop-blur-sm"
             style={{ 
-              animation: 'slideDown 0.2s ease-out',
+              animation: 'slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
               transformOrigin: 'top right',
+              boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
             }}
           >
-            <div className="px-4 py-3 border-b-2 border-dark-gray dark:border-white">
-              <div className="flex items-center gap-2">
-                <UserCircle className="w-5 h-5 text-dark-gray dark:text-white" />
+            <div className="px-5 py-4 border-b border-dark-gray/10 dark:border-white/10 bg-dark-gray/5 dark:bg-white/5">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-dark-gray dark:bg-white flex items-center justify-center">
+                  <UserCircle className="w-6 h-6 text-white dark:text-dark-gray" />
+                </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white truncate">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-dark-gray dark:text-white truncate">
                     {user?.email || 'User'}
                   </p>
+                  <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Account</p>
                 </div>
               </div>
             </div>
-            <div className="py-1">
+            <div className="py-2">
               <Link
                 to="/profile"
                 onClick={() => setIsOpen(false)}
-                className={`flex items-center gap-3 w-full text-left px-4 py-3 text-xs font-medium uppercase tracking-widest transition-colors duration-200 ease-out cursor-pointer ${
+                className={`flex items-center gap-3 w-full text-left px-5 py-3.5 text-xs font-medium uppercase tracking-widest transition-all duration-200 ease-out cursor-pointer relative ${
                   location.pathname === '/profile'
                     ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
-                    : 'text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5'
+                    : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-6'
                 }`}
               >
+                {location.pathname === '/profile' && (
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-white dark:bg-dark-gray rounded-full"></span>
+                )}
                 <User className="w-4 h-4" />
                 <span>User Profile</span>
               </Link>
@@ -195,7 +342,7 @@ function ProfileDropdown({ user, onSignOut }) {
                   setIsOpen(false)
                   onSignOut()
                 }}
-                className="flex items-center gap-3 w-full text-left px-4 py-3 text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors duration-200 ease-out cursor-pointer border-t-2 border-dark-gray dark:border-white"
+                className="flex items-center gap-3 w-full text-left px-5 py-3.5 text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white hover:bg-red-500 dark:hover:bg-red-600 hover:text-white transition-all duration-200 ease-out cursor-pointer border-t border-dark-gray/10 dark:border-white/10"
               >
                 <LogOut className="w-4 h-4" />
                 <span>Logout</span>
@@ -216,12 +363,17 @@ function Header() {
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
-    const { error } = await signOut()
-    if (error) {
-      console.error('Sign out error:', error)
+    try {
+      setIsMenuOpen(false)
+      const { error } = await signOut()
+      if (error) {
+        console.error('Sign out error:', error)
+        // Still try to redirect even if there's an error
+      }
+      // Navigation handled by SIGNED_OUT event in AuthContext
+    } catch (err) {
+      console.error('Sign out exception:', err)
     }
-    // Navigation handled by SIGNED_OUT event in AuthContext
-    setIsMenuOpen(false)
   }
 
   return (
@@ -247,7 +399,7 @@ function Header() {
             <LibraryDropdown location={location} />
             <Link 
               to="/subscription" 
-              className={`bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-6 py-2 text-xs font-medium uppercase tracking-widest hover:opacity-80 transition-opacity ${
+              className={`bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-6 py-2 text-xs font-medium uppercase tracking-widest hover:scale-105 subscription-glow ${
                 location.pathname === '/subscription' ? 'opacity-100' : ''
               }`}
             >
@@ -256,7 +408,22 @@ function Header() {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="hidden md:flex items-center justify-end col-span-3 gap-8">
+          <div className="hidden md:flex items-center justify-end col-span-3 gap-4">
+            {/* Dark Mode Toggle */}
+            <button 
+              onClick={toggleTheme}
+              className="p-2 hover:opacity-60 transition-opacity"
+              aria-label="Toggle dark mode"
+            >
+              {isDark ? (
+                <Sun className="w-4 h-4 text-white" />
+              ) : (
+                <Moon className="w-4 h-4 text-dark-gray" />
+              )}
+            </button>
+            
+            <FilterDropdown location={location} navigate={navigate} />
+            
             {user ? (
               <ProfileDropdown user={user} onSignOut={handleSignOut} />
             ) : (
@@ -271,19 +438,6 @@ function Header() {
                 Sign In
               </Link>
             )}
-            
-            {/* Dark Mode Toggle */}
-            <button 
-              onClick={toggleTheme}
-              className="p-2 border border-dark-gray dark:border-white hover:opacity-60 transition-opacity"
-              aria-label="Toggle dark mode"
-            >
-              {isDark ? (
-                <Sun className="w-4 h-4 text-white" />
-              ) : (
-                <Moon className="w-4 h-4 text-dark-gray" />
-              )}
-            </button>
           </div>
 
           {/* Mobile Menu Button */}
@@ -322,7 +476,7 @@ function Header() {
               <LibraryDropdownMobile />
               <Link 
                 to="/subscription" 
-                className="w-full bg-coral hover:bg-pink-500 text-white px-6 py-2.5 rounded-full font-medium transition-all text-left"
+                className="w-full bg-coral hover:bg-pink-500 text-white px-6 py-2.5 rounded-full font-medium hover:scale-105 subscription-glow text-left"
               >
                 Subscription
               </Link>
@@ -349,7 +503,7 @@ function Header() {
                     </Link>
                     <button
                       onClick={handleSignOut}
-                      className="w-full text-left text-dark-gray/70 dark:text-white/70 hover:text-coral font-medium py-2 transition-colors flex items-center gap-2"
+                      className="w-full text-left text-dark-gray/70 dark:text-white/70 hover:bg-red-500 dark:hover:bg-red-600 hover:text-white font-medium py-2 px-3 transition-all duration-200 ease-out flex items-center gap-2"
                     >
                       <LogOut className="w-4 h-4" />
                       Logout

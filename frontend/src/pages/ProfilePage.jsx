@@ -107,7 +107,7 @@ function ProfilePage() {
                   <button
                     onClick={handleSignOut}
                     disabled={loading}
-                    className="group w-full inline-flex items-center justify-center gap-3 bg-transparent border-2 border-white dark:border-dark-gray text-white dark:text-dark-gray px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 hover:bg-white/10 dark:hover:bg-dark-gray/10 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="group w-full inline-flex items-center justify-center gap-3 bg-transparent border-2 border-white dark:border-dark-gray text-white dark:text-dark-gray px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="relative z-10 transition-colors duration-300">
                       {loading ? 'Signing Out...' : 'Sign Out'}
