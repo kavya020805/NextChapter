@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import Header from '../components/Header';
 import { useTheme } from '../contexts/ThemeContext';
 import { Star, BookOpen, Bookmark, CheckCircle, MessageSquare, Plus, Minus } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 const BookDetailPage = () => {
   const { id } = useParams();
@@ -30,21 +31,40 @@ const BookDetailPage = () => {
   const loadBook = async () => {
     setLoading(true);
     try {
-      const response = await fetch('/books-data.json');
-      if (!response.ok) throw new Error('Failed to load books');
+      // Try fetching from Supabase first
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .eq('id', id)
+        .single();
       
-      const booksData = await response.json();
-      const foundBook = booksData.find(b => b.id === id);
+      if (error && error.code !== 'PGRST116') throw error;
       
-      if (foundBook) {
-        setBook(foundBook);
+      if (data) {
+        setBook(data);
         // Load saved rating and progress
         const savedRating = localStorage.getItem(`book_rating_${id}`);
         const savedProgress = localStorage.getItem(`book_progress_${id}`);
         if (savedRating) setUserRating(parseInt(savedRating));
         if (savedProgress) setProgress(parseInt(savedProgress));
       } else {
-        setBook(null);
+        // Fallback to local JSON
+        const response = await fetch('/books-data.json');
+        if (response.ok) {
+          const booksData = await response.json();
+          const foundBook = booksData.find(b => b.id === id);
+          if (foundBook) {
+            setBook(foundBook);
+            const savedRating = localStorage.getItem(`book_rating_${id}`);
+            const savedProgress = localStorage.getItem(`book_progress_${id}`);
+            if (savedRating) setUserRating(parseInt(savedRating));
+            if (savedProgress) setProgress(parseInt(savedProgress));
+          } else {
+            setBook(null);
+          }
+        } else {
+          setBook(null);
+        }
       }
     } catch (error) {
       console.error('Error loading book:', error);
@@ -172,7 +192,8 @@ const BookDetailPage = () => {
     );
   }
 
-  const genre = book.subjects?.[0] || 'Uncategorized';
+  // Extract genre from subjects array or use genre field if available
+  const genre = book.genre || book.subjects?.[0] || book.subjects || 'Fiction';
 
   return (
     <div className="min-h-screen bg-dark-gray dark:bg-white">
@@ -186,18 +207,22 @@ const BookDetailPage = () => {
             <div className="col-span-12 md:col-span-4">
               <div className="sticky top-8">
                 {/* Cover */}
-                <div className="mb-8 border-2 border-white dark:border-dark-gray overflow-hidden w-3/4 mx-auto">
-                  {book.coverUrl ? (
-                    <img 
-                      src={book.coverUrl} 
-                      alt={book.title}
-                      className="w-full aspect-2/3 object-cover"
-                    />
-                  ) : (
-                    <div className="w-full aspect-2/3 bg-white dark:bg-dark-gray flex items-center justify-center text-dark-gray dark:text-white text-6xl">
-                      📚
+                <div className="mb-8 w-3/4 mx-auto p-4" style={{backgroundColor: '#2b2b2b'}}>
+                  <div className="border-4 p-1 bg-white" style={{borderColor: '#2b2b2b'}}>
+                    <div className="overflow-hidden">
+                      {book.cover_image ? (
+                        <img 
+                          src={book.cover_image} 
+                          alt={book.title}
+                          className="w-full aspect-2/3 object-cover"
+                        />
+                      ) : (
+                        <div className="w-full aspect-2/3 bg-white dark:bg-dark-gray flex items-center justify-center text-dark-gray dark:text-white text-6xl">
+                          📚
+                        </div>
+                      )}
                     </div>
-                  )}
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
@@ -256,9 +281,14 @@ const BookDetailPage = () => {
                 <p className="text-white/70 dark:text-dark-gray/70 text-sm md:text-base mb-3 font-light uppercase tracking-widest">
                   {book.author || 'Unknown Author'}
                 </p>
-                <p className="text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-widest">
+                <p className="text-xs uppercase tracking-widest mb-4" style={{ color: '#d47249' }}>
                   {genre}
                 </p>
+                {book.description && (
+                  <p className="text-white/70 dark:text-dark-gray/70 text-sm leading-relaxed font-light mt-4">
+                    {book.description}
+                  </p>
+                )}
               </div>
 
               {/* Rating */}
@@ -302,18 +332,6 @@ const BookDetailPage = () => {
                   />
                 </div>
               </div>
-
-              {/* Description */}
-              {book.description && (
-                <div className="mb-8">
-                  <h3 className="text-white dark:text-dark-gray text-xs font-medium uppercase tracking-widest mb-3">
-                    Description
-                  </h3>
-                  <p className="text-white/70 dark:text-dark-gray/70 text-xs leading-relaxed font-light">
-                    {book.description}
-                  </p>
-                </div>
-              )}
 
               {/* Tabs */}
               <div className="border-t-2 border-white dark:border-dark-gray pt-8">

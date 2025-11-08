@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react'
 import { Link, useLocation, useSearchParams, useNavigate } from 'react-router-dom'
-import { Menu, X, Moon, Sun, ChevronDown, LogOut, User, UserCircle, Grid3x3 } from 'lucide-react'
+import { Menu, X, ChevronDown, LogOut, User, UserCircle, Grid3x3 } from 'lucide-react'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -228,19 +228,29 @@ function FilterDropdown({ location, navigate }) {
               <h3 className="text-xs font-semibold uppercase tracking-widest text-dark-gray dark:text-white mb-3 pb-2 border-b border-dark-gray/10 dark:border-white/10">
                 Genres
               </h3>
-              <div className="space-y-1 max-h-80 overflow-y-auto">
-                {genres.map((genre, index) => (
-                  <button
-                    key={genre}
-                    onClick={() => handleGenreClick(genre)}
-                    className="w-full text-left px-3 py-2 text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 transition-all duration-200 ease-out cursor-pointer hover:pl-4"
-                    style={{
-                      animation: `fadeIn 0.2s ease-out ${index * 0.02}s both`
-                    }}
-                  >
-                    {genre}
-                  </button>
-                ))}
+              <div className="space-y-0 max-h-80 overflow-y-auto">
+                {genres.map((genre, index) => {
+                  const isActive = location.search.includes(`genre=${genre.toLowerCase()}`)
+                  return (
+                    <button
+                      key={genre}
+                      onClick={() => handleGenreClick(genre)}
+                      className={`w-full text-left px-5 py-3.5 text-xs font-medium uppercase tracking-widest transition-all duration-200 ease-out cursor-pointer relative ${
+                        isActive
+                          ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
+                          : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-6'
+                      }`}
+                      style={{
+                        animation: `fadeIn 0.2s ease-out ${index * 0.02}s both`
+                      }}
+                    >
+                      {isActive && (
+                        <span className="absolute left-2 top-1/2 -translate-y-1/2 w-1 h-1 bg-white dark:bg-dark-gray rounded-full"></span>
+                      )}
+                      {genre}
+                    </button>
+                  )
+                })}
               </div>
             </div>
 
@@ -294,7 +304,7 @@ function ProfileDropdown({ user, onSignOut }) {
       {isOpen && (
         <>
           <div 
-            className="fixed inset-0 z-10 bg-dark-gray/10 dark:bg-black/20 backdrop-blur-sm"
+            className="fixed inset-0 z-10 bg-dark-gray/10 dark:bg-dark-gray/20 backdrop-blur-sm"
             onClick={() => setIsOpen(false)}
             style={{ 
               animation: 'fadeIn 0.2s ease-out',
@@ -409,19 +419,6 @@ function Header() {
 
           {/* Right Side Actions */}
           <div className="hidden md:flex items-center justify-end col-span-3 gap-4">
-            {/* Dark Mode Toggle */}
-            <button 
-              onClick={toggleTheme}
-              className="p-2 hover:opacity-60 transition-opacity"
-              aria-label="Toggle dark mode"
-            >
-              {isDark ? (
-                <Sun className="w-4 h-4 text-white" />
-              ) : (
-                <Moon className="w-4 h-4 text-dark-gray" />
-              )}
-            </button>
-            
             <FilterDropdown location={location} navigate={navigate} />
             
             {user ? (
@@ -442,17 +439,6 @@ function Header() {
 
           {/* Mobile Menu Button */}
           <div className="md:hidden flex items-center space-x-2">
-            <button 
-              onClick={toggleTheme}
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
-              aria-label="Toggle dark mode"
-            >
-              {isDark ? (
-                <Sun className="w-5 h-5 text-gray-300" />
-              ) : (
-                <Moon className="w-5 h-5 text-gray-700" />
-              )}
-            </button>
             <button 
               className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
               onClick={() => setIsMenuOpen(!isMenuOpen)}

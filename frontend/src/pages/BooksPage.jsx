@@ -1,13 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import Header from '../components/Header'
-import { Search } from 'lucide-react'
+import { Search, X } from 'lucide-react'
+import { supabase } from '../lib/supabaseClient'
 
 function BooksPage() {
   const [allBooks, setAllBooks] = useState([])
   const [filteredBooks, setFilteredBooks] = useState([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
+  const [searchParams, setSearchParams] = useSearchParams()
+  const selectedGenre = searchParams.get('genre')
 
   // Clean up hash from URL (OAuth callback)
   useEffect(() => {
@@ -41,6 +44,19 @@ function BooksPage() {
   useEffect(() => {
     let filtered = allBooks
 
+    // Apply genre filter
+    if (selectedGenre) {
+      filtered = filtered.filter(book => {
+        const bookGenre = book.genre || book.subjects?.[0] || book.subjects || ''
+        if (Array.isArray(book.subjects)) {
+          return book.subjects.some(subject => 
+            subject.toLowerCase().includes(selectedGenre.toLowerCase())
+          )
+        }
+        return bookGenre.toLowerCase().includes(selectedGenre.toLowerCase())
+      })
+    }
+
     // Apply search filter
     if (searchTerm) {
       filtered = filtered.filter(book => 
@@ -51,21 +67,39 @@ function BooksPage() {
     }
 
     setFilteredBooks(filtered)
-  }, [searchTerm, allBooks])
+  }, [searchTerm, allBooks, selectedGenre])
 
   const loadBooks = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/books-data.json')
-      if (!response.ok) {
-        throw new Error('books-data.json not found')
+      // Fetch books from Supabase
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
+        .order('title', { ascending: true })
+      
+      if (error) {
+        console.error('Supabase error:', error)
+        throw error
       }
       
-      const booksData = await response.json()
-      setAllBooks(booksData)
-      setFilteredBooks(booksData)
+      console.log('Fetched books from Supabase:', data?.length || 0)
+      setAllBooks(data || [])
+      setFilteredBooks(data || [])
     } catch (e) {
-      console.error('Failed to load books:', e)
+      console.error('Failed to load books from Supabase:', e)
+      // Optionally fallback to local JSON
+      try {
+        const response = await fetch('/books-data.json')
+        if (response.ok) {
+          const booksData = await response.json()
+          setAllBooks(booksData)
+          setFilteredBooks(booksData)
+          console.log('Loaded books from local JSON fallback')
+        }
+      } catch (fallbackError) {
+        console.error('Fallback also failed:', fallbackError)
+      }
     } finally {
       setLoading(false)
     }
@@ -73,6 +107,10 @@ function BooksPage() {
 
   const handleSearch = (e) => {
     e.preventDefault()
+  }
+
+  const clearGenreFilter = () => {
+    setSearchParams({})
   }
 
   return (
@@ -92,7 +130,7 @@ function BooksPage() {
             </div>
             <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
               <p className="text-lg text-white/70 dark:text-dark-gray/70 mb-8 font-light">
-                Browse all available books from Project Gutenberg
+                Browse all available books from our vast library containing books from various genres
               </p>
               
               {/* Search Bar - Swiss Style */}
@@ -104,7 +142,7 @@ function BooksPage() {
                     placeholder="Search books, authors, subjects..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-transparent border-none outline-none w-full text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-black/40 text-sm font-light uppercase tracking-widest"
+                    className="bg-transparent border-none outline-none w-full text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 text-sm font-light uppercase tracking-widest"
                   />
                 </div>
               </form>
@@ -125,19 +163,30 @@ function BooksPage() {
           <div className="text-center py-20">
             <p className="text-xl text-gray-600 dark:text-gray-400">
               {allBooks.length === 0 
-                ? 'No books found. Please add books to books-data.json'
+                ? 'No books found. Please check your Supabase connection and ensure the books table has data.'
                 : 'No books match your search'}
             </p>
           </div>
         ) : (
           <>
-            <div className="mb-6">
-              <p className="text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-widest">
-                Showing <span className="font-medium text-coral">{filteredBooks.length}</span> books
-                {searchTerm && allBooks.length > filteredBooks.length && (
-                  <span> (filtered from <span className="font-medium">{allBooks.length}</span> total)</span>
+            <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-3 flex-wrap">
+                <p className="text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-widest">
+                  Showing <span className="font-medium text-coral">{filteredBooks.length}</span> books
+                  {searchTerm && allBooks.length > filteredBooks.length && (
+                    <span> (filtered from <span className="font-medium">{allBooks.length}</span> total)</span>
+                  )}
+                </p>
+                {selectedGenre && (
+                  <button
+                    onClick={clearGenreFilter}
+                    className="flex items-center gap-2 bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-2 border-white dark:border-dark-gray px-3 py-1.5 text-xs uppercase tracking-widest hover:opacity-80 transition-opacity"
+                  >
+                    <span>{selectedGenre}</span>
+                    <X className="w-3 h-3" />
+                  </button>
                 )}
-              </p>
+              </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {filteredBooks.map((book) => (
@@ -147,9 +196,9 @@ function BooksPage() {
                   className="group"
                 >
                   <div className="relative overflow-hidden border-2 border-white dark:border-dark-gray group hover:bg-white dark:hover:bg-dark-gray transition-colors">
-                    {book.coverUrl ? (
+                    {book.cover_image ? (
                       <img
-                        src={book.coverUrl}
+                        src={book.cover_image}
                         alt={book.title}
                         className="w-full aspect-2/3 object-cover group-hover:opacity-20 transition-opacity duration-300"
                         loading="lazy"
@@ -172,9 +221,14 @@ function BooksPage() {
                     <h3 className="text-white dark:text-dark-gray font-medium text-xs line-clamp-2 mb-2 uppercase tracking-widest">
                       {book.title}
                     </h3>
-                    <p className="text-white/60 dark:text-dark-gray/60 text-xs line-clamp-1 font-light uppercase tracking-widest">
+                    <p className="text-white/60 dark:text-dark-gray/60 text-xs mb-2 font-light uppercase tracking-widest">
                       {book.author || 'Unknown Author'}
                     </p>
+                    {book.description && (
+                      <p className="text-white/50 dark:text-dark-gray/50 text-xs line-clamp-2 font-light leading-relaxed">
+                        {book.description}
+                      </p>
+                    )}
                   </div>
                 </Link>
               ))}

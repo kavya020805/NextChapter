@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../components/Header'
 import { Search } from 'lucide-react'
+import { supabase } from '../lib/supabaseClient'
 
 function ReadingListPage() {
   const [allBooks, setAllBooks] = useState([])
@@ -43,15 +44,25 @@ function ReadingListPage() {
   const loadBooks = async () => {
     setLoading(true)
     try {
-      const response = await fetch('/books-data.json')
-      if (!response.ok) {
-        throw new Error('books-data.json not found')
-      }
+      const { data, error } = await supabase
+        .from('books')
+        .select('*')
       
-      const booksData = await response.json()
-      setAllBooks(booksData)
+      if (error) throw error
+      
+      setAllBooks(data || [])
     } catch (e) {
-      console.error('Failed to load books:', e)
+      console.error('Failed to load books from Supabase:', e)
+      // Fallback to local JSON
+      try {
+        const response = await fetch('/books-data.json')
+        if (response.ok) {
+          const booksData = await response.json()
+          setAllBooks(booksData)
+        }
+      } catch (fallbackError) {
+        console.error('Fallback failed:', fallbackError)
+      }
     } finally {
       setLoading(false)
     }
@@ -90,7 +101,7 @@ function ReadingListPage() {
                     placeholder="Search your reading list..."
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    className="bg-transparent border-none outline-none w-full text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-black/40 text-sm font-light uppercase tracking-widest"
+                    className="bg-transparent border-none outline-none w-full text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 text-sm font-light uppercase tracking-widest"
                   />
                 </div>
               </form>
@@ -111,7 +122,7 @@ function ReadingListPage() {
           <div className="text-center py-20">
             <p className="text-xl text-gray-600 dark:text-gray-400">
               {allBooks.length === 0 
-                ? 'No books found. Please add books to books-data.json'
+                ? 'No books found. Please check your Supabase connection.'
                 : 'Your reading list is empty. Add books to your reading list to see them here.'}
             </p>
           </div>
@@ -130,9 +141,9 @@ function ReadingListPage() {
                   className="group"
                 >
                   <div className="relative overflow-hidden border-2 border-white dark:border-dark-gray group hover:bg-white dark:hover:bg-dark-gray transition-colors">
-                    {book.coverUrl ? (
+                    {book.cover_image ? (
                       <img
-                        src={book.coverUrl}
+                        src={book.cover_image}
                         alt={book.title}
                         className="w-full aspect-2/3 object-cover group-hover:opacity-20 transition-opacity duration-300"
                         loading="lazy"
@@ -155,9 +166,14 @@ function ReadingListPage() {
                     <h3 className="text-white dark:text-dark-gray font-medium text-xs line-clamp-2 mb-2 uppercase tracking-widest">
                       {book.title}
                     </h3>
-                    <p className="text-white/60 dark:text-dark-gray/60 text-xs line-clamp-1 font-light uppercase tracking-widest">
+                    <p className="text-white/60 dark:text-dark-gray/60 text-xs mb-2 font-light uppercase tracking-widest">
                       {book.author || 'Unknown Author'}
                     </p>
+                    {book.description && (
+                      <p className="text-white/50 dark:text-dark-gray/50 text-xs line-clamp-2 font-light leading-relaxed">
+                        {book.description}
+                      </p>
+                    )}
                   </div>
                 </Link>
               ))}

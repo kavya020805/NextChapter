@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { ArrowLeft, ArrowRight, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, MessageSquare, Image as ImageIcon, X, Menu } from 'lucide-react';
+import { supabase } from '../lib/supabaseClient';
 
 const ReaderLocal = () => {
   const [searchParams] = useSearchParams();
@@ -18,15 +19,13 @@ const ReaderLocal = () => {
   const [error, setError] = useState('');
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [imageGenOpen, setImageGenOpen] = useState(false);
-  const [apiKey, setApiKey] = useState('');
-  const [apiProvider, setApiProvider] = useState('groq');
+  const apiKey = import.meta.env.VITE_AI_API_KEY || ''; // Gemini API key from environment
+  const apiProvider = 'gemini'; // Using Google Gemini
   const [messages, setMessages] = useState([]);
   const [chatbotInput, setChatbotInput] = useState('');
   const [imagePrompt, setImagePrompt] = useState('');
-  const [imageProvider, setImageProvider] = useState('pollinations');
-  const [imageKey, setImageKey] = useState('');
   const [imageGenResult, setImageGenResult] = useState(null);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
   
   const pdfFrameRef = useRef(null);
   const viewerRef = useRef(null);
@@ -38,16 +37,6 @@ const ReaderLocal = () => {
   const headerRef = useRef(null);
 
   useEffect(() => {
-    const savedKey = localStorage.getItem('ai_api_key');
-    const savedProvider = localStorage.getItem('ai_api_provider');
-    if (savedKey) setApiKey(savedKey);
-    if (savedProvider) setApiProvider(savedProvider);
-    
-    const savedImageKey = localStorage.getItem('dalle_api_key');
-    const savedImageProvider = localStorage.getItem('image_provider');
-    if (savedImageKey) setImageKey(savedImageKey);
-    if (savedImageProvider) setImageProvider(savedImageProvider);
-    
     return () => {
       if (pageTrackingIntervalRef.current) {
         clearInterval(pageTrackingIntervalRef.current);
@@ -219,33 +208,44 @@ const ReaderLocal = () => {
       setCurrentPage(1); // Reset to page 1 when loading new book
       
       try {
-        console.log('Loading local book with ID:', bookId);
+        console.log('Loading book with ID:', bookId);
         
-        // Load from local books-data.json
-        const response = await fetch('/books-data.json');
-        if (!response.ok) {
-          throw new Error('Failed to load books data');
+        // Fetch book from Supabase
+        const { data: book, error } = await supabase
+          .from('books')
+          .select('*')
+          .eq('id', bookId)
+          .single();
+        
+        if (error) {
+          console.error('Supabase error:', error);
+          throw new Error('Failed to load book from database');
         }
         
-        const books = await response.json();
-        const book = books.find(b => b.id === bookId);
-        
         if (!book) {
-          throw new Error('Book not found in local data');
+          throw new Error('Book not found');
         }
         
         console.log('Book found:', book);
         setBookTitle(book.title || 'Untitled');
-        setBookDescription(book.description || book.subtitle || '');
-        setBookCover(book.coverUrl || book.thumbnail || '');
+        setBookDescription(book.description || '');
+        setBookCover(book.cover_image || '');
         
-        const pdfUrl = book.pdfUrl;
-        if (!pdfUrl) {
-          throw new Error('No PDF URL found for this book');
+        // Get PDF URL from Supabase Storage
+        // Assuming the book has a pdf_file field with the filename
+        const pdfFileName = book.pdf_file || book.pdf_filename;
+        
+        if (!pdfFileName) {
+          throw new Error('No PDF file found for this book');
         }
         
-        // Convert relative URL to absolute if needed
-        const fullPdfUrl = pdfUrl.startsWith('http') ? pdfUrl : pdfUrl.startsWith('/') ? pdfUrl : `/${pdfUrl}`;
+        // Get public URL from Supabase Storage bucket 'Book-storage'
+        const { data: urlData } = supabase
+          .storage
+          .from('Book-storage')
+          .getPublicUrl(pdfFileName);
+        
+        const fullPdfUrl = urlData.publicUrl;
         pdfUrlRef.current = fullPdfUrl;
         
         console.log('PDF URL:', fullPdfUrl);
@@ -479,26 +479,33 @@ Provide helpful, concise responses about the book considering the context of the
     setMessages(prev => [...prev, { role: 'ai', text: 'Thinking...' }]);
     
     try {
-      const apiUrl = apiProvider === 'groq' 
-        ? 'https://api.groq.com/openai/v1/chat/completions'
-        : 'https://api.openai.com/v1/chat/completions';
-      const model = apiProvider === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
+      // Build conversation history for Gemini
+      const conversationHistory = messages.map(m => ({
+        role: m.role === 'ai' ? 'model' : 'user',
+        parts: [{ text: m.text }]
+      }));
+      
+      // Add system prompt as first user message and model response
+      const geminiMessages = [
+        { role: 'user', parts: [{ text: systemPrompt }] },
+        { role: 'model', parts: [{ text: 'I understand. I will help you with questions about this book.' }] },
+        ...conversationHistory,
+        { role: 'user', parts: [{ text: userMessage }] }
+      ];
+      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
       
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model: model,
-          messages: [
-            { role: 'system', content: systemPrompt },
-            ...messages.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.text })),
-            { role: 'user', content: userMessage }
-          ],
-          temperature: 0.7,
-          max_tokens: 500
+          contents: geminiMessages,
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 500
+          }
         })
       });
       
@@ -508,7 +515,7 @@ Provide helpful, concise responses about the book considering the context of the
       }
       
       const data = await response.json();
-      const aiResponse = data.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
       
       setMessages(prev => {
         const newMessages = [...prev];
@@ -517,9 +524,9 @@ Provide helpful, concise responses about the book considering the context of the
       });
     } catch (error) {
       let errorMsg = 'Sorry, I encountered an error. ';
-      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
-        errorMsg += `Invalid API key. Please check your ${apiProvider} API key.`;
-      } else if (error.message.includes('429')) {
+      if (error.message.includes('401') || error.message.includes('Unauthorized') || error.message.includes('API_KEY_INVALID')) {
+        errorMsg += 'Invalid API key. Please check your Gemini API key.';
+      } else if (error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED')) {
         errorMsg += 'Rate limit exceeded. Please try again later.';
       } else {
         errorMsg += error.message;
@@ -534,50 +541,49 @@ Provide helpful, concise responses about the book considering the context of the
   };
 
   const handleGenerateImage = async () => {
-    if (!imagePrompt.trim() || (imageProvider === 'dalle' && !imageKey)) return;
+    if (!imagePrompt.trim() || !apiKey) return;
     
     const prompt = imagePrompt.trim();
     setImageGenResult(null);
     
     try {
-      if (imageProvider === 'pollinations') {
-        const enhancedPrompt = `${prompt}, book: ${bookTitle}, high quality, detailed, artistic`;
-        const encodedPrompt = encodeURIComponent(enhancedPrompt);
-        const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=1024&height=1024&nologo=true`;
-        
+      const enhancedPrompt = `${prompt}. Book context: "${bookTitle}", page ${currentPage}. Create a high-quality, detailed, artistic visualization.`;
+      
+      // Use Gemini Imagen 4.0 API
+      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          instances: [{
+            prompt: enhancedPrompt
+          }],
+          parameters: {
+            sampleCount: 1,
+            aspectRatio: "1:1",
+            safetyFilterLevel: "block_some",
+            personGeneration: "allow_adult"
+          }
+        })
+      });
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
+        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const imageData = data.predictions?.[0]?.bytesBase64Encoded;
+      
+      if (imageData) {
+        const imageUrl = `data:image/png;base64,${imageData}`;
         setImageGenResult({
           url: imageUrl,
           prompt: enhancedPrompt
         });
       } else {
-        const enhancedPrompt = `${prompt}. Book context: "${bookTitle}", page ${currentPage}. Create a high-quality, artistic visualization.`;
-        
-        const response = await fetch('https://api.openai.com/v1/images/generations', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${imageKey}`
-          },
-          body: JSON.stringify({
-            model: 'dall-e-3',
-            prompt: enhancedPrompt,
-            n: 1,
-            size: '1024x1024',
-            quality: 'standard',
-            style: 'vivid'
-          })
-        });
-        
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-          throw new Error(errorData.error?.message || `HTTP ${response.status}`);
-        }
-        
-        const data = await response.json();
-        setImageGenResult({
-          url: data.data[0].url,
-          prompt: data.data[0].revised_prompt || enhancedPrompt
-        });
+        throw new Error('No image data received');
       }
     } catch (error) {
       alert(`Failed to generate image: ${error.message}`);
@@ -784,6 +790,37 @@ Provide helpful, concise responses about the book considering the context of the
                   <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
+              <div className="flex items-center gap-2 mt-3">
+                <input 
+                  type="number"
+                  min="1"
+                  max={totalPages > 0 ? totalPages : undefined}
+                  placeholder="Go to page..."
+                  className="flex-1 bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1.5 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      const pageNum = parseInt(e.target.value);
+                      if (pageNum && pageNum >= 1 && (totalPages === 0 || pageNum <= totalPages)) {
+                        navigateToPage(pageNum);
+                        e.target.value = '';
+                      }
+                    }
+                  }}
+                />
+                <button 
+                  className="px-3 py-1.5 bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
+                  onClick={(e) => {
+                    const input = e.target.previousElementSibling;
+                    const pageNum = parseInt(input.value);
+                    if (pageNum && pageNum >= 1 && (totalPages === 0 || pageNum <= totalPages)) {
+                      navigateToPage(pageNum);
+                      input.value = '';
+                    }
+                  }}
+                >
+                  Go
+                </button>
+              </div>
             </div>
             
             {/* Zoom */}
@@ -881,47 +918,6 @@ Provide helpful, concise responses about the book considering the context of the
           <div className="p-4 border-b border-dark-gray/10 dark:border-white/10">
             <h3 className="text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white">AI Book Assistant</h3>
           </div>
-          <div className="p-4 border-b border-dark-gray/10 dark:border-white/10">
-            <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
-              API Key
-            </div>
-            <input 
-              type="password" 
-              value={apiKey.startsWith('••••') ? apiKey : '••••••••' + apiKey.slice(-4)}
-              onChange={(e) => {
-                const key = e.target.value;
-                if (key.startsWith('gsk_')) setApiProvider('groq');
-                else if (key.startsWith('sk-')) setApiProvider('openai');
-                setApiKey(key);
-              }}
-              onFocus={(e) => {
-                if (e.target.value.startsWith('••••')) {
-                  e.target.value = apiKey;
-                  e.target.type = 'text';
-                }
-              }}
-              placeholder="sk-... or gsk_..." 
-              className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors mb-2"
-            />
-            <select 
-              value={apiProvider}
-              onChange={(e) => setApiProvider(e.target.value)}
-              className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors mb-2"
-            >
-              <option value="groq">Groq (FREE, fast) ⭐</option>
-              <option value="openai">OpenAI GPT-4o-mini</option>
-            </select>
-            <button 
-              onClick={() => {
-                localStorage.setItem('ai_api_key', apiKey);
-                localStorage.setItem('ai_api_provider', apiProvider);
-                alert('API key saved!');
-              }}
-              className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
-            >
-              Save API Key
-            </button>
-          </div>
           <div className="p-3 bg-dark-gray/5 dark:bg-white/5 border-b border-dark-gray/10 dark:border-white/10">
             <div className="text-[10px] text-dark-gray/70 dark:text-white/70">
               📖 {bookTitle} - Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
@@ -929,8 +925,8 @@ Provide helpful, concise responses about the book considering the context of the
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && (
-              <div className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 p-3 rounded text-xs text-dark-gray dark:text-white">
-                {apiKey ? `Hello! I'm your AI assistant for "${bookTitle}". How can I help you?` : 'Please enter your API key to use the AI assistant.'}
+              <div className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 p-3 rounded text-sm text-dark-gray dark:text-white">
+                Hey there! I'm here to chat about "{bookTitle}" with you. Ask me anything about the book, characters, plot, or just share your thoughts!
               </div>
             )}
             {messages.map((msg, idx) => (
@@ -983,53 +979,6 @@ Provide helpful, concise responses about the book considering the context of the
             <div className="space-y-3">
               <div>
                 <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
-                  Image Provider
-                </label>
-                <select 
-                  value={imageProvider}
-                  onChange={(e) => {
-                    setImageProvider(e.target.value);
-                    localStorage.setItem('image_provider', e.target.value);
-                  }}
-                  className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
-                >
-                  <option value="pollinations">Pollinations.ai (FREE, no key needed) ⭐</option>
-                  <option value="dalle">OpenAI DALL-E 3 (Premium, requires API key)</option>
-                </select>
-              </div>
-              
-              {imageProvider === 'dalle' && (
-                <div className="space-y-2">
-                  <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
-                    OpenAI API Key
-                  </label>
-                  <input 
-                    type="password" 
-                    value={imageKey.startsWith('••••') ? imageKey : '••••••••' + imageKey.slice(-4)}
-                    onChange={(e) => setImageKey(e.target.value)}
-                    onFocus={(e) => {
-                      if (e.target.value.startsWith('••••')) {
-                        e.target.value = imageKey;
-                        e.target.type = 'text';
-                      }
-                    }}
-                    placeholder="sk-..." 
-                    className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors mb-2"
-                  />
-                  <button 
-                    onClick={() => {
-                      localStorage.setItem('dalle_api_key', imageKey);
-                      alert('API key saved!');
-                    }}
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
-                  >
-                    Save API Key
-                  </button>
-                </div>
-              )}
-              
-              <div>
-                <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
                   Image Prompt
                 </label>
                 <textarea 
@@ -1056,7 +1005,7 @@ Provide helpful, concise responses about the book considering the context of the
             <button 
               className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={handleGenerateImage}
-              disabled={!imagePrompt.trim() || (imageProvider === 'dalle' && !imageKey)}
+              disabled={!imagePrompt.trim() || !apiKey}
             >
               Generate Image
             </button>

@@ -43,8 +43,8 @@ export function AuthProvider({ children }) {
         const currentPath = window.location.pathname
         console.log('🎯 Checking if should redirect from:', currentPath)
         
-        // If we're on a public auth page (sign-in, sign-up, or root), redirect to /books
-        if (currentPath === '/sign-in' || currentPath === '/sign-up' || currentPath === '/') {
+        // Only redirect from sign-in/sign-up pages, NOT from landing page
+        if (currentPath === '/sign-in' || currentPath === '/sign-up') {
           console.log('🚀 INITIATING redirect to /books from', currentPath)
           // Small delay to ensure state is set
           setTimeout(() => {

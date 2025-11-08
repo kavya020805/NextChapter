@@ -25,9 +25,17 @@ function SignInPage() {
     
     if (!authLoading && user) {
       console.log('👤 User detected on sign-in page!')
-      console.log('🚀 EXECUTING redirect to /books from SignInPage')
-      // Use window.location for a hard redirect to ensure state is updated
-      window.location.href = '/books'
+      
+      // Check if user has completed personalization
+      const hasCompletedPersonalization = localStorage.getItem('personalization_completed')
+      
+      if (!hasCompletedPersonalization) {
+        console.log('🚀 EXECUTING redirect to /personalization from SignInPage')
+        window.location.href = '/personalization'
+      } else {
+        console.log('🚀 EXECUTING redirect to /books from SignInPage')
+        window.location.href = '/books'
+      }
     } else {
       if (authLoading) {
         console.log('⏳ Still loading auth state...')
@@ -78,8 +86,15 @@ function SignInPage() {
         setError(signInError.message || 'Failed to sign in. Please check your credentials.')
       } else {
         setSuccess('Successfully signed in! Redirecting...')
-        // Redirect to books page immediately after successful sign in
-        navigate('/books', { replace: true })
+        
+        // Check if user has completed personalization
+        const hasCompletedPersonalization = localStorage.getItem('personalization_completed')
+        
+        if (!hasCompletedPersonalization) {
+          navigate('/personalization', { replace: true })
+        } else {
+          navigate('/books', { replace: true })
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.')
@@ -231,7 +246,7 @@ function SignInPage() {
                             className="absolute top-0 left-0 w-5 h-5 pointer-events-none" 
                             viewBox="0 0 24 24" 
                             fill="none" 
-                            stroke={isDark ? '#ffffff' : '#2b2b2b'} 
+                            stroke={isDark ? '#ffffff' : '#2a2a2a'} 
                             strokeWidth="3" 
                             strokeLinecap="round" 
                             strokeLinejoin="round"

@@ -9,8 +9,8 @@ function SubscriptionPage() {
   const plans = [
     {
       name: 'Basic',
-      monthlyPrice: 9.99,
-      yearlyPrice: 99.99,
+      monthlyPrice: 299,
+      yearlyPrice: 2999,
       description: 'Perfect for casual readers',
       features: [
         'Access to 5,000+ books',
@@ -23,8 +23,8 @@ function SubscriptionPage() {
     },
     {
       name: 'Pro',
-      monthlyPrice: 19.99,
-      yearlyPrice: 199.99,
+      monthlyPrice: 599,
+      yearlyPrice: 5999,
       description: 'For avid readers and book lovers',
       features: [
         'Access to 10,000+ books',
@@ -40,8 +40,8 @@ function SubscriptionPage() {
     },
     {
       name: 'Premium',
-      monthlyPrice: 39.99,
-      yearlyPrice: 399.99,
+      monthlyPrice: 999,
+      yearlyPrice: 9999,
       description: 'The ultimate reading experience',
       features: [
         'Access to all books',
@@ -170,7 +170,7 @@ function SubscriptionPage() {
                   <div className="mb-8">
                     <div className="flex items-baseline gap-2">
                       <span className="text-5xl md:text-6xl leading-none">
-                        ${price.toFixed(2)}
+                        ₹{price.toFixed(0)}
                       </span>
                       <span className={`text-sm uppercase tracking-widest ${
                         plan.popular
@@ -186,7 +186,7 @@ function SubscriptionPage() {
                           ? 'text-white/60 dark:text-dark-gray/60'
                           : 'text-dark-gray/60 dark:text-white/60'
                       }`}>
-                        Save ${savings.savings.toFixed(2)} ({savings.percentage}% off)
+                        Save ₹{savings.savings.toFixed(0)} ({savings.percentage}% off)
                       </p>
                     )}
                   </div>
@@ -194,7 +194,7 @@ function SubscriptionPage() {
                   <ul className="space-y-4 mb-10">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-start gap-3">
-                        <Check className={`w-5 h-5 flex-shrink-0 mt-0.5 ${
+                        <Check className={`w-5 h-5 flex-shrink:0 mt-0.5 ${
                           plan.popular
                             ? 'text-white dark:text-dark-gray'
                             : 'text-dark-gray dark:text-white'

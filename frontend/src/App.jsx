@@ -10,6 +10,7 @@ import SignUpPage from './pages/SignUpPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ProfilePage from './pages/ProfilePage'
+import PersonalizationPage from './pages/PersonalizationPage'
 import Gallery from './components/Gallery'
 import GalleryLocal from './components/GalleryLocal'
 import Reader from './components/Reader'
@@ -28,6 +29,16 @@ function App() {
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        
+        {/* Personalization - shown after first sign-in */}
+        <Route 
+          path="/personalization" 
+          element={
+            <ProtectedRoute>
+              <PersonalizationPage />
+            </ProtectedRoute>
+          } 
+        />
         
         {/* Protected routes - require authentication */}
         <Route 
