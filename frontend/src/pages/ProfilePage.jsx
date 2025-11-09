@@ -7,6 +7,11 @@ import { supabase } from '../lib/supabaseClient'
 import { getUserProfile } from '../lib/personalizationUtils'
 import ReadingActivityCard from '../components/ReadingActivityCard'
 import ReadingChallengeCard from '../components/ReadingChallengeCard'
+import ReadingStatsCard from '../components/ReadingStatsCard'
+import PinnedBooksCard from '../components/PinnedBooksCard'
+import CurrentlyReadingCard from '../components/CurrentlyReadingCard'
+import GenrePreferencesCard from '../components/GenrePreferencesCard'
+import MonthlyProgressCard from '../components/MonthlyProgressCard'
 
 function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -225,9 +230,32 @@ function ProfilePage() {
               <h1 className="text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-8 leading-none">
                 Profile
               </h1>
-              <p className="text-lg text-white/70 dark:text-dark-gray/70 leading-relaxed font-light">
+              <p className="text-lg text-white/70 dark:text-dark-gray/70 leading-relaxed font-light mb-8">
                 Manage your account settings and preferences.
               </p>
+              
+              {/* Actions */}
+              <div className="space-y-4 flex flex-col items-start">
+                <Link
+                  to="/books"
+                  className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 py-3 text-xs font-medium uppercase tracking-wider border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
+                >
+                  <span className="relative z-10 transition-colors duration-300">Back to Books</span>
+                  <ArrowRight 
+                    className="w-3 h-3 relative z-10 transition-all duration-300 -translate-x-5 opacity-0 group-hover:translate-x-0 group-hover:opacity-100" 
+                  />
+                </Link>
+
+                <button
+                  onClick={handleSignOut}
+                  disabled={loading}
+                  className="group inline-flex items-center gap-3 bg-transparent border border-white dark:border-dark-gray text-white dark:text-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="relative z-10 transition-colors duration-300">
+                    {loading ? 'Signing Out...' : 'Sign Out'}
+                  </span>
+                </button>
+              </div>
             </div>
 
             {/* Right Column - Profile Info */}
@@ -530,27 +558,19 @@ function ProfilePage() {
                     {/* Reading Challenge Card */}
                     <ReadingChallengeCard />
 
-                    {/* Actions */}
-                    <div className="space-y-4 mt-6">
-                      <Link
-                        to="/books"
-                        className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 py-3 text-xs font-medium uppercase tracking-wider border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
-                      >
-                        <span className="relative z-10 transition-colors duration-300">Back to Books</span>
-                        <ArrowRight 
-                          className="w-3 h-3 relative z-10 transition-all duration-300 -translate-x-5 opacity-0 group-hover:translate-x-0 group-hover:opacity-100" 
-                        />
-                      </Link>
+                    {/* Reading Stats Card */}
+                    <ReadingStatsCard />
 
-                      <button
-                        onClick={handleSignOut}
-                        disabled={loading}
-                        className="group w-full inline-flex items-center justify-center gap-3 bg-transparent border border-white dark:border-dark-gray text-white dark:text-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        <span className="relative z-10 transition-colors duration-300">
-                          {loading ? 'Signing Out...' : 'Sign Out'}
-                        </span>
-                      </button>
+                    {/* Pinned Books and Currently Reading Cards */}
+                    <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <PinnedBooksCard />
+                      <CurrentlyReadingCard />
+                    </div>
+
+                    {/* Genre Preferences and Monthly Progress Cards */}
+                    <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <GenrePreferencesCard />
+                      <MonthlyProgressCard />
                     </div>
                   </>
                 )}
