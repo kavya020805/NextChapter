@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { hasCompletedPersonalization } from '../lib/personalizationUtils'
+import { reportLoginActivity } from '../lib/loginActivity'
 
 const AuthContext = createContext()
 
@@ -40,6 +41,7 @@ export function AuthProvider({ children }) {
       
       // Handle OAuth sign-in - redirect based on personalization status
       if (event === 'SIGNED_IN' && session) {
+        reportLoginActivity(session)
         console.log('✅ SIGNED_IN event detected')
         const currentPath = window.location.pathname
         console.log('🎯 Checking if should redirect from:', currentPath)
@@ -96,6 +98,9 @@ export function AuthProvider({ children }) {
       email,
       password,
     })
+    if (data?.session) {
+      reportLoginActivity(data.session)
+    }
     return { data, error }
   }
 
