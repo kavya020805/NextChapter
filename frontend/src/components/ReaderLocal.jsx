@@ -35,6 +35,7 @@ const ReaderLocal = () => {
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageGenResult, setImageGenResult] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [readerTheme, setReaderTheme] = useState('light');
   // Dictionary states
   const [word, setWord] = useState('');
   const [definition, setDefinition] = useState('');
@@ -972,12 +973,18 @@ Provide helpful, concise responses about the book considering the context of the
   }, [bookTitle]);
 
   return (
-    <div className="min-h-screen bg-dark-gray dark:bg-white">
-      <div className="flex h-screen">
+    <div className={readerTheme === 'dark' ? 'dark' : ''}>
+      <div className={`min-h-screen ${readerTheme === 'dark' ? 'bg-dark-gray' : 'bg-white'} ${readerTheme === 'reader' ? 'bg-black reader-mode' : ''}`}>
+        {readerTheme === 'reader' && (
+          <style>{`
+            .reader-mode .pdf-page-canvas { filter: invert(1) hue-rotate(180deg); }
+          `}</style>
+        )}
+        <div className="flex h-screen">
         {/* Main Reader Area */}
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Reader Header */}
-          <div ref={headerRef} className="bg-white dark:bg-dark-gray border-b-2 border-dark-gray dark:border-white px-8 py-3">
+          <div ref={headerRef} className={`border-b-2 px-8 py-3 bg-white dark:bg-dark-gray border-dark-gray dark:border-white ${readerTheme === 'reader' ? 'bg-black border-gray-800 text-white' : ''}`}>
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-4">
               <button 
                 onClick={() => navigate(-1)}
@@ -1011,7 +1018,7 @@ Provide helpful, concise responses about the book considering the context of the
           </div>
           
           {/* PDF Viewer */}
-          <div className="flex-1 relative bg-white/5 dark:bg-dark-gray/5 overflow-hidden">
+          <div className={`flex-1 relative overflow-hidden ${readerTheme === 'reader' ? 'bg-black' : 'bg-white/5 dark:bg-dark-gray/5'}`}>
             <button 
               className="absolute left-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed"
               onClick={(e) => {
@@ -1059,7 +1066,7 @@ Provide helpful, concise responses about the book considering the context of the
         </div>
         
         {/* Sidebar */}
-        <div className={`fixed right-0 w-80 bg-white dark:bg-dark-gray border-l-2 border-dark-gray dark:border-white overflow-y-auto transform transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'}`} style={{ top: 'var(--header-height, 73px)', height: 'calc(100vh - var(--header-height, 73px))' }}>
+        <div className={`fixed right-0 w-80 bg-white dark:bg-dark-gray border-l-2 border-dark-gray dark:border-white overflow-y-auto transform transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} ${readerTheme === 'reader' ? 'bg-black border-gray-800 text-white' : ''}`} style={{ top: 'var(--header-height, 73px)', height: 'calc(100vh - var(--header-height, 73px))' }}>
           <div className="p-4 space-y-4">
             {/* Page Counter */}
             <div className="space-y-2 pb-4 border-b border-dark-gray/10 dark:border-white/10">
@@ -1201,6 +1208,33 @@ Provide helpful, concise responses about the book considering the context of the
                   title="Reset"
                 >
                   <RotateCcw className="w-3 h-3" />
+                </button>
+              </div>
+            </div>
+
+            {/* Theme */}
+            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                Theme
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  className={`px-2 py-1.5 text-[10px] uppercase tracking-widest border ${readerTheme === 'light' ? 'bg-dark-gray text-white border-dark-gray' : 'bg-transparent text-dark-gray dark:text-white border-dark-gray/30 dark:border-white/30'}`}
+                  onClick={() => setReaderTheme('light')}
+                >
+                  Light
+                </button>
+                <button
+                  className={`px-2 py-1.5 text-[10px] uppercase tracking-widest border ${readerTheme === 'dark' ? 'bg-white text-dark-gray border-white' : 'bg-transparent text-dark-gray dark:text-white border-dark-gray/30 dark:border-white/30'}`}
+                  onClick={() => setReaderTheme('dark')}
+                >
+                  Dark
+                </button>
+                <button
+                  className={`px-2 py-1.5 text-[10px] uppercase tracking-widest border ${readerTheme === 'reader' ? 'bg-amber-600 text-white border-amber-600' : 'bg-transparent text-dark-gray dark:text-white border-dark-gray/30 dark:border-white/30'}`}
+                  onClick={() => setReaderTheme('reader')}
+                >
+                  Reader
                 </button>
               </div>
             </div>
@@ -1423,6 +1457,7 @@ Provide helpful, concise responses about the book considering the context of the
           </div>
         </div>
       )}
+    </div>
     </div>
   );
 };
