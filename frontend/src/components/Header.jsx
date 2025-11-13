@@ -156,7 +156,7 @@ function FilterDropdown({ location, navigate }) {
   ]
 
   const filterOptions = [
-    { label: 'Trending', value: 'trending', path: '/books?filter=trending' },
+    { label: 'Trending', value: 'trending', path: '/trending' },
     { label: 'New Releases', value: 'new', path: '/books?filter=new' },
     { label: 'Most Popular', value: 'popular', path: '/books?filter=popular' },
     { label: 'Highest Rated', value: 'rated', path: '/books?filter=rated' },
@@ -187,6 +187,13 @@ function FilterDropdown({ location, navigate }) {
     navigate(option.path)
     setIsOpen(false)
   }
+
+  const handleRecommendedClick = () => {
+    navigate('/recommended')
+    setIsOpen(false)
+  }
+
+  const isRecommendedActive = location.pathname === '/recommended'
 
   return (
     <div 
@@ -279,6 +286,25 @@ function FilterDropdown({ location, navigate }) {
                     {option.label}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-dark-gray/10 dark:border-white/10">
+                <button
+                  onClick={handleRecommendedClick}
+                  className={`w-full text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] transition-all duration-200 ease-out cursor-pointer flex items-center justify-between ${
+                    isRecommendedActive
+                      ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
+                      : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-4'
+                  }`}
+                >
+                  <span>AI Recommended</span>
+                  <span className="text-[10px] tracking-[0.4em] opacity-70">
+                    Beta
+                  </span>
+                </button>
+                <p className="mt-3 text-[10px] uppercase tracking-[0.35em] text-dark-gray/50 dark:text-white/40 leading-relaxed">
+                  Personalized picks powered by your Supabase reading history.
+                </p>
               </div>
             </div>
           </div>

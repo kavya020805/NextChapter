@@ -11,6 +11,8 @@ import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
 import ProfilePage from './pages/ProfilePage'
 import PersonalizationPage from './pages/PersonalizationPage'
+import RecommendedBooksPage from './pages/RecommendedBooksPage'
+import TrendingBooksPage from './pages/TrendingBooksPage'
 import Gallery from './components/Gallery'
 import GalleryLocal from './components/GalleryLocal'
 import Reader from './components/Reader'
@@ -46,6 +48,22 @@ function App() {
           element={
             <ProtectedRoute>
               <BooksPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/recommended" 
+          element={
+            <ProtectedRoute>
+              <RecommendedBooksPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/trending" 
+          element={
+            <ProtectedRoute>
+              <TrendingBooksPage />
             </ProtectedRoute>
           } 
         />

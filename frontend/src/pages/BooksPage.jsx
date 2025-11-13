@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link, useSearchParams, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
-import { Search, X } from 'lucide-react'
+import { Search, X, TrendingUp } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { hasCompletedPersonalization } from '../lib/personalizationUtils'
@@ -204,6 +204,7 @@ function BooksPage() {
                   </button>
                 )}
               </div>
+             
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
               {filteredBooks.map((book) => (
