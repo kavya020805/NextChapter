@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import usePdfRenderer from '../pdf/usePdfRenderer';
 
 const Reader = () => {
   const [searchParams] = useSearchParams();
@@ -17,11 +18,35 @@ const Reader = () => {
   const [messages, setMessages] = useState([]);
   const [chatbotInput, setChatbotInput] = useState('');
   const [loading, setLoading] = useState(true);
-  
-  const pdfFrameRef = useRef(null);
+
   const viewerRef = useRef(null);
-  const pageTrackingIntervalRef = useRef(null);
   const pdfUrlRef = useRef('');
+
+  const {
+    loadPdf,
+    currentPage: hookCurrentPage,
+    totalPages: hookTotalPages,
+    zoom: hookZoom,
+    setZoom: hookSetZoom,
+    navigateToPage: hookNavigateToPage,
+    containerRef: pdfContainerRef,
+  } = usePdfRenderer({
+    initialPage: 1,
+    onPageChange: (p, t) => {
+      setCurrentPage(p);
+      if (t) setTotalPages(t);
+    },
+    onProgressUpdate: (p, t) => {
+      setCurrentPage(p);
+      if (t) setTotalPages(t);
+    },
+    lruLimit: 4,
+    eagerAllPages: true,
+  });
+
+  useEffect(() => {
+    pdfContainerRef.current = viewerRef.current;
+  });
 
   useEffect(() => {
     const savedMode = localStorage.getItem('darkMode');
@@ -29,53 +54,31 @@ const Reader = () => {
       setDarkMode(true);
       document.body.classList.add('dark-mode');
     }
-    
     const savedKey = localStorage.getItem('ai_api_key');
     const savedProvider = localStorage.getItem('ai_api_provider');
     if (savedKey) setApiKey(savedKey);
     if (savedProvider) setApiProvider(savedProvider);
-    
-    return () => {
-      if (pageTrackingIntervalRef.current) {
-        clearInterval(pageTrackingIntervalRef.current);
-      }
-    };
   }, []);
 
-  const estimateTotalPages = async (url) => {
-    try {
-      if (typeof pdfjsLib === 'undefined') return;
-      pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      const loadingTask = pdfjsLib.getDocument(url);
-      const pdf = await loadingTask.promise;
-      setTotalPages(pdf.numPages);
-    } catch (e) {
-      console.log('Could not determine page count');
+  useEffect(() => { 
+    if (hookZoom && hookZoom !== zoomLevel) {
+      setZoomLevel(hookZoom); 
     }
-  };
+  }, [hookZoom, zoomLevel]);
+  
+  useEffect(() => { 
+    if (hookCurrentPage && hookCurrentPage !== currentPage) {
+      setCurrentPage(hookCurrentPage); 
+    }
+  }, [hookCurrentPage, currentPage]);
+  
+  useEffect(() => { 
+    if (hookTotalPages && hookTotalPages !== totalPages) {
+      setTotalPages(hookTotalPages); 
+    }
+  }, [hookTotalPages, totalPages]);
 
-  const setupPageTracking = (frame) => {
-    if (pageTrackingIntervalRef.current) {
-      clearInterval(pageTrackingIntervalRef.current);
-    }
-    
-    pageTrackingIntervalRef.current = setInterval(() => {
-      try {
-        const srcMatch = frame.src.match(/[#&]page=(\d+)/);
-        if (srcMatch) {
-          const page = parseInt(srcMatch[1]);
-          setCurrentPage(prevPage => {
-            if (page !== prevPage && page > 0) {
-              return page;
-            }
-            return prevPage;
-          });
-        }
-      } catch (e) {
-        // CORS - expected
-      }
-    }, 50);
-  };
+  
 
   useEffect(() => {
     if (!id) {
@@ -114,64 +117,14 @@ const Reader = () => {
         }
         
         pdfUrlRef.current = pdfUrl;
-        
-        // Wait for viewerRef to be available
-        const setupFrame = () => {
-          if (viewerRef.current) {
-            console.log('Setting up PDF frame in viewer');
-            // Clear any existing content
-            viewerRef.current.innerHTML = '';
-            
-            // Create iframe
-            const frame = document.createElement('iframe');
-            const pdfSrc = pdfUrl + '#page=1&toolbar=0&navpanes=0&scrollbar=0';
-            console.log('PDF iframe src:', pdfSrc);
-            frame.src = pdfSrc;
-            frame.style.width = '100%';
-            frame.style.height = '100%';
-            frame.style.border = 'none';
-            frame.style.minHeight = '500px';
-            frame.id = 'pdfViewer';
-            frame.title = 'PDF Viewer';
-            frame.allow = 'fullscreen';
-            
-            // Handle iframe load errors
-            frame.onerror = (e) => {
-              console.error('Iframe load error:', e);
-              if (viewerRef.current) {
-                viewerRef.current.innerHTML = `<div class="empty">Error loading PDF. Please try again.</div>`;
-              }
-            };
-            
-            // Append to viewer
-            viewerRef.current.appendChild(frame);
-            pdfFrameRef.current = frame;
-            
-            // Wait for iframe to load before setting up tracking
-            frame.onload = () => {
-              console.log('PDF iframe loaded successfully');
-              estimateTotalPages(pdfUrl);
-              setupPageTracking(frame);
-            };
-            
-            return true;
-          }
-          console.warn('viewerRef.current is null');
-          return false;
-        };
-        
-        if (!setupFrame()) {
-          // If viewerRef is not ready, try again after a short delay
-          console.log('Viewer ref not ready, retrying in 100ms');
-          setTimeout(() => {
-            if (!setupFrame()) {
-              console.error('Failed to setup frame after retry');
-              if (viewerRef.current) {
-                viewerRef.current.innerHTML = `<div class="empty">Error: Could not initialize PDF viewer</div>`;
-              }
-            }
-          }, 100);
+        if (!viewerRef.current) {
+          throw new Error('Viewer container not available');
         }
+        viewerRef.current.innerHTML = '';
+        await loadPdf(pdfUrl);
+        setTimeout(() => {
+          hookNavigateToPage(1);
+        }, 100);
       } catch (e) {
         console.error('Failed to load book:', e);
         setBookTitle(`Failed to load book: ${e.message}`);
@@ -192,74 +145,11 @@ const Reader = () => {
 
   const navigateToPage = useCallback((page) => {
     if (page < 1 || (totalPages > 0 && page > totalPages)) {
-      console.log('Navigation blocked:', page, 'totalPages:', totalPages);
       return;
     }
-    
-    console.log('Navigating to page:', page);
     setCurrentPage(page);
-    
-    if (pdfFrameRef.current && pdfUrlRef.current) {
-      const baseUrl = pdfUrlRef.current.split('#')[0];
-      const newSrc = baseUrl + `#page=${page}&toolbar=0&navpanes=0&scrollbar=0`;
-      
-      // Force navigation by recreating iframe if src doesn't change
-      const currentSrc = pdfFrameRef.current.src;
-      const currentPageMatch = currentSrc.match(/[#&]page=(\d+)/);
-      const currentPageNum = currentPageMatch ? parseInt(currentPageMatch[1]) : null;
-      
-      if (currentPageNum === page) {
-        console.log('Already on page', page);
-        return;
-      }
-      
-      // Remove old iframe and create new one to force page change
-      const viewer = viewerRef.current;
-      if (viewer && pdfFrameRef.current.parentNode) {
-        const frameStyle = pdfFrameRef.current.style.cssText;
-        const frameId = pdfFrameRef.current.id;
-        const frameTitle = pdfFrameRef.current.title;
-        
-        // Clear tracking interval
-        if (pageTrackingIntervalRef.current) {
-          clearInterval(pageTrackingIntervalRef.current);
-          pageTrackingIntervalRef.current = null;
-        }
-        
-        // Remove old frame
-        try {
-          pdfFrameRef.current.parentNode.removeChild(pdfFrameRef.current);
-        } catch (e) {
-          console.error('Error removing iframe:', e);
-        }
-        
-        // Create new frame with new page
-        const newFrame = document.createElement('iframe');
-        newFrame.src = newSrc;
-        newFrame.style.cssText = frameStyle;
-        newFrame.id = frameId;
-        newFrame.title = frameTitle;
-        newFrame.style.width = '100%';
-        newFrame.style.height = '100%';
-        newFrame.style.border = 'none';
-        newFrame.style.minHeight = '500px';
-        newFrame.allow = 'fullscreen';
-        
-        viewer.appendChild(newFrame);
-        pdfFrameRef.current = newFrame;
-        
-        // Re-setup tracking
-        newFrame.onload = () => {
-          console.log('PDF iframe reloaded to page:', page);
-          estimateTotalPages(pdfUrlRef.current);
-          setupPageTracking(newFrame);
-        };
-      } else {
-        // Fallback: just update src
-        pdfFrameRef.current.src = newSrc;
-      }
-    }
-  }, [totalPages]);
+    hookNavigateToPage(page);
+  }, [totalPages, hookNavigateToPage]);
 
   const toggleDarkMode = () => {
     const newMode = !darkMode;
@@ -271,17 +161,12 @@ const Reader = () => {
   const handleZoom = (delta) => {
     const newZoom = Math.max(50, Math.min(200, zoomLevel + delta));
     setZoomLevel(newZoom);
-    if (pdfFrameRef.current) {
-      pdfFrameRef.current.style.transform = `scale(${newZoom / 100})`;
-      pdfFrameRef.current.style.transformOrigin = 'top left';
-    }
+    hookSetZoom(newZoom);
   };
 
   const resetZoom = () => {
     setZoomLevel(100);
-    if (pdfFrameRef.current) {
-      pdfFrameRef.current.style.transform = 'scale(1)';
-    }
+    hookSetZoom(100);
   };
 
   const sendMessage = async () => {
@@ -414,7 +299,7 @@ const Reader = () => {
                 Loading PDF…
               </div>
             )}
-            {!loading && !pdfFrameRef.current && (
+            {!loading && !viewerRef.current && (
               <div className="empty" style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }}>
                 No PDF loaded
               </div>
@@ -498,10 +383,7 @@ const Reader = () => {
               onChange={(e) => {
                 const newZoom = parseInt(e.target.value);
                 setZoomLevel(newZoom);
-                if (pdfFrameRef.current) {
-                  pdfFrameRef.current.style.transform = `scale(${newZoom / 100})`;
-                  pdfFrameRef.current.style.transformOrigin = 'top left';
-                }
+                hookSetZoom(newZoom);
               }}
             />
             <button className="page-btn" onClick={resetZoom} style={{ width: '100%' }}>
