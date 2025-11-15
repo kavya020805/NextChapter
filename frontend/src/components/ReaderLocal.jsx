@@ -86,19 +86,48 @@ const ReaderLocal = () => {
       }
     }
 
-    // Ensure a single canvas inside the viewer
-    let canvas = viewerRef.current.querySelector('canvas');
-    if (!canvas) {
-      viewerRef.current.innerHTML = '';
+    const container = viewerRef.current;
+    const headerHeight = headerRef.current?.offsetHeight || 0;
+
+    // Ensure we have a wrapper div and canvas inside the viewer
+    let wrapper = container.querySelector('#pdf-wrapper');
+    let canvas;
+    
+    if (!wrapper) {
+      container.innerHTML = '';
+      wrapper = document.createElement('div');
+      wrapper.id = 'pdf-wrapper';
+      wrapper.style.width = '100%';
+      wrapper.style.display = 'flex';
+      wrapper.style.flexDirection = 'column';
+      wrapper.style.alignItems = 'center';
+      
       canvas = document.createElement('canvas');
       canvas.id = 'pdfCanvas';
       canvas.style.maxWidth = '900px';
       canvas.style.width = '100%';
       canvas.style.height = 'auto';
       canvas.style.display = 'block';
-      canvas.style.margin = '0 auto';
-      viewerRef.current.appendChild(canvas);
+      
+      wrapper.appendChild(canvas);
+      container.appendChild(wrapper);
+    } else {
+      canvas = wrapper.querySelector('canvas');
     }
+
+    // Add device-specific top margin to the canvas for better visibility below header
+    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    canvas.style.marginTop = isMobile ? '120px' : '80px';
+
+    // Apply invert filter in reader mode
+    canvas.style.filter = readerTheme === 'reader' ? 'invert(1)' : 'none';
+
+    // Set wrapper padding so the PDF has space above and below
+    // Increase top padding significantly with zoom so content stays accessible
+    const zoomFactor = zoomToUse / 100;
+    const topPadding = headerHeight + (400 * zoomFactor); // More space at higher zoom
+    wrapper.style.paddingTop = `${topPadding}px`;
+    wrapper.style.paddingBottom = '100px';
 
     try {
       const page = await pdfDocRef.current.getPage(safePage);
@@ -127,15 +156,20 @@ const ReaderLocal = () => {
       const renderTask = page.render({ canvasContext: context, viewport });
       renderTaskRef.current = renderTask;
       await renderTask.promise;
+
+      // Apply invert filter in reader mode after rendering
+      canvas.style.filter = readerTheme === 'reader' ? 'invert(1)' : 'none';
     } catch (e) {
       console.error('Error rendering PDF page', e);
     }
-  }, [totalPages, zoomLevel]);
+  }, [totalPages, zoomLevel, readerTheme]);
 
-  const updateZoomInPDF = (zoom) => {
-    if (!pdfDocRef.current || currentPage <= 0) return;
-    renderPage(currentPage, zoom);
-  };
+  // Re-render when readerTheme changes to apply invert filter
+  useEffect(() => {
+    if (pdfDocRef.current && currentPage > 0) {
+      renderPage(currentPage);
+    }
+  }, [readerTheme, renderPage]);
 
   // Save reading progress to database and localStorage
   useEffect(() => {
@@ -512,7 +546,7 @@ const ReaderLocal = () => {
 
 
   const handleZoom = (delta) => {
-    const next = Math.max(100, Math.min(200, zoomLevel + delta));
+    const next = Math.max(50, Math.min(150, zoomLevel + delta));
     setZoomLevel(next);
     updateZoomInPDF(next);
   };
@@ -840,7 +874,7 @@ Provide helpful, concise responses about the book considering the context of the
             <div 
               id="viewer" 
               ref={viewerRef} 
-              className={`w-full h-full relative overflow-hidden ${loading ? 'invisible' : ''}`}
+              className={`w-full h-full relative overflow-y-auto overflow-x-hidden pt-4 md:pt-6 ${loading ? 'invisible' : ''}`}
             ></div>
             <button 
               className={`absolute right-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed ${loading ? 'opacity-0 pointer-events-none' : ''}`}
