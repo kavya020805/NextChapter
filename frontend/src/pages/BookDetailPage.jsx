@@ -1165,7 +1165,7 @@ const BookDetailPage = () => {
                       className="w-full bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-2 border-white dark:border-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-widest hover:opacity-80 transition-opacity flex items-center justify-center gap-2"
                     >
                       <BookOpen className="w-3.5 h-3.5" />
-                      {progress > 0 && currentPage > 0 ? 'Continue Reading' : 'Read Now'}
+                      {progress > 0 ? 'Continue Reading' : 'Read Now'}
                     </button>
 
                     <button

@@ -877,7 +877,7 @@ Provide helpful, concise responses about the book considering the context of the
               className={`w-full h-full relative overflow-y-auto overflow-x-hidden pt-4 md:pt-6 ${loading ? 'invisible' : ''}`}
             ></div>
             <button 
-              className={`absolute right-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed ${loading ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`absolute right-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed ${readerTheme === 'reader' ? 'border-white text-white' : ''} ${loading ? 'opacity-0 pointer-events-none' : ''}`}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
