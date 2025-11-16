@@ -43,113 +43,87 @@ export default function RecommendedBooks({ userId }) {
     }
   }
 
+  const hasBooks = books.length > 0;
+
   return (
-    <section style={{ marginTop: "2rem" }}>
-      <header style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-        <h2 style={{ margin: 0 }}>Recommended For You</h2>
+    <section className="mt-6 space-y-4">
+      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-lg md:text-xl font-semibold text-white dark:text-dark-gray">
+            Recommended For You
+          </h2>
+          <p className="mt-1 text-xs md:text-sm text-white/60 dark:text-dark-gray/60">
+            Tap the button to fetch fresh picks based on your recent reading activity.
+          </p>
+        </div>
         <button
           type="button"
           onClick={fetchRecommendations}
           disabled={status === "loading"}
-          style={{
-            padding: "0.5rem 1rem",
-            borderRadius: "999px",
-            border: "none",
-            background: "#4f46e5",
-            color: "#fff",
-            cursor: status === "loading" ? "not-allowed" : "pointer",
-          }}
+          className={`inline-flex items-center justify-center px-5 py-2 text-xs md:text-sm font-medium uppercase tracking-widest border transition-opacity duration-200
+            ${
+              status === "loading"
+                ? "bg-white/5 dark:bg-dark-gray/5 text-white/50 dark:text-dark-gray/50 border-white/20 dark:border-dark-gray/30 cursor-not-allowed opacity-70"
+                : "bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:opacity-80"
+            }`}
         >
-          {status === "loading" ? "Fetching..." : "Show Picks"}
+          {status === "loading" ? "Fetching..." : hasBooks ? "Refresh Picks" : "Show Picks"}
         </button>
       </header>
 
       {error && (
-        <p style={{ color: "#ef4444", marginTop: "0.75rem" }}>
+        <p className="text-sm text-red-400 dark:text-red-500">
           {error || "Something went wrong. Please try again."}
         </p>
       )}
 
-      {status === "idle" && (
-        <p style={{ marginTop: "0.75rem", color: "#4b5563" }}>
-          Tap the button to fetch personalized picks powered by your reading history.
+      {status === "idle" && !error && (
+        <p className="text-sm text-white/60 dark:text-dark-gray/60">
+          You haven't loaded any recommendations yet. Hit "Show Picks" to see what our system suggests for you.
         </p>
       )}
 
-      {status === "loaded" && books.length === 0 && (
-        <p style={{ marginTop: "0.75rem" }}>No recommendations available right now.</p>
+      {status === "loaded" && books.length === 0 && !error && (
+        <p className="text-sm text-white/70 dark:text-dark-gray/70">
+          No recommendations available right now. Try again after you explore a few more books.
+        </p>
       )}
 
-      {justification && books.length > 0 && (
-        <p
-          style={{
-            marginTop: "1rem",
-            fontStyle: "italic",
-            color: "#1f2937",
-            maxWidth: "60ch",
-          }}
-        >
+      {justification && hasBooks && (
+        <p className="mt-2 text-sm italic text-white/80 dark:text-dark-gray/80 max-w-2xl">
           {justification}
         </p>
       )}
 
-      {books.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(150px, 1fr))",
-            gap: "1.5rem",
-            marginTop: "1.5rem",
-          }}
-        >
+      {hasBooks && (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {books.map((book) => (
             <article
               key={book.book_id}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: "0.75rem",
-                borderRadius: "0.75rem",
-                border: "1px solid rgba(79, 70, 229, 0.15)",
-                padding: "1rem",
-                background: "linear-gradient(135deg, rgba(79,70,229,0.08), rgba(14,165,233,0.08))",
-              }}
+              className="flex flex-col gap-3 rounded-xl border border-white/10 dark:border-dark-gray/15 bg-white/5 dark:bg-dark-gray/5 backdrop-blur-sm p-4 md:p-5 shadow-sm shadow-black/20 dark:shadow-black/10 hover:border-white/25 dark:hover:border-dark-gray/25 transition-colors"
             >
               {book.cover_url ? (
-                <img
-                  src={book.cover_url}
-                  alt={book.title ?? "Book cover"}
-                  style={{
-                    width: "100%",
-                    aspectRatio: "3 / 4",
-                    objectFit: "cover",
-                    borderRadius: "0.5rem",
-                    boxShadow: "0 10px 25px rgba(79, 70, 229, 0.2)",
-                  }}
-                  loading="lazy"
-                />
+                <div className="overflow-hidden rounded-lg border border-white/10 dark:border-dark-gray/20 shadow-md shadow-black/30">
+                  <img
+                    src={book.cover_url}
+                    alt={book.title ?? "Book cover"}
+                    className="w-full aspect-3/4 object-cover"
+                    loading="lazy"
+                  />
+                </div>
               ) : (
-                <div
-                  style={{
-                    width: "100%",
-                    aspectRatio: "3 / 4",
-                    borderRadius: "0.5rem",
-                    background: "rgba(79,70,229,0.15)",
-                    display: "grid",
-                    placeItems: "center",
-                    color: "#312e81",
-                    fontWeight: 600,
-                  }}
-                >
+                <div className="w-full aspect-3/4 rounded-lg border border-white/10 dark:border-dark-gray/20 bg-white/5 dark:bg-dark-gray/20 flex items-center justify-center text-xs font-semibold uppercase tracking-[0.25em] text-white/70 dark:text-dark-gray/70">
                   No Cover
                 </div>
               )}
               <div>
-                <h3 style={{ margin: 0, fontSize: "1rem", color: "#1f2937" }}>
+                <h3 className="text-sm md:text-base font-semibold text-white dark:text-dark-gray line-clamp-2">
                   {book.title ?? "Untitled"}
                 </h3>
                 {book.author && (
-                  <p style={{ margin: "0.5rem 0 0", color: "#4b5563" }}>{book.author}</p>
+                  <p className="mt-1 text-xs md:text-sm text-white/70 dark:text-dark-gray/70 line-clamp-1">
+                    {book.author}
+                  </p>
                 )}
               </div>
             </article>

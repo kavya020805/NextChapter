@@ -159,10 +159,8 @@ function FilterDropdown({ location, navigate }) {
   const filterOptions = [
     { label: 'Trending', value: 'trending', path: '/trending' },
     { label: 'New Releases', value: 'new', path: '/books?filter=new' },
-    { label: 'Most Popular', value: 'popular', path: '/books?filter=popular' },
     { label: 'Highest Rated', value: 'rated', path: '/books?filter=rated' },
-    { label: 'Similar Books', value: 'similar', path: '/books?filter=similar' },
-    { label: 'Recently Added', value: 'recent', path: '/books?filter=recent' }
+    { label: 'Recommendations', value: 'recommended', path: '/recommended' }
   ]
 
   const handleMouseEnter = () => {
@@ -188,13 +186,6 @@ function FilterDropdown({ location, navigate }) {
     navigate(option.path)
     setIsOpen(false)
   }
-
-  const handleRecommendedClick = () => {
-    navigate('/recommended')
-    setIsOpen(false)
-  }
-
-  const isRecommendedActive = location.pathname === '/recommended'
 
   return (
     <div 
@@ -268,44 +259,32 @@ function FilterDropdown({ location, navigate }) {
                 Filters
               </h3>
               <div className="space-y-1">
-                {filterOptions.map((option, index) => (
-                  <button
-                    key={option.value}
-                    onClick={() => handleFilterClick(option)}
-                    className={`w-full text-left px-3 py-2 text-xs font-medium uppercase tracking-widest transition-all duration-200 ease-out cursor-pointer relative ${
-                      location.search.includes(option.value)
-                        ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
-                        : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-4'
-                    }`}
-                    style={{
-                      animation: `fadeIn 0.2s ease-out ${index * 0.02}s both`
-                    }}
-                  >
-                    {location.search.includes(option.value) && (
-                      <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-1 bg-white dark:bg-dark-gray rounded-full"></span>
-                    )}
-                    {option.label}
-                  </button>
-                ))}
-              </div>
+                {filterOptions.map((option, index) => {
+                  const isActive =
+                    option.value === 'recommended'
+                      ? location.pathname === '/recommended'
+                      : location.search.includes(option.value)
 
-              <div className="mt-4 pt-4 border-t border-dark-gray/10 dark:border-white/10">
-                <button
-                  onClick={handleRecommendedClick}
-                  className={`w-full text-left px-3 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] transition-all duration-200 ease-out cursor-pointer flex items-center justify-between ${
-                    isRecommendedActive
-                      ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
-                      : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-4'
-                  }`}
-                >
-                  <span>AI Recommended</span>
-                  <span className="text-[10px] tracking-[0.4em] opacity-70">
-                    Beta
-                  </span>
-                </button>
-                <p className="mt-3 text-[10px] uppercase tracking-[0.35em] text-dark-gray/50 dark:text-white/40 leading-relaxed">
-                  Personalized picks powered by your Supabase reading history.
-                </p>
+                  return (
+                    <button
+                      key={option.value}
+                      onClick={() => handleFilterClick(option)}
+                      className={`w-full text-left px-3 py-2 text-xs font-medium uppercase tracking-widest transition-all duration-200 ease-out cursor-pointer relative ${
+                        isActive
+                          ? 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray'
+                          : 'text-dark-gray dark:text-white hover:bg-dark-gray/8 dark:hover:bg-white/8 hover:pl-4'
+                      }`}
+                      style={{
+                        animation: `fadeIn 0.2s ease-out ${index * 0.02}s both`
+                      }}
+                    >
+                      {isActive && (
+                        <span className="absolute left-1 top-1/2 -translate-y-1/2 w-1 h-1 bg-white dark:bg-dark-gray rounded-full"></span>
+                      )}
+                      {option.label}
+                    </button>
+                  )
+                })}
               </div>
             </div>
           </div>

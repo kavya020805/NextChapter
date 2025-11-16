@@ -78,10 +78,6 @@ function TrendingBooksPage() {
     )
   }
 
-  // Split books into two rows: first 5 and next 5
-  const firstRow = trendingBooks.slice(0, 5)
-  const secondRow = trendingBooks.slice(5, 10)
-
   return (
     <div className="min-h-screen bg-dark-gray dark:bg-white">
       <Header />
@@ -91,8 +87,7 @@ function TrendingBooksPage() {
         <div className="max-w-7xl mx-auto px-8">
           <div className="grid grid-cols-12 gap-8 md:gap-16 mb-12">
             <div className="col-span-12 md:col-span-6">
-              <div className="flex items-center gap-3 mb-6">
-                <TrendingUp className="w-8 h-8 text-white dark:text-dark-gray" />
+              <div className="mb-6">
                 <h1 className="text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray leading-none">
                   Trending
                   <br />
@@ -102,143 +97,97 @@ function TrendingBooksPage() {
             </div>
             <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
               <p className="text-lg text-white/70 dark:text-dark-gray/70 font-light mb-8">
-                Discover the most popular books based on recent reads, wishlist adds, ratings, and discussions
+                A live snapshot of what readers are gravitating towards right now—ranked using recent reads,
+                wishlist adds, ratings, and conversations across NextChapter.
               </p>
               <Link
                 to="/books"
-                className="inline-flex items-center gap-2 text-sm font-medium uppercase tracking-widest text-white dark:text-dark-gray hover:opacity-60 transition-opacity"
+                className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 py-3 text-xs font-medium uppercase tracking-wider border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Back to All Books
+                <ArrowLeft
+                  className="w-3 h-3 relative z-10 transition-all duration-300 -translate-x-5 opacity-0 group-hover:translate-x-0 group-hover:opacity-100"
+                />
+                <span className="relative z-10 transition-colors duration-300">Back to All Books</span>
               </Link>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Trending Books - First Row (5 books) */}
-      {trendingBooks.length > 0 && (
-        <section className="bg-white dark:bg-dark-gray py-16">
-          <div className="max-w-7xl mx-auto px-8">
-            {firstRow.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-8 mb-12">
-                {firstRow.map((book, index) => (
+      {/* Trending Books Grid - styled similar to Books page */}
+      <section className="bg-dark-gray dark:bg-white py-16">
+        <div className="max-w-7xl mx-auto px-8">
+          {trendingBooks.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-xl text-white/70 dark:text-dark-gray/70">
+                No trending books available yet. Check back soon!
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-6">
+                {trendingBooks.map((book, index) => (
                   <Link
                     key={book.id}
-                    to={`/book/${book.id}`}
+                    to={`/book/${encodeURIComponent(book.id)}`}
                     className="group"
                   >
-                    <div className="relative overflow-hidden border-2 border-dark-gray dark:border-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-all duration-300">
-                      {/* Trending Badge */}
-                      {index < 3 && (
-                        <div className="absolute top-4 right-4 z-10 bg-dark-gray dark:bg-white text-white dark:text-dark-gray text-xs font-bold px-3 py-1 uppercase tracking-widest">
-                          #{index + 1}
+                    <div className="relative overflow-hidden border-2 border-white dark:border-dark-gray group hover:bg-white dark:hover:bg-dark-gray transition-colors">
+                      {/* Rank Badge - bookmark style (high contrast) */}
+                      <div className="absolute -top-1 right-3 z-10 flex flex-col items-center text-white">
+                        <div className="px-2 pt-3 pb-1 bg-coral shadow-lg shadow-black/40 border border-dark-gray/30 dark:border-white/40 rounded-t-sm">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.25em]">
+                            #{index + 1}
+                          </span>
+                        </div>
+                        <div className="w-0 h-0 border-t-4 border-t-coral border-l-4 border-l-transparent border-r-4 border-r-transparent"></div>
+                      </div>
+
+                      {book.cover_image ? (
+                        <img
+                          src={book.cover_image}
+                          alt={book.title || 'Book cover'}
+                          className="w-full aspect-2/3 object-cover group-hover:opacity-20 transition-opacity duration-300"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full aspect-2/3 bg-white dark:bg-dark-gray flex items-center justify-center text-dark-gray dark:text-white text-6xl">
+                          📚
                         </div>
                       )}
-
-                      {/* Book Cover */}
-                      <div className="relative aspect-2/3 overflow-hidden bg-dark-gray/10 dark:bg-white/10">
-                        {book.cover_image ? (
-                          <img
-                            src={book.cover_image}
-                            alt={book.title || 'Book cover'}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <BookOpen className="w-16 h-16 text-dark-gray/20 dark:text-white/20" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Book Info */}
-                      <div className="p-6">
-                        <h3 className="text-lg font-medium text-dark-gray dark:text-white mb-2 line-clamp-2 group-hover:opacity-80 transition-opacity">
+                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                        <h3 className="text-dark-gray dark:text-white font-medium text-sm line-clamp-2 mb-2 uppercase tracking-widest">
                           {book.title || 'Untitled'}
                         </h3>
-                        {book.author && (
-                          <p className="text-sm text-dark-gray/60 dark:text-white/60 mb-3 line-clamp-1">
-                            {book.author}
-                          </p>
-                        )}
-                        
-                        {/* Trending Score */}
-                        <div className="flex items-center gap-2 text-xs text-dark-gray/40 dark:text-white/40">
-                          <TrendingUp className="w-3 h-3" />
-                          <span>Score: {book.trendingScore?.toFixed(1) || '0.0'}</span>
-                        </div>
+                        <p className="text-dark-gray/70 dark:text-white/70 text-xs line-clamp-1 font-light uppercase tracking-widest">
+                          {book.author || 'Unknown Author'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <h3 className="text-white dark:text-dark-gray font-medium text-xs line-clamp-2 mb-2 uppercase tracking-widest">
+                        {book.title || 'Untitled'}
+                      </h3>
+                      <p className="text-white/60 dark:text-dark-gray/60 text-xs mb-2 font-light uppercase tracking-widest">
+                        {book.author || 'Unknown Author'}
+                      </p>
+                      {book.description && (
+                        <p className="text-white/50 dark:text-dark-gray/50 text-xs line-clamp-2 font-light leading-relaxed">
+                          {book.description}
+                        </p>
+                      )}
+                      <div className="mt-2 flex items-center gap-2 text-xs text-white/60 dark:text-dark-gray/60">
+                        <TrendingUp className="w-3 h-3" />
+                        <span>Score: {book.trendingScore?.toFixed(1) || '0.0'}</span>
                       </div>
                     </div>
                   </Link>
                 ))}
               </div>
-            )}
-
-            {/* Trending Books - Second Row (5 books) */}
-            {secondRow.length > 0 && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 md:gap-8">
-                {secondRow.map((book, index) => (
-                  <Link
-                    key={book.id}
-                    to={`/book/${book.id}`}
-                    className="group"
-                  >
-                    <div className="relative overflow-hidden border-2 border-dark-gray dark:border-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-all duration-300">
-                      {/* Trending Badge */}
-                      <div className="absolute top-4 right-4 z-10 bg-dark-gray dark:bg-white text-white dark:text-dark-gray text-xs font-bold px-3 py-1 uppercase tracking-widest">
-                        #{index + 6}
-                      </div>
-
-                      {/* Book Cover */}
-                      <div className="relative aspect-2/3 overflow-hidden bg-dark-gray/10 dark:bg-white/10">
-                        {book.cover_image ? (
-                          <img
-                            src={book.cover_image}
-                            alt={book.title || 'Book cover'}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            loading="lazy"
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <BookOpen className="w-16 h-16 text-dark-gray/20 dark:text-white/20" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Book Info */}
-                      <div className="p-6">
-                        <h3 className="text-lg font-medium text-dark-gray dark:text-white mb-2 line-clamp-2 group-hover:opacity-80 transition-opacity">
-                          {book.title || 'Untitled'}
-                        </h3>
-                        {book.author && (
-                          <p className="text-sm text-dark-gray/60 dark:text-white/60 mb-3 line-clamp-1">
-                            {book.author}
-                          </p>
-                        )}
-                        
-                        {/* Trending Score */}
-                        <div className="flex items-center gap-2 text-xs text-dark-gray/40 dark:text-white/40">
-                          <TrendingUp className="w-3 h-3" />
-                          <span>Score: {book.trendingScore?.toFixed(1) || '0.0'}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-            )}
-
-            {trendingBooks.length === 0 && (
-              <div className="text-center py-20">
-                <p className="text-lg text-dark-gray/70 dark:text-white/70 font-light">
-                  No trending books available yet. Check back soon!
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
+            </>
+          )}
+        </div>
+      </section>
 
       {/* Footer */}
       <footer className="bg-dark-gray dark:bg-white border-t-2 border-white dark:border-dark-gray py-16 mt-24">
