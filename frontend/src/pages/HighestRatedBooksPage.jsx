@@ -1,19 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
-import { TrendingUp, BookOpen, ArrowLeft } from 'lucide-react'
-import { getTrendingBooks } from '../lib/trendingUtils'
+import { Star, ArrowLeft } from 'lucide-react'
+import { getHighestRatedBooks } from '../lib/highestRatedUtils'
 import { useAuth } from '../contexts/AuthContext'
 import { hasCompletedPersonalization } from '../lib/personalizationUtils'
 
-function TrendingBooksPage() {
+function HighestRatedBooksPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [trendingBooks, setTrendingBooks] = useState([])
+  const [books, setBooks] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Check personalization on mount
   useEffect(() => {
     const checkPersonalization = async () => {
       if (user) {
@@ -27,20 +26,18 @@ function TrendingBooksPage() {
   }, [user, navigate])
 
   useEffect(() => {
-    loadTrendingBooks()
+    loadBooks()
   }, [])
 
-  const loadTrendingBooks = async () => {
+  const loadBooks = async () => {
     setLoading(true)
     setError(null)
     try {
-      console.log('Loading trending books...')
-      const books = await getTrendingBooks(10, 30)
-      console.log('Trending books loaded:', books.length)
-      setTrendingBooks(books)
+      const result = await getHighestRatedBooks(10, 1)
+      setBooks(result)
     } catch (err) {
-      console.error('Error loading trending books:', err)
-      setError('Failed to load trending books. Please try again later.')
+      console.error('Error loading highest rated books:', err)
+      setError('Failed to load highest rated books. Please try again later.')
     } finally {
       setLoading(false)
     }
@@ -54,7 +51,7 @@ function TrendingBooksPage() {
           <div className="max-w-7xl mx-auto px-8">
             <div className="flex items-center justify-center min-h-[400px]">
               <div className="text-white dark:text-dark-gray text-sm uppercase tracking-widest">
-                Loading trending books...
+                Loading highest rated books...
               </div>
             </div>
           </div>
@@ -81,15 +78,14 @@ function TrendingBooksPage() {
   return (
     <div className="min-h-screen bg-dark-gray dark:bg-white">
       <Header />
-      
-      {/* Hero Section */}
+
       <section className="bg-dark-gray dark:bg-white py-20 md:py-32">
         <div className="max-w-7xl mx-auto px-8">
           <div className="grid grid-cols-12 gap-8 md:gap-16 mb-12">
             <div className="col-span-12 md:col-span-6">
               <div className="mb-6">
                 <h1 className="text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray leading-none">
-                  Trending
+                  Highest Rated
                   <br />
                   Books
                 </h1>
@@ -97,8 +93,7 @@ function TrendingBooksPage() {
             </div>
             <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
               <p className="text-lg text-white/70 dark:text-dark-gray/70 font-light mb-8">
-                A live snapshot of what readers are gravitating towards right now—ranked using recent reads,
-                wishlist adds, ratings, and conversations across NextChapter.
+                The most loved titles across NextChapter—ranked by community ratings.
               </p>
               <Link
                 to="/books"
@@ -114,82 +109,82 @@ function TrendingBooksPage() {
         </div>
       </section>
 
-      {/* Trending Books Grid - styled similar to Books page */}
       <section className="bg-dark-gray dark:bg-white py-16">
         <div className="max-w-7xl mx-auto px-8">
-          {trendingBooks.length === 0 ? (
+          {books.length === 0 ? (
             <div className="text-center py-20">
               <p className="text-xl text-white/70 dark:text-dark-gray/70">
-                No trending books available yet. Check back soon!
+                No ratings available yet. Check back soon!
               </p>
             </div>
           ) : (
-            <>
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-6">
-                {trendingBooks.map((book, index) => (
-                  <Link
-                    key={book.id}
-                    to={`/book/${encodeURIComponent(book.id)}`}
-                    className="group"
-                  >
-                    <div className="relative overflow-hidden border-2 border-white dark:border-dark-gray group hover:bg-white dark:hover:bg-dark-gray transition-colors">
-                      {/* Rank Badge - bookmark style (high contrast) */}
-                      <div className="absolute -top-1 right-3 z-10 flex flex-col items-center text-white">
-                        <div className="px-2 pt-3 pb-1 bg-coral shadow-lg shadow-black/40 border border-dark-gray/30 dark:border-white/40 rounded-t-sm">
-                          <span className="text-[10px] font-semibold uppercase tracking-[0.25em]">
-                            #{index + 1}
-                          </span>
-                        </div>
-                        <div className="w-0 h-0 border-t-4 border-t-coral border-l-4 border-l-transparent border-r-4 border-r-transparent"></div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-5 gap-6">
+              {books.map((book, index) => (
+                <Link
+                  key={book.id}
+                  to={`/book/${encodeURIComponent(book.id)}`}
+                  className="group"
+                >
+                  <div className="relative overflow-hidden border-2 border-white dark:border-dark-gray group hover:bg-white dark:hover:bg-dark-gray transition-colors">
+                    <div className="absolute -top-1 right-3 z-10 flex flex-col items-center text-white">
+                      <div className="px-2 pt-3 pb-1 bg-coral shadow-lg shadow-black/40 border border-dark-gray/30 dark:border-white/40 rounded-t-sm">
+                        <span className="text-[10px] font-semibold uppercase tracking-[0.25em]">
+                          #{index + 1}
+                        </span>
                       </div>
-
-                      {book.cover_image ? (
-                        <img
-                          src={book.cover_image}
-                          alt={book.title || 'Book cover'}
-                          className="w-full aspect-2/3 object-cover group-hover:opacity-20 transition-opacity duration-300"
-                          loading="lazy"
-                        />
-                      ) : (
-                        <div className="w-full aspect-2/3 bg-white dark:bg-dark-gray flex items-center justify-center text-dark-gray dark:text-white text-6xl">
-                          📚
-                        </div>
-                      )}
-                      <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
-                        <h3 className="text-dark-gray dark:text-white font-medium text-sm line-clamp-2 mb-2 uppercase tracking-widest">
-                          {book.title || 'Untitled'}
-                        </h3>
-                        <p className="text-dark-gray/70 dark:text-white/70 text-xs line-clamp-1 font-light uppercase tracking-widest">
-                          {book.author || 'Unknown Author'}
-                        </p>
-                      </div>
+                      <div className="w-0 h-0 border-t-4 border-t-coral border-l-4 border-l-transparent border-r-4 border-r-transparent"></div>
                     </div>
-                    <div className="mt-4">
-                      <h3 className="text-white dark:text-dark-gray font-medium text-xs line-clamp-2 mb-2 uppercase tracking-widest">
+
+                    {book.cover_image ? (
+                      <img
+                        src={book.cover_image}
+                        alt={book.title || 'Book cover'}
+                        className="w-full aspect-2/3 object-cover group-hover:opacity-20 transition-opacity duration-300"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full aspect-2/3 bg-white dark:bg-dark-gray flex items-center justify-center text-dark-gray dark:text-white text-6xl">
+                        📚
+                      </div>
+                    )}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                      <h3 className="text-dark-gray dark:text-white font-medium text-sm line-clamp-2 mb-2 uppercase tracking-widest">
                         {book.title || 'Untitled'}
                       </h3>
-                      <p className="text-white/60 dark:text-dark-gray/60 text-xs mb-2 font-light uppercase tracking-widest">
+                      <p className="text-dark-gray/70 dark:text-white/70 text-xs line-clamp-1 font-light uppercase tracking-widest">
                         {book.author || 'Unknown Author'}
                       </p>
-                      {book.description && (
-                        <p className="text-white/50 dark:text-dark-gray/50 text-xs line-clamp-2 font-light leading-relaxed">
-                          {book.description}
-                        </p>
-                      )}
-                      <div className="mt-2 flex items-center gap-2 text-xs text-white/60 dark:text-dark-gray/60">
-                        <TrendingUp className="w-3 h-3" />
-                        <span>Score: {book.trendingScore?.toFixed(1) || '0.0'}</span>
-                      </div>
                     </div>
-                  </Link>
-                ))}
-              </div>
-            </>
+                  </div>
+                  <div className="mt-4">
+                    <h3 className="text-white dark:text-dark-gray font-medium text-xs line-clamp-2 mb-2 uppercase tracking-widest">
+                      {book.title || 'Untitled'}
+                    </h3>
+                    <p className="text-white/60 dark:text-dark-gray/60 text-xs mb-2 font-light uppercase tracking-widest">
+                      {book.author || 'Unknown Author'}
+                    </p>
+                    {book.description && (
+                      <p className="text-white/50 dark:text-dark-gray/50 text-xs line-clamp-2 font-light leading-relaxed">
+                        {book.description}
+                      </p>
+                    )}
+                    <div className="mt-2 flex items-center gap-2 text-xs text-white/60 dark:text-dark-gray/60">
+                      <Star className="w-3 h-3" />
+                      <span>
+                        Rating: {book.avgRating?.toFixed(1) ?? '0.0'}{' '}
+                        <span className="text-white/40 dark:text-dark-gray/40">
+                          ({book.ratingCount ?? 0})
+                        </span>
+                      </span>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </div>
           )}
         </div>
       </section>
 
-      {/* Footer */}
       <footer className="bg-dark-gray dark:bg-white border-t-2 border-white dark:border-dark-gray py-16 mt-24">
         <div className="max-w-7xl mx-auto px-8">
           <div className="grid grid-cols-12 gap-8">
@@ -219,5 +214,4 @@ function TrendingBooksPage() {
   )
 }
 
-export default TrendingBooksPage
-
+export default HighestRatedBooksPage

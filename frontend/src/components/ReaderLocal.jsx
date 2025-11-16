@@ -51,8 +51,9 @@ const ReaderLocal = () => {
   const viewerRef = useRef(null);
   const headerRef = useRef(null);
   const lastScrollPageRef = useRef(1);
-  // Track last page used for reading session logging
+  // Track last page and timestamp used for reading session logging
   const lastSessionPageRef = useRef(1);
+  const lastSessionTimestampRef = useRef(null);
   const navigationResetTimeoutRef = useRef(null);
   const pdfDocRef = useRef(null);        // pdf.js PDFDocumentProxy
   const renderTaskRef = useRef(null);    // current page render task
@@ -181,16 +182,15 @@ const ReaderLocal = () => {
     const normalizedCurrentPage = Math.min(currentPage, totalPages);
     let progress = 0;
 
-    // Calculate progress: page 1 = 0%, last page = 100%
-    if (normalizedCurrentPage >= totalPages) {
-      progress = 100;
-    } else if (normalizedCurrentPage === 1) {
-      // First page = 0% progress (not started yet)
-      progress = 0;
-    } else {
-      // For pages 2 to (totalPages-1), calculate based on completed pages
-      const completedPages = normalizedCurrentPage - 1;
-      progress = Math.max(0, Math.min(100, Math.round((completedPages / totalPages) * 100)));
+    if (totalPages > 0) {
+      if (normalizedCurrentPage <= 1) {
+        // Page 1 is treated as 0% progress
+        progress = 0;
+      } else {
+        // Reading progress = (current page / total pages) * 100 for pages > 1
+        const rawProgress = (normalizedCurrentPage / totalPages) * 100;
+        progress = Math.max(0, Math.min(100, Math.round(rawProgress)));
+      }
     }
     
     // Save to localStorage for backward compatibility
@@ -208,6 +208,7 @@ const ReaderLocal = () => {
           // This ensures we can resume from the exact page the user left off
           if (progress > 0) {
             // Upsert reading progress in user_books table
+            const nowIso = new Date().toISOString();
             const { error: upsertError } = await supabase
               .from('user_books')
               .upsert({
@@ -216,7 +217,9 @@ const ReaderLocal = () => {
                 current_page: normalizedCurrentPage, // Always save the current page
                 progress_percentage: progress,
                 status: status,
-                updated_at: new Date().toISOString()
+                // When a book is finished, record a completion timestamp
+                completed_at: progress >= 100 ? nowIso : null,
+                updated_at: nowIso
               }, {
                 onConflict: 'user_id,book_id'
               });
@@ -234,7 +237,21 @@ const ReaderLocal = () => {
                 );
 
                 if (pagesDelta > 0) {
-                  const todayStr = new Date().toISOString().split('T')[0];
+                  const now = new Date();
+                  const todayStr = now.toISOString().split('T')[0];
+
+                  // Approximate minutes spent since last logged session
+                  let minutesDelta = 0;
+                  if (lastSessionTimestampRef.current) {
+                    minutesDelta = Math.round(
+                      (now.getTime() - lastSessionTimestampRef.current.getTime()) / 60000
+                    );
+                    if (!Number.isFinite(minutesDelta) || minutesDelta <= 0) {
+                      minutesDelta = 1;
+                    }
+                  } else {
+                    minutesDelta = 1;
+                  }
 
                   const { error: sessionError } = await supabase
                     .from('reading_sessions')
@@ -242,7 +259,7 @@ const ReaderLocal = () => {
                       user_id: user.id,
                       book_id: bookId,
                       date: todayStr,
-                      minutes_read: null,
+                      minutes_read: minutesDelta,
                       pages_read: pagesDelta,
                     });
 
@@ -250,6 +267,7 @@ const ReaderLocal = () => {
                     console.error('Error logging reading session:', sessionError);
                   } else {
                     lastSessionPageRef.current = normalizedCurrentPage;
+                    lastSessionTimestampRef.current = now;
                   }
                 }
               } catch (sessionErr) {

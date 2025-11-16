@@ -15,9 +15,9 @@ function ReadingStatsCard({ readingStats = null }) {
     {
       title: 'Reading Speed',
       value: statsData.readingSpeed?.toString() || '0',
-      unit: 'pages/hour',
+      unit: 'pages/day',
       icon: Zap,
-      tag: statsData.readingSpeed > 0 ? 'Based on sessions' : 'No data yet',
+      tag: statsData.readingSpeed > 0 ? 'This week' : 'No data yet',
       iconColor: 'text-yellow-400/80 dark:text-yellow-500/70'
     },
     {
@@ -61,7 +61,7 @@ function ReadingStatsCard({ readingStats = null }) {
                 <h4 className="text-xs text-white/60 dark:text-dark-gray/60 uppercase tracking-wider font-medium">
                   {stat.title}
                 </h4>
-                <IconComponent className={`w-4 h-4 ${stat.iconColor} flex-shrink:0`} />
+                <IconComponent className={`w-4 h-4 ${stat.iconColor} shrink-0`} />
               </div>
 
               {/* Value and Unit */}

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 function ReadingActivityCard({ readingSessions = [], readingStats = null }) {
   const [activityData, setActivityData] = useState({})
   const [stats, setStats] = useState({ activeDays: 0, pagesRead: 0 })
+  const scrollContainerRef = useRef(null)
 
   useEffect(() => {
     // Generate or load reading activity data for the year
@@ -12,15 +13,8 @@ function ReadingActivityCard({ readingSessions = [], readingStats = null }) {
       const startOfYear = new Date(currentYear, 0, 1)
       const data = {}
       
-      // Use provided reading sessions or fallback to localStorage
-      let sessions = readingSessions
-      if (!sessions || sessions.length === 0) {
-        try {
-          sessions = JSON.parse(localStorage.getItem('reading_sessions') || '[]')
-        } catch (e) {
-          sessions = []
-        }
-      }
+      // Use provided reading sessions (from Supabase-backed dashboard data)
+      const sessions = Array.isArray(readingSessions) ? readingSessions : []
       
       // Generate data for each day of the year
       for (let i = 0; i < 365; i++) {
@@ -30,13 +24,19 @@ function ReadingActivityCard({ readingSessions = [], readingStats = null }) {
         // Skip future dates
         if (date > today) break
         
-        const dateStr = date.toISOString().split('T')[0]
+        // Build YYYY-MM-DD in local time to avoid UTC offset issues
+        const year = date.getFullYear()
+        const monthIndex = date.getMonth() + 1
+        const dayOfMonth = date.getDate()
+        const dateStr = `${year}-${String(monthIndex).padStart(2, '0')}-${String(dayOfMonth).padStart(2, '0')}`
         const month = date.getMonth()
         const day = date.getDate()
         
         // Check if there's activity on this date
+        // session.date is already normalized to 'YYYY-MM-DD' in dashboardUtils
         const daySessions = sessions.filter(s => {
-          const sessionDate = s.date ? new Date(s.date).toISOString().split('T')[0] : null
+          if (!s.date) return false
+          const sessionDate = s.date.toString().split('T')[0]
           return sessionDate === dateStr
         })
         
@@ -69,6 +69,23 @@ function ReadingActivityCard({ readingSessions = [], readingStats = null }) {
 
     generateActivityData()
   }, [readingSessions, readingStats])
+
+  // Auto-scroll horizontally to show the most recent months
+  useEffect(() => {
+    if (!scrollContainerRef.current) return
+    const container = scrollContainerRef.current
+
+    // Use a small timeout to ensure layout is settled before scrolling
+    const id = window.setTimeout(() => {
+      try {
+        container.scrollLeft = container.scrollWidth
+      } catch (e) {
+        // Ignore errors from rare layout issues
+      }
+    }, 0)
+
+    return () => window.clearTimeout(id)
+  }, [activityData])
 
   const getDayIntensity = (month, day) => {
     if (!activityData[month] || !activityData[month][day]) {
@@ -143,7 +160,10 @@ function ReadingActivityCard({ readingSessions = [], readingStats = null }) {
       </div>
 
       {/* Months Grid - Optimized size for readability */}
-      <div className="flex gap-x-1.5 gap-y-4 mb-4 overflow-x-auto pb-2">
+      <div
+        ref={scrollContainerRef}
+        className="flex gap-x-1.5 gap-y-4 mb-4 overflow-x-auto pb-2"
+      >
         {months.map((monthName, monthIndex) => {
           const daysInCurrentMonth = daysInMonth(monthIndex, currentYear)
           const firstDay = getFirstDayOfWeek(monthIndex, currentYear)
@@ -151,7 +171,7 @@ function ReadingActivityCard({ readingSessions = [], readingStats = null }) {
           const isFutureMonth = monthIndex > currentMonth
           
           return (
-            <div key={monthIndex} className="flex flex-col gap-1.5 flex-shrink-0">
+            <div key={monthIndex} className="flex flex-col gap-1.5 shrink-0">
               {/* Month Label */}
               <div className="text-xs text-white/60 dark:text-dark-gray/60 uppercase tracking-wider text-center font-medium">
                 {monthName}
@@ -179,7 +199,7 @@ function ReadingActivityCard({ readingSessions = [], readingStats = null }) {
                         isFuture 
                           ? 'bg-white/5' 
                           : getIntensityClass(intensity)
-                      } ${isToday ? 'ring-2 ring-yellow-400' : ''}`}
+                      } ${isToday ? 'outline outline-[#2b2b2b]' : ''}`}
                       title={
                         activity
                           ? `${formatDate(activity.date)} — ${activity.pages} pages read (${activity.sessions} ${activity.sessions === 1 ? 'session' : 'sessions'})`

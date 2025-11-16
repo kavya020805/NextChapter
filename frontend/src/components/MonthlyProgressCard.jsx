@@ -217,7 +217,7 @@ function MonthlyProgressCard({ monthlyData: propMonthlyData = null, readingStats
   }
 
   return (
-    <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 flex flex-col h-fit">
+    <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 flex flex-col h-full">
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-base text-white dark:text-dark-gray font-semibold uppercase tracking-wider mb-1">

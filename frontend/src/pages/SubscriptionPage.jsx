@@ -194,7 +194,7 @@ function SubscriptionPage() {
                   <ul className="space-y-4 mb-10">
                     {plan.features.map((feature, featureIndex) => (
                       <li key={featureIndex} className="flex items-start gap-3">
-                        <Check className={`w-5 h-5 flex-shrink:0 mt-0.5 ${
+                        <Check className={`w-5 h-5 shrink-0 mt-0.5 ${
                           plan.popular
                             ? 'text-white dark:text-dark-gray'
                             : 'text-dark-gray dark:text-white'

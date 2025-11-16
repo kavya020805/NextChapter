@@ -117,31 +117,64 @@ export async function fetchUserDashboardData(userId) {
 		// Get reading sessions (with localStorage fallback)
 		let readingSessions = [];
 		if (readingSessionsResult.data && readingSessionsResult.data.length > 0) {
-			// Normalize pages field from pages_read (DB schema)
-			readingSessions = readingSessionsResult.data.map((session) => ({
-				...session,
-				pages:
-					typeof session.pages === "number"
-						? session.pages
-						: typeof session.pages_read === "number"
-						? session.pages_read
-						: 0,
-			}));
+			// Normalize pages and date fields regardless of column naming
+			readingSessions = readingSessionsResult.data.map((session) => {
+				// Prefer explicit date field; fall back to session_date or created_at
+				const rawDate =
+					session.date || session.session_date || session.created_at || null;
+				let normalizedDate = null;
+				if (rawDate) {
+					const d = new Date(rawDate);
+					if (!Number.isNaN(d.getTime())) {
+						// Store as canonical YYYY-MM-DD string for the heatmap
+						normalizedDate = d.toISOString().split("T")[0];
+					}
+				}
+
+				return {
+					...session,
+					// Canonical date field used by ReadingActivityCard and stats
+					date: normalizedDate,
+					// Canonical pages field from pages or pages_read (DB schema)
+					pages:
+						typeof session.pages === "number"
+							? session.pages
+							: typeof session.pages_read === "number"
+							? session.pages_read
+							: 0,
+				};
+			});
 		} else {
 			// Fallback to localStorage
 			try {
 				const localSessions = localStorage.getItem("reading_sessions");
 				if (localSessions) {
-					readingSessions = JSON.parse(localSessions).map((session) => ({
-						...session,
-						user_id: userId,
-						pages:
-							typeof session.pages === "number"
-								? session.pages
-								: typeof session.pages_read === "number"
-								? session.pages_read
-								: 0,
-					}));
+					readingSessions = JSON.parse(localSessions).map((session) => {
+						const rawDate =
+							session.date ||
+							session.session_date ||
+							session.created_at ||
+							null;
+						let normalizedDate = null;
+						if (rawDate) {
+							const d = new Date(rawDate);
+							if (!Number.isNaN(d.getTime())) {
+								normalizedDate = d.toISOString().split("T")[0];
+							}
+						}
+
+						return {
+							...session,
+							user_id: userId,
+							date: normalizedDate,
+							pages:
+								typeof session.pages === "number"
+									? session.pages
+									: typeof session.pages_read === "number"
+									? session.pages_read
+									: 0,
+						};
+					});
 				}
 			} catch (e) {
 				console.error("Error parsing localStorage reading_sessions:", e);
@@ -155,9 +188,12 @@ export async function fetchUserDashboardData(userId) {
 				.map((item) => {
 					const book = booksById[item.book_id];
 					if (!book) return null;
+					// Prefer explicit completed_at; fall back to updated_at/created_at
+					const rawCompleted =
+						item.completed_at || item.updated_at || item.created_at || null;
 					return {
 						...book,
-						completed_at: item.completed_at,
+						completed_at: rawCompleted,
 						user_book_id: item.id,
 					};
 				})
@@ -222,7 +258,9 @@ export async function fetchUserDashboardData(userId) {
 		const genreDistribution = calculatedGenreDistribution;
 
 		// Calculate challenge data
-		const challengeData = calculateChallengeData(booksRead);
+		const challengeData = calculateChallengeData(
+			booksRead.filter((book) => book.completed_at)
+		);
 
 		return {
 			profile: profileResult.data,
@@ -303,8 +341,9 @@ function calculateReadingStats(readingSessions, booksRead) {
 	const longestStreak = calculateLongestStreak(readingSessions);
 
 	// Calculate average session duration (in minutes)
+	// Prefer duration_minutes if present; fall back to minutes_read for older data
 	const totalSessionTime = yearSessions.reduce(
-		(sum, s) => sum + (s.duration_minutes || 0),
+		(sum, s) => sum + (s.duration_minutes || s.minutes_read || 0),
 		0
 	);
 	const averageSession =
@@ -312,9 +351,22 @@ function calculateReadingStats(readingSessions, booksRead) {
 			? Math.round(totalSessionTime / yearSessions.length)
 			: 0;
 
-	// Calculate reading speed (pages per hour)
-	const totalHours = totalSessionTime / 60;
-	const readingSpeed = totalHours > 0 ? Math.round(totalPages / totalHours) : 0;
+	// Calculate average reading speed as pages per day over the last 7 days
+	const today = new Date();
+	const weekStart = new Date(today);
+	weekStart.setDate(today.getDate() - 6);
+
+	const weekSessions = readingSessions.filter((session) => {
+		if (!session.date) return false;
+		const sessionDate = new Date(session.date);
+		return sessionDate >= weekStart && sessionDate <= today;
+	});
+
+	const totalWeekPages = weekSessions.reduce(
+		(sum, s) => sum + (s.pages || 0),
+		0
+	);
+	const readingSpeed = Math.round(totalWeekPages / 7);
 
 	// This month stats
 	const thisMonthBooks = booksRead.filter((book) => {

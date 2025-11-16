@@ -13,6 +13,7 @@ import ProfilePage from './pages/ProfilePage'
 import PersonalizationPage from './pages/PersonalizationPage'
 import RecommendedBooksPage from './pages/RecommendedBooksPage'
 import TrendingBooksPage from './pages/TrendingBooksPage'
+import HighestRatedBooksPage from './pages/HighestRatedBooksPage'
 import Gallery from './components/Gallery'
 import GalleryLocal from './components/GalleryLocal'
 import Reader from './components/Reader'
@@ -65,6 +66,14 @@ function App() {
           element={
             <ProtectedRoute>
               <TrendingBooksPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/highest-rated" 
+          element={
+            <ProtectedRoute>
+              <HighestRatedBooksPage />
             </ProtectedRoute>
           } 
         />

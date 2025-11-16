@@ -1779,7 +1779,7 @@ const StatCard = ({ label, value, icon, change, changeType }) => (
   <div className="bg-white overflow-hidden shadow rounded-lg">
     <div className="p-5">
       <div className="flex items-center">
-        <div className="flex-shrink-0">
+        <div className="shrink-0">
           <div className="p-3 rounded-md bg-blue-50">
             {icon}
           </div>
@@ -1813,7 +1813,7 @@ const BookCard = ({ book, onEdit, onDelete, onToggleStatus, isSelected, onToggle
   }`}>
     <div className="p-4">
       <div className="flex items-start">
-        <div className="flex-shrink-0 h-40 w-28 overflow-hidden rounded-md">
+        <div className="shrink-0 h-40 w-28 overflow-hidden rounded-md">
           <img
             src={book.cover_image || DEFAULT_COVER_IMAGE}
             alt={book.title}
@@ -2008,7 +2008,7 @@ const RecentActivity = ({ activities }) => (
                 </p>
               </div>
             </div>
-            <div className="ml-4 flex-shrink-0">
+            <div className="ml-4 shrink-0">
               <p className="text-sm text-gray-500">{activity.time}</p>
             </div>
           </div>

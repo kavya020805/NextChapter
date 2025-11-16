@@ -156,6 +156,21 @@ function PersonalizationPage() {
     )
   }
 
+  const handleDateOfBirthChange = (e) => {
+    const raw = e.target.value
+    if (!raw) {
+      setDateOfBirth('')
+      return
+    }
+
+    const parts = raw.split('-')
+    const yearPart = (parts[0] || '').replace(/\D/g, '').slice(0, 4)
+    const rest = parts.slice(1).join('-')
+    const normalized = rest ? `${yearPart}-${rest}` : yearPart
+
+    setDateOfBirth(normalized)
+  }
+
   const handleNext = async () => {
     if (currentStep === 1) {
       if (!username || !dateOfBirth || !gender) {
@@ -283,8 +298,8 @@ function PersonalizationPage() {
                 <input
                   type="date"
                   value={dateOfBirth}
-                  onChange={(e) => setDateOfBirth(e.target.value)}
-                  className="w-full bg-transparent border-2 border-white dark:border-dark-gray px-4 py-3 text-white dark:text-dark-gray focus:outline-none text-sm uppercase tracking-widest"
+                  onChange={handleDateOfBirthChange}
+                  className="w-full bg-transparent border-2 border-white dark:border-dark-gray px-4 py-3 text-black dark:text-dark-gray focus:outline-none text-sm uppercase tracking-widest"
                 />
               </div>
 

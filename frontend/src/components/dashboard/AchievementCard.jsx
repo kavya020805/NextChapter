@@ -25,7 +25,7 @@ function AchievementCard() {
               key={index}
               className="flex items-start gap-3 p-2 border border-dark-gray/10 dark:border-white/10"
             >
-              <Icon className={`w-5 h-5 ${achievement.color} flex-shrink-0 mt-0.5`} />
+              <Icon className={`w-5 h-5 ${achievement.color} shrink-0 mt-0.5`} />
               <div>
                 <h4 className="text-sm text-dark-gray dark:text-white font-medium mb-0.5">
                   {achievement.title}

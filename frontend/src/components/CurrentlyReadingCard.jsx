@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 function CurrentlyReadingCard({ currentlyReading: propCurrentlyReading = [] }) {
   const [readingBooks, setReadingBooks] = useState([])
   const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   useEffect(() => {
     if (propCurrentlyReading && propCurrentlyReading.length > 0) {
       // Use provided data
-      const booksWithProgress = propCurrentlyReading.slice(0, 5).map(book => ({
-        ...book,
-        progress: book.progress || 0
-      })).filter(book => book.progress > 0 && book.progress < 100)
+      const booksWithProgress = propCurrentlyReading
+        .map(book => ({
+          ...book,
+          progress: book.progress || 0
+        }))
+        .filter(book => book.progress > 0 && book.progress < 100)
+        .sort((a, b) => (b.progress || 0) - (a.progress || 0))
+        .slice(0, 3)
       setReadingBooks(booksWithProgress)
       setLoading(false)
     } else {
@@ -43,18 +49,22 @@ function CurrentlyReadingCard({ currentlyReading: propCurrentlyReading = [] }) {
       const { data, error } = await supabase
         .from('books')
         .select('*')
-        .in('id', readingList.slice(0, 5)) // Get first 5 currently reading books
+        .in('id', readingList)
       
       if (error) throw error
 
       // Add progress to books
-      const booksWithProgress = (data || []).map(book => {
-        const progress = localStorage.getItem(`book_progress_${book.id}`) || '0'
-        return {
-          ...book,
-          progress: parseInt(progress)
-        }
-      }).filter(book => book.progress > 0 && book.progress < 100)
+      const booksWithProgress = (data || [])
+        .map(book => {
+          const progress = localStorage.getItem(`book_progress_${book.id}`) || '0'
+          return {
+            ...book,
+            progress: parseInt(progress)
+          }
+        })
+        .filter(book => book.progress > 0 && book.progress < 100)
+        .sort((a, b) => (b.progress || 0) - (a.progress || 0))
+        .slice(0, 3)
 
       setReadingBooks(booksWithProgress)
     } catch (error) {
@@ -83,12 +93,15 @@ function CurrentlyReadingCard({ currentlyReading: propCurrentlyReading = [] }) {
         <div className="space-y-4">
           {readingBooks.map((book, index) => (
             <div key={book.id}>
-              <div className="flex items-start gap-3">
+              <div
+                className="flex items-start gap-3 cursor-pointer rounded-md -mx-2 px-2 py-1 hover:bg-white/5 dark:hover:bg-dark-gray/5"
+                onClick={() => navigate(`/book/${book.id}`)}
+              >
                 {/* Book Cover Thumbnail */}
                 <img
                   src={book.cover_image || 'https://via.placeholder.com/64x64?text=No+Cover'}
                   alt={book.title}
-                  className="w-12 h-12 object-cover border-2 border-white/20 dark:border-dark-gray/20 flex-shrink-0"
+                  className="w-12 h-12 object-cover border-2 border-white/20 dark:border-dark-gray/20 shrink-0"
                   onError={(e) => {
                     e.target.src = 'https://via.placeholder.com/64x64?text=No+Cover'
                   }}

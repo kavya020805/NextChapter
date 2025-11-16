@@ -11,28 +11,6 @@ function ReadingChallengeCard({ challengeData: propChallengeData = null }) {
   useEffect(() => {
     if (propChallengeData) {
       setChallengeData(propChallengeData)
-    } else {
-      // Fallback: calculate from localStorage
-      try {
-        const read = JSON.parse(localStorage.getItem('read') || '[]')
-        const currentYear = new Date().getFullYear()
-        const yearStart = new Date(currentYear, 0, 1)
-        
-        // This is a simplified calculation - in real app, would check completion dates
-        const completed = read.length
-        const target = 52
-        const percentage = Math.round((completed / target) * 100)
-        const remaining = Math.max(0, target - completed)
-
-        setChallengeData({
-          completed,
-          target,
-          percentage: Math.min(percentage, 100),
-          remaining
-        })
-      } catch (e) {
-        console.error('Error calculating challenge data:', e)
-      }
     }
   }, [propChallengeData])
 
