@@ -10,7 +10,6 @@ import {
   CheckCircle,
   Plus,
   Minus,
-  Heart,
   ArrowBigUp,
   MessageSquare,
   Flag
@@ -48,15 +47,17 @@ const BookDetailPage = () => {
   const [isRead, setIsRead] = useState(false);
   const [comments, setComments] = useState([]);
   const [commentText, setCommentText] = useState('');
-  const [likedComments, setLikedComments] = useState([]);
   const [upvotedComments, setUpvotedComments] = useState([]);
   const [reportedComments, setReportedComments] = useState([]);
-  const [likedReplies, setLikedReplies] = useState([]);
   const [upvotedReplies, setUpvotedReplies] = useState([]);
   const [reportedReplies, setReportedReplies] = useState([]);
   const [replyText, setReplyText] = useState({});
   const [replyingTo, setReplyingTo] = useState(null);
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [reportDialog, setReportDialog] = useState({ isOpen: false, type: null, id: null });
+  const [reportReason, setReportReason] = useState('');
+  const [customReason, setCustomReason] = useState('');
+  const [isSubmittingReport, setIsSubmittingReport] = useState(false);
   const socketRef = useRef(null);
   const tableCacheRef = useRef({});
 
@@ -119,7 +120,6 @@ const BookDetailPage = () => {
         if (!isTableMissingError(error)) {
           throw error;
         }
-
         lastMissingError = error;
         if (cached === table) {
           delete tableCacheRef.current[key];
@@ -129,12 +129,7 @@ const BookDetailPage = () => {
       if (optional) {
         return { data: null, error: lastMissingError, table: null };
       }
-
-      if (lastMissingError) {
-        throw lastMissingError;
-      }
-
-      throw new Error(`Unable to resolve table for key: ${key}`);
+      throw lastMissingError || new Error(`All table candidates failed for key: ${key}`);
     },
     []
   );
@@ -150,7 +145,7 @@ const BookDetailPage = () => {
     const raw = resolveBookId();
     if (raw == null) return null;
     const asString = typeof raw === 'string' ? raw : String(raw);
-    return isValidUuid(asString) ? asString : null;
+    return asString;
   };
 
   const syncReadingState = () => {
@@ -168,7 +163,6 @@ const BookDetailPage = () => {
     text: reply.text ?? reply.content ?? '',
     date: reply.created_at ?? reply.date ?? new Date().toISOString(),
     user: reply.author_name || reply.user || 'Anonymous',
-    likes: toNumber(reply.likes_count ?? reply.likes),
     upvotes: toNumber(reply.upvotes_count ?? reply.upvotes)
   });
 
@@ -177,7 +171,6 @@ const BookDetailPage = () => {
     text: comment.text ?? comment.content ?? '',
     date: comment.created_at ?? comment.date ?? new Date().toISOString(),
     user: comment.author_name || comment.user || 'Anonymous',
-    likes: toNumber(comment.likes_count ?? comment.likes),
     upvotes: toNumber(comment.upvotes_count ?? comment.upvotes),
     replies: Array.isArray(comment.book_comment_replies ?? comment.replies)
       ? (comment.book_comment_replies ?? comment.replies).map(formatReply)
@@ -253,7 +246,7 @@ const BookDetailPage = () => {
           comment.id === commentId
             ? {
                 ...comment,
-                ...(reaction === 'like' ? { likes: total } : { upvotes: total })
+                upvotes: total
               }
             : comment
         )
@@ -288,7 +281,7 @@ const BookDetailPage = () => {
                   reply.id === replyId
                     ? {
                         ...reply,
-                        ...(reaction === 'like' ? { likes: total } : { upvotes: total })
+                        upvotes: total
                       }
                     : reply
                 )
@@ -383,14 +376,11 @@ const BookDetailPage = () => {
   const loadComments = async () => {
     try {
       const bookId = getValidBookIdOrNull();
-      const reactionsBookId = bookId;
-
+      
       if (!bookId) {
         setComments([]);
-        setLikedComments([]);
         setUpvotedComments([]);
         setReportedComments([]);
-        setLikedReplies([]);
         setUpvotedReplies([]);
         setReportedReplies([]);
         setReplyText({});
@@ -403,7 +393,7 @@ const BookDetailPage = () => {
         (table) =>
           supabase
             .from(table)
-            .select('id, book_id, user_id, author_name, text, likes_count, upvotes_count, created_at')
+            .select('id, book_id, user_id, author_name, text, upvotes_count, created_at')
             .eq('book_id', bookId)
             .order('created_at', { ascending: false })
       );
@@ -422,7 +412,7 @@ const BookDetailPage = () => {
           (table) =>
             supabase
               .from(table)
-              .select('id, comment_id, user_id, author_name, text, likes_count, upvotes_count, created_at')
+              .select('id, comment_id, user_id, author_name, text, upvotes_count, created_at')
               .in('comment_id', commentIds),
           { optional: true }
         );
@@ -450,7 +440,7 @@ const BookDetailPage = () => {
 
       setComments(formatted);
 
-      if (user && reactionsBookId) {
+      if (user && bookId) {
         const [
           commentReactionsResult,
           replyReactionsResult,
@@ -463,7 +453,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('comment_id, reaction_type')
-                .eq('book_id', reactionsBookId)
+                .eq('book_id', bookId)
                 .eq('user_id', user.id),
             { optional: true }
           ),
@@ -473,7 +463,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('reply_id, reaction_type')
-                .eq('book_id', reactionsBookId)
+                .eq('book_id', bookId)
                 .eq('user_id', user.id),
             { optional: true }
           ),
@@ -483,7 +473,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('comment_id')
-                .eq('book_id', reactionsBookId)
+                .eq('book_id', bookId)
                 .eq('user_id', user.id),
             { optional: true }
           ),
@@ -493,7 +483,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('reply_id')
-                .eq('book_id', reactionsBookId)
+                .eq('book_id', bookId)
                 .eq('user_id', user.id),
             { optional: true }
           )
@@ -520,33 +510,21 @@ const BookDetailPage = () => {
             : []
           : [];
 
-        setLikedComments(
-          commentReactions
-            .filter((reaction) => reaction.reaction_type === 'like')
-            .map((reaction) => reaction.comment_id)
-        );
-        setUpvotedComments(
-          commentReactions
-            .filter((reaction) => reaction.reaction_type === 'upvote')
-            .map((reaction) => reaction.comment_id)
-        );
-        setLikedReplies(
-          replyReactions
-            .filter((reaction) => reaction.reaction_type === 'like')
-            .map((reaction) => reaction.reply_id)
-        );
-        setUpvotedReplies(
-          replyReactions
-            .filter((reaction) => reaction.reaction_type === 'upvote')
-            .map((reaction) => reaction.reply_id)
-        );
+        const upvotedCommentIds = commentReactions
+          .filter((reaction) => reaction.reaction_type === 'upvote')
+          .map((reaction) => reaction.comment_id);
+        
+        const upvotedReplyIds = replyReactions
+          .filter((reaction) => reaction.reaction_type === 'upvote')
+          .map((reaction) => reaction.reply_id);
+
+        setUpvotedComments(upvotedCommentIds);
+        setUpvotedReplies(upvotedReplyIds);
         setReportedComments(commentReports.map((report) => report.comment_id));
         setReportedReplies(replyReports.map((report) => report.reply_id));
       } else {
-        setLikedComments([]);
         setUpvotedComments([]);
         setReportedComments([]);
-        setLikedReplies([]);
         setUpvotedReplies([]);
         setReportedReplies([]);
       }
@@ -563,58 +541,67 @@ const BookDetailPage = () => {
     await Promise.all([loadRatings(), loadComments()]);
   };
 
-  const updateCommentCount = async (commentId, type, delta) => {
+  const updateCommentCount = async (commentId, delta) => {
     const target = comments.find((comment) => comment.id === commentId);
     if (!target) return;
 
-    const column = type === 'likes' ? 'likes_count' : 'upvotes_count';
-    const currentValue = type === 'likes' ? target.likes : target.upvotes;
+    const column = 'upvotes_count';
+    const currentValue = target.upvotes;
     const nextValue = Math.max(0, toNumber(currentValue) + delta);
 
-    const { data } = await runTableQuery(
+    const { data, error } = await runTableQuery(
       'comments',
       (table) =>
         supabase
           .from(table)
           .update({ [column]: nextValue })
           .eq('id', commentId)
-          .select('id, likes_count, upvotes_count')
-          .single()
+          .select('id, upvotes_count')
+          .limit(1)
     );
+
+    if (error) {
+      console.error('Error updating comment count:', error);
+      return;
+    }
 
     updateCommentsState((prev) =>
       prev.map((comment) =>
         comment.id === commentId
           ? {
               ...comment,
-              likes: toNumber(data?.likes_count ?? (type === 'likes' ? nextValue : comment.likes)),
-              upvotes: toNumber(data?.upvotes_count ?? (type === 'upvotes' ? nextValue : comment.upvotes))
+              upvotes: nextValue
             }
           : comment
       )
     );
   };
 
-  const updateReplyCount = async (commentId, replyId, type, delta) => {
+  const updateReplyCount = async (commentId, replyId, delta) => {
     const parent = comments.find((comment) => comment.id === commentId);
     if (!parent) return;
     const reply = parent.replies.find((item) => item.id === replyId);
     if (!reply) return;
 
-    const column = type === 'likes' ? 'likes_count' : 'upvotes_count';
-    const currentValue = type === 'likes' ? reply.likes : reply.upvotes;
+    const column = 'upvotes_count';
+    const currentValue = reply.upvotes;
     const nextValue = Math.max(0, toNumber(currentValue) + delta);
 
-    const { data } = await runTableQuery(
+    const { data, error } = await runTableQuery(
       'replies',
       (table) =>
         supabase
           .from(table)
           .update({ [column]: nextValue })
           .eq('id', replyId)
-          .select('id, likes_count, upvotes_count')
-          .single()
+          .select('id, upvotes_count')
+          .limit(1)
     );
+
+    if (error) {
+      console.error('Error updating reply count:', error);
+      return;
+    }
 
     updateCommentsState((prev) =>
       prev.map((comment) =>
@@ -625,8 +612,7 @@ const BookDetailPage = () => {
                 item.id === replyId
                   ? {
                       ...item,
-                      likes: toNumber(data?.likes_count ?? (type === 'likes' ? nextValue : item.likes)),
-                      upvotes: toNumber(data?.upvotes_count ?? (type === 'upvotes' ? nextValue : item.upvotes))
+                      upvotes: toNumber(data?.[0]?.upvotes_count ?? nextValue)
                     }
                   : item
               )
@@ -720,6 +706,7 @@ const BookDetailPage = () => {
     }
   };
 
+  
   const handleSubmitComment = async () => {
     if (!user) {
       alert('Sign in to comment on this book.');
@@ -749,19 +736,19 @@ const BookDetailPage = () => {
                 text
               }
             ])
-            .select('id, book_id, user_id, author_name, text, likes_count, upvotes_count, created_at')
-            .single()
+            .select('id, book_id, user_id, author_name, text, upvotes_count, created_at')
+            .limit(1)
       );
 
       if (result.error) {
         throw result.error;
       }
 
-      if (!result.data) {
+      if (!result.data || result.data.length === 0) {
         throw new Error('Comment insert did not return a row.');
       }
 
-      const formatted = formatComment({ ...result.data, replies: [] });
+      const formatted = formatComment({ ...result.data[0], replies: [] });
 
       updateCommentsState((prev) =>
         [formatted, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date))
@@ -783,155 +770,92 @@ const BookDetailPage = () => {
     }
   };
 
-  const handleToggleLike = async (commentId) => {
-    if (!user) {
-      alert('Sign in to like comments.');
-      return;
-    }
-
-    const hasLiked = likedComments.includes(commentId);
-    const delta = hasLiked ? -1 : 1;
-    const bookId = getValidBookIdOrNull();
-
-    if (!bookId) return;
-
-    try {
-      if (hasLiked) {
-        await runTableQuery(
-          'commentReactions',
-          (table) =>
-            supabase
-              .from(table)
-              .delete()
-              .eq('comment_id', commentId)
-              .eq('user_id', user.id)
-              .eq('reaction_type', 'like')
-        );
-      } else {
-        await runTableQuery(
-          'commentReactions',
-          (table) =>
-            supabase
-              .from(table)
-              .upsert(
-                {
-                  book_id: bookId,
-                  comment_id: commentId,
-                  user_id: user.id,
-                  reaction_type: 'like'
-                },
-                { onConflict: 'comment_id,user_id,reaction_type' }
-              )
-        );
-      }
-
-      await updateCommentCount(commentId, 'likes', delta);
-
-      setLikedComments((prev) =>
-        hasLiked ? prev.filter((cid) => cid !== commentId) : [...prev, commentId]
-      );
-
-      if (socketRef.current) {
-        socketRef.current.emit('updateCommentReaction', {
-          bookId: id,
-          commentId,
-          reaction: 'like',
-          delta
-        });
-      }
-    } catch (error) {
-      console.error('Error updating comment like:', error);
-    }
-  };
-
-  const handleToggleUpvote = async (commentId) => {
-    if (!user) {
-      alert('Sign in to upvote comments.');
-      return;
-    }
-
-    const hasUpvoted = upvotedComments.includes(commentId);
-    const delta = hasUpvoted ? -1 : 1;
-    const bookId = getValidBookIdOrNull();
-
-    if (!bookId) return;
-
-    try {
-      if (hasUpvoted) {
-        await runTableQuery(
-          'commentReactions',
-          (table) =>
-            supabase
-              .from(table)
-              .delete()
-              .eq('comment_id', commentId)
-              .eq('user_id', user.id)
-              .eq('reaction_type', 'upvote')
-        );
-      } else {
-        await runTableQuery(
-          'commentReactions',
-          (table) =>
-            supabase
-              .from(table)
-              .upsert(
-                {
-                  book_id: bookId,
-                  comment_id: commentId,
-                  user_id: user.id,
-                  reaction_type: 'upvote'
-                },
-                { onConflict: 'comment_id,user_id,reaction_type' }
-              )
-        );
-      }
-
-      await updateCommentCount(commentId, 'upvotes', delta);
-
-      setUpvotedComments((prev) =>
-        hasUpvoted ? prev.filter((cid) => cid !== commentId) : [...prev, commentId]
-      );
-
-      if (socketRef.current) {
-        socketRef.current.emit('updateCommentReaction', {
-          bookId: id,
-          commentId,
-          reaction: 'upvote',
-          delta
-        });
-      }
-    } catch (error) {
-      console.error('Error updating comment upvote:', error);
-    }
-  };
-
-  const handleReportComment = async (commentId) => {
+  const handleReport = async (type, id) => {
     if (!user) {
       alert('Sign in to report comments.');
       return;
     }
 
-    if (reportedComments.includes(commentId)) return;
+    const isReported = type === 'comment' ? reportedComments.includes(id) : reportedReplies.includes(id);
+    if (isReported) {
+      alert('You have already reported this.');
+      return;
+    }
 
+    setReportDialog({ isOpen: true, type, id });
+    setReportReason('');
+    setCustomReason('');
+  };
+
+  const submitReport = async () => {
+    if (!reportReason || (reportReason === 'other' && !customReason.trim())) {
+      alert('Please select a reason for reporting.');
+      return;
+    }
+
+    setIsSubmittingReport(true);
+    
     try {
       const bookId = getValidBookIdOrNull();
-      await runTableQuery(
-        'commentReports',
-        (table) =>
-          supabase.from(table).insert({
-            book_id: bookId,
-            comment_id: commentId,
-            user_id: user.id
-          })
-      );
+      if (!bookId) return;
 
-      setReportedComments((prev) => [...prev, commentId]);
-      alert('Comment reported. Thank you for helping keep our community safe.');
+      const finalReason = reportReason === 'other' ? customReason.trim() : reportReason;
+      
+      if (reportDialog.type === 'comment') {
+        await runTableQuery(
+          'commentReports',
+          (table) =>
+            supabase
+              .from(table)
+              .upsert(
+                {
+                  book_id: bookId,
+                  comment_id: reportDialog.id,
+                  user_id: user.id,
+                  reason: finalReason
+                },
+                { onConflict: 'comment_id,user_id' }
+              )
+        );
+        setReportedComments((prev) => [...prev, reportDialog.id]);
+      } else if (reportDialog.type === 'reply') {
+        await runTableQuery(
+          'replyReports',
+          (table) =>
+            supabase
+              .from(table)
+              .upsert(
+                {
+                  book_id: bookId,
+                  reply_id: reportDialog.id,
+                  user_id: user.id,
+                  reason: finalReason
+                },
+                { onConflict: 'reply_id,user_id' }
+              )
+        );
+        setReportedReplies((prev) => [...prev, reportDialog.id]);
+      }
+
+      setReportDialog({ isOpen: false, type: null, id: null });
+      setReportReason('');
+      setCustomReason('');
+      alert('Thank you for your report. We will review it.');
     } catch (error) {
-      console.error('Error reporting comment:', error);
+      console.error('Error submitting report:', error);
+      alert('Unable to submit report. Please try again.');
+    } finally {
+      setIsSubmittingReport(false);
     }
   };
 
+  const cancelReport = () => {
+    setReportDialog({ isOpen: false, type: null, id: null });
+    setReportReason('');
+    setCustomReason('');
+  };
+
+  
   const handleReplyChange = (commentId, value) => {
     setReplyText((prev) => ({
       ...prev,
@@ -959,18 +883,18 @@ const BookDetailPage = () => {
               text
             })
             .select('id, comment_id, user_id, author_name, text, likes_count, upvotes_count, created_at')
-            .single()
+            .limit(1)
       );
 
       if (result.error) {
         throw result.error;
       }
 
-      if (!result.data) {
+      if (!result.data || result.data.length === 0) {
         throw new Error('Reply insert did not return a row.');
       }
 
-      const formattedReply = formatReply(result.data);
+      const formattedReply = formatReply(result.data[0]);
 
       updateCommentsState((commentsState) =>
         commentsState.map((comment) =>
@@ -1002,68 +926,97 @@ const BookDetailPage = () => {
     }
   };
 
-  const handleToggleReplyLike = async (commentId, replyId) => {
+  
+  const handleToggleUpvote = async (commentId) => {
     if (!user) {
-      alert('Sign in to like replies.');
+      alert('Sign in to upvote comments.');
       return;
     }
 
-    const hasLiked = likedReplies.includes(replyId);
-    const delta = hasLiked ? -1 : 1;
+    const hasUpvoted = upvotedComments.includes(commentId);
+    const delta = hasUpvoted ? -1 : 1;
     const bookId = getValidBookIdOrNull();
 
-    if (!bookId) return;
+    if (!bookId) {
+      return;
+    }
 
     try {
-      if (hasLiked) {
+      if (hasUpvoted) {
         await runTableQuery(
-          'replyReactions',
+          'commentReactions',
           (table) =>
             supabase
               .from(table)
               .delete()
-              .eq('reply_id', replyId)
+              .eq('comment_id', commentId)
               .eq('user_id', user.id)
-              .eq('reaction_type', 'like')
+              .eq('reaction_type', 'upvote')
         );
       } else {
-        await runTableQuery(
-          'replyReactions',
+        // Check if upvote already exists
+        const { data: existingUpvote, error: checkError } = await runTableQuery(
+          'commentReactions',
           (table) =>
             supabase
               .from(table)
-              .upsert(
-                {
-                  book_id: bookId,
-                  reply_id: replyId,
-                  user_id: user.id,
-                  reaction_type: 'like'
-                },
-                { onConflict: 'reply_id,user_id,reaction_type' }
-              )
+              .select('*')
+              .eq('comment_id', commentId)
+              .eq('user_id', user.id)
+              .eq('reaction_type', 'upvote')
+              .limit(1)
         );
+        
+        if (existingUpvote && existingUpvote.length > 0) {
+          // Remove it if it exists
+          await runTableQuery(
+            'commentReactions',
+            (table) =>
+              supabase
+                .from(table)
+                .delete()
+                .eq('comment_id', commentId)
+                .eq('user_id', user.id)
+                .eq('reaction_type', 'upvote')
+          );
+        } else {
+          // Add new upvote
+          await runTableQuery(
+            'commentReactions',
+            (table) =>
+              supabase
+                .from(table)
+                .insert({
+                  book_id: bookId,
+                  comment_id: commentId,
+                  user_id: user.id,
+                  reaction_type: 'upvote'
+                })
+          );
+        }
       }
 
-      await updateReplyCount(commentId, replyId, 'likes', delta);
-
-      setLikedReplies((prev) =>
-        hasLiked ? prev.filter((rid) => rid !== replyId) : [...prev, replyId]
+      await updateCommentCount(commentId, delta);
+      
+      const updatedComment = comments.find(c => c.id === commentId);
+      setUpvotedComments((prev) =>
+        hasUpvoted ? prev.filter((cid) => cid !== commentId) : [...prev, commentId]
       );
 
       if (socketRef.current) {
-        socketRef.current.emit('updateReplyReaction', {
-          bookId: id,
+        socketRef.current.emit('commentReactionUpdated', {
           commentId,
-          replyId,
-          reaction: 'like',
-          delta
+          reaction: 'upvote',
+          total: updatedComment?.upvotes || 0
         });
       }
     } catch (error) {
-      console.error('Error updating reply like:', error);
+      console.error('Error upvoting comment:', error);
+      alert('Error upvoting comment: ' + error.message);
     }
   };
 
+  
   const handleToggleReplyUpvote = async (commentId, replyId) => {
     if (!user) {
       alert('Sign in to upvote replies.');
@@ -1089,24 +1042,49 @@ const BookDetailPage = () => {
               .eq('reaction_type', 'upvote')
         );
       } else {
-        await runTableQuery(
+        // Check if upvote already exists
+        const { data: existingUpvote, error: checkError } = await runTableQuery(
           'replyReactions',
           (table) =>
             supabase
               .from(table)
-              .upsert(
-                {
+              .select('*')
+              .eq('reply_id', replyId)
+              .eq('user_id', user.id)
+              .eq('reaction_type', 'upvote')
+              .limit(1)
+        );
+        
+        if (existingUpvote && existingUpvote.length > 0) {
+          // Remove it if it exists
+          await runTableQuery(
+            'replyReactions',
+            (table) =>
+              supabase
+                .from(table)
+                .delete()
+                .eq('reply_id', replyId)
+                .eq('user_id', user.id)
+                .eq('reaction_type', 'upvote')
+          );
+        } else {
+          // Add new upvote
+          await runTableQuery(
+            'replyReactions',
+            (table) =>
+              supabase
+                .from(table)
+                .insert({
                   book_id: bookId,
                   reply_id: replyId,
                   user_id: user.id,
                   reaction_type: 'upvote'
-                },
-                { onConflict: 'reply_id,user_id,reaction_type' }
-              )
-        );
+                })
+          );
+        }
       }
 
-      await updateReplyCount(commentId, replyId, 'upvotes', delta);
+      await updateReplyCount(commentId, replyId, delta);
 
       setUpvotedReplies((prev) =>
         hasUpvoted ? prev.filter((rid) => rid !== replyId) : [...prev, replyId]
@@ -1126,37 +1104,7 @@ const BookDetailPage = () => {
     }
   };
 
-  const handleReportReply = async (commentId, replyId) => {
-    if (!user) {
-      alert('Sign in to report replies.');
-      return;
-    }
-
-    if (reportedReplies.includes(replyId)) return;
-
-    try {
-      const bookId = getValidBookIdOrNull();
-
-      if (!bookId) return;
-
-      await runTableQuery(
-        'replyReports',
-        (table) =>
-          supabase.from(table).insert({
-            book_id: bookId,
-            reply_id: replyId,
-            comment_id: commentId,
-            user_id: user.id
-          })
-      );
-
-      setReportedReplies((prev) => [...prev, replyId]);
-      alert('Reply reported. Thank you for helping keep our community safe.');
-    } catch (error) {
-      console.error('Error reporting reply:', error);
-    }
-  };
-
+  
   const handleReadNow = () => {
     navigate(`/reader-local?id=${id}`);
   };
@@ -1410,16 +1358,6 @@ const BookDetailPage = () => {
                             </p>
                             <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-[0.3em]">
                               <button
-                                onClick={() => handleToggleLike(comment.id)}
-                                className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                              >
-                                <Heart
-                                  className="w-3.5 h-3.5"
-                                  fill={likedComments.includes(comment.id) ? 'currentColor' : 'none'}
-                                />
-                                <span>{comment.likes}</span>
-                              </button>
-                              <button
                                 onClick={() => handleToggleUpvote(comment.id)}
                                 className="flex items-center gap-1 hover:opacity-80 transition-opacity"
                               >
@@ -1439,7 +1377,7 @@ const BookDetailPage = () => {
                                 <span>Reply</span>
                               </button>
                               <button
-                                onClick={() => handleReportComment(comment.id)}
+                                onClick={() => handleReport('comment', comment.id)}
                                 disabled={reportedComments.includes(comment.id)}
                                 className="flex items-center gap-1 hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                 title={reportedComments.includes(comment.id) ? 'Already reported' : 'Report comment'}
@@ -1452,7 +1390,6 @@ const BookDetailPage = () => {
                             {comment.replies.length > 0 && (
                               <div className="mt-4 space-y-4 border-l border-white/15 dark:border-dark-gray/15 pl-4 md:pl-5">
                                 {comment.replies.map((reply) => {
-                                  const isLiked = likedReplies.includes(reply.id);
                                   const isUpvoted = upvotedReplies.includes(reply.id);
                                   const isReported = reportedReplies.includes(reply.id);
                                   return (
@@ -1473,16 +1410,6 @@ const BookDetailPage = () => {
                                       </p>
                                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-white/60 dark:text-dark-gray/60 text-[0.65rem] uppercase tracking-[0.3em]">
                                         <button
-                                          onClick={() => handleToggleReplyLike(comment.id, reply.id)}
-                                          className="flex items-center gap-1 hover:opacity-80 transition-opacity"
-                                        >
-                                          <Heart
-                                            className="w-3 h-3"
-                                            fill={isLiked ? 'currentColor' : 'none'}
-                                          />
-                                          <span>{reply.likes || 0}</span>
-                                        </button>
-                                        <button
                                           onClick={() => handleToggleReplyUpvote(comment.id, reply.id)}
                                           className="flex items-center gap-1 hover:opacity-80 transition-opacity"
                                         >
@@ -1493,7 +1420,7 @@ const BookDetailPage = () => {
                                           <span>{reply.upvotes || 0}</span>
                                         </button>
                                         <button
-                                          onClick={() => handleReportReply(comment.id, reply.id)}
+                                          onClick={() => handleReport('reply', reply.id)}
                                           disabled={isReported}
                                           className="flex items-center gap-1 hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                           title={isReported ? 'Already reported' : 'Report reply'}
@@ -1544,9 +1471,126 @@ const BookDetailPage = () => {
             </div>
           </div>
         </section>
+
+      {/* Report Dialog */}
+      {reportDialog.isOpen && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-dark-gray rounded-lg max-w-md w-full p-6">
+            <h3 className="text-lg font-semibold text-dark-gray dark:text-white mb-4">
+              Report {reportDialog.type === 'comment' ? 'Comment' : 'Reply'}
+            </h3>
+            
+            <div className="space-y-3 mb-4">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                Please select a reason for reporting:
+              </p>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value="spam"
+                  checked={reportReason === 'spam'}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-dark-gray dark:text-white">Spam or promotional content</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value="offensive"
+                  checked={reportReason === 'offensive'}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-dark-gray dark:text-white">Offensive or inappropriate language</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value="harassment"
+                  checked={reportReason === 'harassment'}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-dark-gray dark:text-white">Harassment or bullying</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value="misinformation"
+                  checked={reportReason === 'misinformation'}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-dark-gray dark:text-white">Misinformation or false content</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value="spoiler"
+                  checked={reportReason === 'spoiler'}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-dark-gray dark:text-white">Spoiler without warning</span>
+              </label>
+              
+              <label className="flex items-center space-x-3 cursor-pointer">
+                <input
+                  type="radio"
+                  name="reportReason"
+                  value="other"
+                  checked={reportReason === 'other'}
+                  onChange={(e) => setReportReason(e.target.value)}
+                  className="w-4 h-4 text-blue-600"
+                />
+                <span className="text-sm text-dark-gray dark:text-white">Other reason</span>
+              </label>
+            </div>
+            
+            {reportReason === 'other' && (
+              <div className="mb-4">
+                <textarea
+                  value={customReason}
+                  onChange={(e) => setCustomReason(e.target.value)}
+                  placeholder="Please describe the reason..."
+                  className="w-full p-3 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-dark-gray dark:text-white bg-white dark:bg-dark-gray focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  rows="3"
+                />
+              </div>
+            )}
+            
+            <div className="flex justify-end space-x-3">
+              <button
+                onClick={cancelReport}
+                disabled={isSubmittingReport}
+                className="px-4 py-2 text-sm text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={submitReport}
+                disabled={isSubmittingReport || !reportReason || (reportReason === 'other' && !customReason.trim())}
+                className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg hover:bg-red-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isSubmittingReport ? 'Submitting...' : 'Submit Report'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
       </div>
-    );
+  );
 };
 
 export default BookDetailPage;
-
