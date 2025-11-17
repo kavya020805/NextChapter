@@ -40,6 +40,7 @@ function ProfilePage() {
   const [profilePhotoUrl, setProfilePhotoUrl] = useState('')
   const [profilePhotoFile, setProfilePhotoFile] = useState(null)
   const [uploadingPhoto, setUploadingPhoto] = useState(false)
+  const [imageError, setImageError] = useState(false)
   const fileInputRef = useRef(null)
 
   const genres = [
@@ -109,6 +110,7 @@ function ProfilePage() {
         setSelectedLanguages(profile.languages || [])
         setProfilePhotoUrl(profile.profile_photo_url || '')
         setProfilePhotoFile(null)
+        setImageError(false)
         // Get subscription plan from profile or default to 'Free'
         setSubscriptionPlan(profile.subscription_plan || localStorage.getItem('subscription_plan') || 'Free')
       } else {
@@ -434,21 +436,18 @@ function ProfilePage() {
                           {/* Profile Picture */}
                           <div className="relative">
                             {profilePhotoUrl ? (
-                              <>
+                              !imageError ? (
                                 <img
                                   src={profilePhotoUrl}
                                   alt="Profile"
                                   className="w-12 h-12 rounded-full border-2 border-white/40 dark:border-dark-gray/40 object-cover"
-                                  onError={(e) => {
-                                    e.target.style.display = 'none'
-                                    const fallback = e.target.nextElementSibling
-                                    if (fallback) fallback.style.display = 'flex'
-                                  }}
+                                  onError={() => setImageError(true)}
                                 />
-                                <div className="w-12 h-12 rounded-full border-2 border-white/40 dark:border-dark-gray/40 flex items-center justify-center hidden">
+                              ) : (
+                                <div className="w-12 h-12 rounded-full border-2 border-white/40 dark:border-dark-gray/40 flex items-center justify-center">
                                   <User className="w-6 h-6 text-white dark:text-dark-gray" />
                                 </div>
-                              </>
+                              )
                             ) : (
                               <div className="w-12 h-12 rounded-full border-2 border-white/40 dark:border-dark-gray/40 flex items-center justify-center">
                                 <User className="w-6 h-6 text-white dark:text-dark-gray" />

@@ -241,7 +241,7 @@ function LandingPage() {
 
                 {/* Animated Recommendation Badge */}
                 <motion.div
-                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500/10 to-blue-500/10 dark:from-purple-400/20 dark:to-blue-400/20 rounded-full border border-purple-300/30 dark:border-purple-400/30"
+                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-linear-to-r from-purple-500/10 to-blue-500/10 dark:from-purple-400/20 dark:to-blue-400/20 rounded-full border border-purple-300/30 dark:border-purple-400/30"
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ 
                     scale: [1, 1.05, 1],
@@ -513,7 +513,7 @@ function LandingPage() {
 
                 {/* Animated Summary Badge */}
                 <motion.div
-                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-600/10 to-blue-800/10 dark:from-blue-500/20 dark:to-blue-700/20 rounded-full border border-blue-500/30 dark:border-blue-400/30"
+                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600/10 to-blue-800/10 dark:from-blue-500/20 dark:to-blue-700/20 rounded-full border border-blue-500/30 dark:border-blue-400/30"
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ 
                     scale: [1, 1.05, 1],
@@ -570,7 +570,7 @@ function LandingPage() {
                {[...Array(3)].map((_, i) => (
                  <motion.div
                    key={`bubble-${i}`}
-                   className="absolute rounded-full bg-gradient-to-br from-green-400/20 to-blue-400/20 dark:from-green-300/30 dark:to-blue-300/30 backdrop-blur-sm"
+                   className="absolute rounded-full bg-linear-to-br from-green-400/20 to-blue-400/20 dark:from-green-300/30 dark:to-blue-300/30 backdrop-blur-sm"
                    initial={{
                      x: 10 + Math.random() * 30 + '%',
                      y: 5 + Math.random() * 15 + '%',
@@ -673,7 +673,7 @@ function LandingPage() {
 
                  {/* Animated Chat Badge */}
                  <motion.div
-                   className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500/10 to-blue-500/10 dark:from-green-400/20 dark:to-blue-400/20 rounded-full border border-green-300/30 dark:border-green-400/30"
+                   className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-linear-to-r from-green-500/10 to-blue-500/10 dark:from-green-400/20 dark:to-blue-400/20 rounded-full border border-green-300/30 dark:border-green-400/30"
                    initial={{ scale: 0, opacity: 0 }}
                    animate={{ 
                      scale: [1, 1.05, 1],

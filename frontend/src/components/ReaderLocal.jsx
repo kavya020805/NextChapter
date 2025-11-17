@@ -367,8 +367,8 @@ const ReaderLocal = () => {
         setBookCover(book.cover_image || '');
         
         // Get PDF file from Supabase Storage
-        // Assuming the book has a pdf_file field with the filename
-        const pdfFileName = book.pdf_file || book.pdf_filename;
+        // Prefer full URL in pdf_file, then explicit path/filename fields
+        const pdfFileName = book.pdf_file || book.pdf_path || book.pdf_filename;
         
         if (!pdfFileName) {
           throw new Error('No PDF file found for this book');
@@ -427,8 +427,8 @@ const ReaderLocal = () => {
         const isExternalPdf = /^https?:\/\//i.test(normalizedPdfPath);
 
         if (!isExternalPdf) {
-          if (/^Book-storage\//i.test(normalizedPdfPath)) {
-            normalizedPdfPath = normalizedPdfPath.replace(/^Book-storage\//i, '');
+          if (/^book-storage\//i.test(normalizedPdfPath)) {
+            normalizedPdfPath = normalizedPdfPath.replace(/^book-storage\//i, '');
           }
           if (/^public\//i.test(normalizedPdfPath)) {
             normalizedPdfPath = normalizedPdfPath.replace(/^public\//i, '');
@@ -462,7 +462,7 @@ const ReaderLocal = () => {
             } else {
               const { data: urlData } = supabase
                 .storage
-                .from('Book-storage')
+                .from('book-storage')
                 .getPublicUrl(normalizedPdfPath);
 
               fullPdfUrl = urlData?.publicUrl || '';
