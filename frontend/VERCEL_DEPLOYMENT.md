@@ -58,12 +58,14 @@ Make sure your Supabase project has the correct redirect URLs:
 1. Go to your Supabase dashboard
 2. Navigate to Authentication → URL Configuration
 3. Add these URLs to **Redirect URLs**:
-   - `https://nextchapter-it-314.vercel.app/sign-in`
+   - `https://nextchapter-it-314.vercel.app/auth/callback` ⭐ **IMPORTANT: OAuth callback**
    - `https://nextchapter-it-314.vercel.app/reset-password`
-   - `http://localhost:5173/sign-in` (for local development)
+   - `http://localhost:5173/auth/callback` (for local development)
    - `http://localhost:5173/reset-password` (for local development)
 
 4. Set **Site URL** to: `https://nextchapter-it-314.vercel.app`
+
+**Note**: The `/auth/callback` route is critical for OAuth to work correctly for both old and new users. It overrides any old redirect URLs stored in user metadata.
 
 ## Troubleshooting
 

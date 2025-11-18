@@ -15,6 +15,7 @@ import RecommendedBooksPage from './pages/RecommendedBooksPage'
 import TrendingBooksPage from './pages/TrendingBooksPage'
 import HighestRatedBooksPage from './pages/HighestRatedBooksPage'
 import ExploreBooksPage from './pages/ExploreBooksPage'
+import OAuthCallbackPage from './pages/OAuthCallbackPage'
 import Gallery from './components/Gallery'
 import GalleryLocal from './components/GalleryLocal'
 import Reader from './components/Reader'
@@ -34,6 +35,9 @@ function App() {
         <Route path="/sign-up" element={<SignUpPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        
+        {/* OAuth callback route - handles OAuth redirects for both old and new users */}
+        <Route path="/auth/callback" element={<OAuthCallbackPage />} />
         
         {/* Personalization - shown after first sign-in */}
         <Route 

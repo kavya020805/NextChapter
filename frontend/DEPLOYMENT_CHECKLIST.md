@@ -10,6 +10,7 @@ Your app has these routes, all properly configured:
 - ✅ `/sign-up` - Sign Up Page
 - ✅ `/forgot-password` - Forgot Password Page
 - ✅ `/reset-password` - Reset Password Page
+- ✅ `/auth/callback` - OAuth Callback Handler ⭐ **NEW - Fixes old user login issues**
 
 ### Protected Routes (Auth Required)
 - ✅ `/personalization` - Personalization Page

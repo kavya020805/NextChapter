@@ -27,67 +27,31 @@ export function AuthProvider({ children }) {
       setLoading(false)
     })
 
-    // Listen for auth changes (including OAuth redirects)
+    // Listen for auth changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       console.log('🔐 Auth state changed:', event, 'User:', session?.user?.email || 'none')
       console.log('📍 Current location:', window.location.pathname)
-      console.log('🔗 Current URL hash:', window.location.hash ? 'Present' : 'None')
       
       setSession(session)
       setUser(session?.user ?? null)
       setLoading(false)
       
-      // Handle OAuth sign-in - redirect based on personalization status
-      if (event === 'SIGNED_IN' && session) {
-        reportLoginActivity(session)
-        console.log('✅ SIGNED_IN event detected')
-        const currentPath = window.location.pathname
-        console.log('🎯 Checking if should redirect from:', currentPath)
-        
-        // Only redirect from sign-in/sign-up pages, NOT from landing page
-        if (currentPath === '/sign-in' || currentPath === '/sign-up') {
-          // Admins go directly to admin dashboard
-          isAdmin(session.user.id).then((admin) => {
-            if (admin) {
-              console.log('🚀 Redirecting admin to /admin')
-              window.location.href = '/admin'
-              return
-            }
-
-            // Normal users: check personalization status
-            hasCompletedPersonalization(session.user.id).then(completed => {
-              if (!completed) {
-                console.log('🚀 Redirecting to /personalization')
-                window.location.href = '/personalization'
-              } else {
-                console.log('🚀 Redirecting to /books')
-                window.location.href = '/books'
-              }
-            })
-          })
-        } else {
-          console.log('⚠️ Not redirecting - current path is:', currentPath)
-        }
-        
-        // Clean up hash after OAuth sign-in
-        if (window.location.hash) {
-          setTimeout(() => {
-            const cleanUrl = window.location.pathname + window.location.search
-            window.history.replaceState(null, '', cleanUrl)
-          }, 150)
-        }
-      } else if (event === 'SIGNED_OUT') {
+      // Handle sign out - redirect to landing page
+      if (event === 'SIGNED_OUT') {
         console.log('👋 SIGNED_OUT event detected')
-        const currentPath = window.location.pathname
-        console.log('📍 Current path after sign out:', currentPath)
-        
-        // Always redirect to landing page after sign out
         console.log('🚀 Redirecting to landing page after sign out')
         window.location.href = '/'
-      } else {
-        console.log('⚠️ Not SIGNED_IN - event:', event, 'session:', session ? 'exists' : 'null')
+      }
+      
+      // For SIGNED_IN events, let the OAuthCallbackPage handle redirects
+      // This prevents race conditions and ensures proper routing
+      if (event === 'SIGNED_IN' && session) {
+        console.log('✅ SIGNED_IN event detected')
+        // Only report login activity here, don't redirect
+        // The OAuthCallbackPage or ProtectedRoute will handle navigation
+        reportLoginActivity(session)
       }
     })
 
@@ -136,9 +100,9 @@ export function AuthProvider({ children }) {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        // Redirect to sign-in page (public) to avoid race condition with ProtectedRoute
-        // The AuthContext will then redirect to /books after authentication
-        redirectTo: `${window.location.origin}/sign-in`,
+        // Use dedicated callback route to handle OAuth redirects
+        // This overrides any old redirect URLs stored in user metadata
+        redirectTo: `${window.location.origin}/auth/callback`,
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',

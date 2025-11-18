@@ -22,9 +22,12 @@ VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFz
 ### 3. Update Supabase Redirect URLs
 Add in Supabase Dashboard → Authentication → URL Configuration:
 ```
-https://nextchapter-it-314.vercel.app/sign-in
+https://nextchapter-it-314.vercel.app/auth/callback
 https://nextchapter-it-314.vercel.app/reset-password
+http://localhost:5173/auth/callback
+http://localhost:5173/reset-password
 ```
+⭐ **CRITICAL**: Use `/auth/callback` for OAuth - this fixes old user login issues!
 
 ### 4. Push & Redeploy
 ```bash

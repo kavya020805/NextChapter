@@ -1,49 +1,67 @@
-import { useEffect } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
+import { useEffect } from "react";
+import { supabase } from "../lib/supabaseClient";
+import { useNavigate, useLocation } from "react-router-dom";
+import { hasCompletedPersonalization } from "../lib/personalizationUtils";
 
-/**
- * Component to handle OAuth callback and clean up URL hash
- * This should be rendered in the App component to handle OAuth redirects
- * 
- * IMPORTANT: This component should NOT clean the hash immediately.
- * Supabase needs time to process the OAuth hash fragment first.
- */
-function OAuthCallbackHandler() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const { user, loading } = useAuth()
+export default function OAuthCallbackHandler() {
+  const navigate = useNavigate();
+  const location = useLocation();
 
   useEffect(() => {
-    // ONLY clean up hash AFTER user is authenticated
-    // This gives Supabase time to process the OAuth callback
-    const cleanHash = () => {
-      if (window.location.hash && user) {
-        const hash = window.location.hash
-        
-        console.log('🧹 OAuthCallbackHandler: Cleaning hash after authentication')
-        
-        // Check if this is an OAuth callback
-        if (hash.includes('access_token') || hash.includes('error') || hash.includes('type=recovery')) {
-          // Remove hash from URL
-          const urlWithoutHash = window.location.pathname + window.location.search
-          window.history.replaceState(null, '', urlWithoutHash)
-          console.log('✅ Hash cleaned successfully')
-        }
+    async function finalizeOAuth() {
+      // If no hash, nothing to do
+      if (!window.location.hash) return;
+
+      const hash = window.location.hash.substring(1);
+      const params = new URLSearchParams(hash);
+
+      const access_token = params.get("access_token");
+      const refresh_token = params.get("refresh_token");
+
+      // Only handle if we received OAuth tokens
+      if (!access_token) return;
+
+      console.log("🔐 OAuthCallbackHandler: Received OAuth tokens");
+
+      // Apply Supabase session
+      const { data, error } = await supabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (error) {
+        console.error("❌ Failed to set session:", error);
+        navigate("/sign-in");
+        return;
       }
+
+      const user = data.session?.user;
+      if (!user) {
+        console.error("❌ No user in session after setting session");
+        navigate("/sign-in");
+        return;
+      }
+
+      console.log("✅ Session applied, user:", user.email);
+
+      // Check personalization
+      const completed = await hasCompletedPersonalization(user.id);
+      if (!completed) {
+        navigate("/personalization", { replace: true });
+      } else {
+        navigate("/books", { replace: true });
+      }
+
+      // Clean hash AFTER redirect
+      setTimeout(() => {
+        const cleanUrl = window.location.pathname + window.location.search;
+        window.history.replaceState(null, "", cleanUrl);
+        console.log("🧹 Cleaned URL hash");
+      }, 300);
     }
 
-    // Only clean hash if user is authenticated
-    if (user && !loading) {
-      console.log('🔑 User authenticated, will clean hash in 500ms')
-      // Wait a bit to ensure all auth state is updated
-      const timeout = setTimeout(cleanHash, 500)
-      return () => clearTimeout(timeout)
-    }
-  }, [user, loading, location])
+    finalizeOAuth();
+  }, [navigate, location]);
 
-  return null // This component doesn't render anything
+  return null;
 }
-
-export default OAuthCallbackHandler
-
