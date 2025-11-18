@@ -524,6 +524,12 @@ function calculateMonthlyProgress(readingSessions, booksRead) {
  * Calculate genre distribution
  */
 function calculateGenreDistribution(booksRead) {
+	// Return empty object if no books
+	if (!booksRead || booksRead.length === 0) {
+		console.log('No books read - returning empty genre distribution');
+		return {};
+	}
+
 	const distribution = {};
 
 	booksRead.forEach((book) => {
@@ -543,6 +549,12 @@ function calculateGenreDistribution(booksRead) {
 			distribution[key] = (distribution[key] || 0) + 1;
 		});
 	});
+
+	console.log('Genre Distribution Calculated:', distribution);
+	console.log('Books Read Count:', booksRead.length);
+	if (booksRead.length > 0) {
+		console.log('Sample Book:', booksRead[0]);
+	}
 
 	return distribution;
 }

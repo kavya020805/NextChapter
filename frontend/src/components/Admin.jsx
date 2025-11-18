@@ -95,7 +95,7 @@ const fadeIn = {
 };
 
 // Custom hook for fetching paginated books with advanced filtering
-function usePaginatedBooks({ search, genre, language, sort, reloadFlag }) {
+function usePaginatedBooks({ search, genre, language, sort, rating, reloadFlag }) {
   const [books, setBooks] = useState([]);
   const [count, setCount] = useState(0);
   const [page, setPage] = useState(1);
@@ -108,6 +108,11 @@ function usePaginatedBooks({ search, genre, language, sort, reloadFlag }) {
       setLoading(true);
       setError(null);
       
+      console.log('=== FETCH BOOKS DEBUG ===');
+      console.log('Search:', search);
+      console.log('Genre filter:', genre);
+      console.log('Rating filter:', rating);
+      
       let query = supabase
         .from("books")
         .select("*", { count: "exact" });
@@ -116,16 +121,26 @@ function usePaginatedBooks({ search, genre, language, sort, reloadFlag }) {
       if (search) {
         const term = `%${search}%`;
         query = query.or(`title.ilike.${term},author.ilike.${term}`);
+        console.log('Applied search filter:', term);
       }
       
-      if (genre && genre !== 'All') {
-        // Filter by simple genre field
-        query = query.eq('genre', genre);
+      if (genre && genre !== 'All' && genre !== '') {
+        // Filter by genres array (contains)
+        query = query.contains('genres', [genre]);
+        console.log('Applied genre filter:', genre);
       }
       
       if (language && language !== 'All') {
         query = query.eq("language", language);
       }
+
+      // Apply rating filter - skip for now if causing issues
+      // Rating will be filtered client-side after fetch
+      if (rating) {
+        console.log('Rating filter will be applied client-side:', rating);
+      }
+      
+      console.log('========================');
 
       // Apply sorting
       if (sort) {
@@ -146,7 +161,28 @@ function usePaginatedBooks({ search, genre, language, sort, reloadFlag }) {
 
       if (queryError) throw queryError;
 
-      setBooks(data || []);
+      // Debug: Check if books have genre and cover data
+      if (data && data.length > 0) {
+        console.log('=== BOOKS DEBUG ===');
+        console.log('Total books fetched:', data.length);
+        console.log('Sample book:', data[0]);
+        console.log('Genres:', data[0]?.genres);
+        console.log('Cover image:', data[0]?.cover_image);
+        console.log('==================');
+      }
+
+      // Apply client-side rating filter if needed
+      let filteredData = data || [];
+      if (rating && filteredData.length > 0) {
+        const minRating = parseFloat(rating);
+        filteredData = filteredData.filter(book => {
+          const bookRating = parseFloat(book.rating);
+          return !isNaN(bookRating) && bookRating >= minRating;
+        });
+        console.log('After rating filter:', filteredData.length, 'books');
+      }
+
+      setBooks(filteredData);
       setCount(count || 0);
       setTotalPages(Math.ceil((count || 0) / PAGE_SIZE));
     } catch (err) {
@@ -156,7 +192,7 @@ function usePaginatedBooks({ search, genre, language, sort, reloadFlag }) {
     } finally {
       setLoading(false);
     }
-  }, [search, genre, language, sort, page, reloadFlag]);
+  }, [search, genre, language, sort, rating, page, reloadFlag]);
 
   useEffect(() => {
     fetchBooks();
@@ -223,22 +259,67 @@ function useDashboardMetrics() {
           .from('book_comments')
           .select('*', { count: 'exact', head: true });
 
-        const { count: reportedCommentsCount } = await supabase
+        const { count: reportedCommentsCount, error: countError } = await supabase
           .from('book_comment_reports')
           .select('*', { count: 'exact', head: true });
 
-        const { data: reportedCommentsList } = await supabase
+        if (countError) {
+          console.error('Error fetching reported comments count:', countError);
+        }
+
+        // Try a simpler query first to test access
+        const { data: simpleList, error: simpleError } = await supabase
+          .from('book_comment_reports')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(10);
+
+        // Then try the full query with joins
+        let reportedCommentsList = null;
+        const { data: joinData, error: listError } = await supabase
           .from('book_comment_reports')
           .select(`
             id,
             comment_id,
             book_id,
+            reason,
             created_at,
             comment:book_comments(text),
             book:books(title)
           `)
           .order('created_at', { ascending: false })
           .limit(10);
+
+        if (listError) {
+          console.warn('Join query failed, using fallback method:', listError.message);
+          
+          // Fallback: Use simple list and fetch related data separately
+          reportedCommentsList = simpleList;
+          
+          // Fetch related data for each report
+          if (reportedCommentsList && reportedCommentsList.length > 0) {
+            for (let report of reportedCommentsList) {
+              // Fetch comment
+              const { data: commentData } = await supabase
+                .from('book_comments')
+                .select('text')
+                .eq('id', report.comment_id)
+                .single();
+              
+              // Fetch book
+              const { data: bookData } = await supabase
+                .from('books')
+                .select('title')
+                .eq('id', report.book_id)
+                .single();
+              
+              report.comment = commentData;
+              report.book = bookData;
+            }
+          }
+        } else {
+          reportedCommentsList = joinData;
+        }
 
         // Fetch user sessions for retention and monthly active subscriptions
         const { data: sessionRows, count: totalSessionCount } = await supabase
@@ -350,6 +431,23 @@ function useDashboardMetrics() {
   return { metrics, monthlySeries, loading, error };
 }
 
+// Helper function to get cover image URL
+const getCoverImageUrl = (coverImage) => {
+  if (!coverImage) return null;
+  
+  // If already a full URL, return as is
+  if (coverImage.startsWith('http://') || coverImage.startsWith('https://')) {
+    return coverImage;
+  }
+  
+  // Construct Supabase storage URL manually
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const url = `${supabaseUrl}/storage/v1/object/public/book-storage/${coverImage}`;
+  
+  console.log('Cover image URL:', url);
+  return url;
+};
+
 const Admin = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('dashboard');
@@ -367,6 +465,7 @@ const Admin = () => {
     genre: '',
     language: '',
     sort: 'created_at_desc',
+    rating: '',
     status: 'all',
     featured: 'all',
     dateRange: 'all'
@@ -406,6 +505,7 @@ const Admin = () => {
     genre: filters.genre,
     language: filters.language,
     sort: filters.sort,
+    rating: filters.rating,
     reloadFlag
   });
 
@@ -414,22 +514,14 @@ const Admin = () => {
     id: '',
     title: '',
     author: '',
+    author_bio: '',
+    author_birth_year: '',
     description: '',
     genre: '',
     language: 'English',
-    isbn: '',
-    published_date: '',
-    page_count: '',
-    publisher: '',
-    price: '',
-    is_featured: false,
-    is_bestseller: false,
-    subjects: '',
     cover_image: DEFAULT_COVER_IMAGE,
     pdf_file: null,
-    cover_file: null,
-    downloads: 0,
-    status: 'active'
+    cover_file: null
   });
 
   // Format currency
@@ -628,27 +720,23 @@ const Admin = () => {
   // Reset form when editing book changes
   useEffect(() => {
     if (editingBook) {
+      // Handle genres array - convert to comma-separated string for the form
+      const genresString = Array.isArray(editingBook.genres) 
+        ? editingBook.genres.join(', ') 
+        : editingBook.genre || '';
+      
       setFormData({
         id: editingBook.id,
         title: editingBook.title || '',
         author: editingBook.author || '',
+        author_bio: editingBook.author_bio || '',
+        author_birth_year: editingBook.author_birth_year || '',
         description: editingBook.description || '',
-        genre: editingBook.genre || '',
+        genre: genresString,
         language: editingBook.language || 'English',
-        isbn: editingBook.isbn || '',
-        published_date: editingBook.published_date || '',
-        page_count: editingBook.page_count || '',
-        publisher: editingBook.publisher || '',
-        price: editingBook.price || '',
-        is_featured: editingBook.is_featured || false,
-        is_bestseller: editingBook.is_bestseller || false,
-        subjects: Array.isArray(editingBook.subjects) 
-          ? editingBook.subjects.join(', ') 
-          : editingBook.subjects || '',
         cover_image: editingBook.cover_image || DEFAULT_COVER_IMAGE,
         pdf_file: editingBook.pdf_file || null,
-        downloads: editingBook.downloads || 0,
-        status: editingBook.status || 'active'
+        cover_file: null
       });
       setShowForm(true);
     }
@@ -733,26 +821,22 @@ const Admin = () => {
         coverImageUrl = await uploadFile(formData.cover_file, 'covers');
       }
 
-      // Prepare book data
+      // Convert comma-separated genres to array
+      const genresArray = formData.genre 
+        ? formData.genre.split(',').map(g => g.trim()).filter(Boolean)
+        : [];
+
+      // Prepare book data with new fields
       const bookData = {
         title: formData.title,
         author: formData.author,
+        author_bio: formData.author_bio || null,
+        author_birth_year: formData.author_birth_year ? parseInt(formData.author_birth_year) : null,
         description: formData.description || null,
-        genre: formData.genre || null,
+        genres: genresArray,
         language: formData.language || 'English',
-        isbn: formData.isbn || null,
-        published_date: formData.published_date || null,
-        page_count: formData.page_count ? parseInt(formData.page_count) : null,
-        publisher: formData.publisher || null,
-        price: formData.price ? parseFloat(formData.price) : null,
-        is_featured: formData.is_featured || false,
-        is_bestseller: formData.is_bestseller || false,
-        subjects: formData.subjects 
-          ? formData.subjects.split(',').map(s => s.trim()).filter(Boolean)
-          : [],
         cover_image: coverImageUrl,
         pdf_file: pdfUrl,
-        status: formData.status || 'active',
         updated_at: new Date().toISOString()
       };
 
@@ -766,13 +850,15 @@ const Admin = () => {
         if (error) throw error;
         toast.success('Book updated successfully!');
       } else {
-        // Create new book
+        // Create new book with ID
         const { data, error } = await supabase
           .from('books')
           .insert([{ 
+            id: formData.id,
             ...bookData,
             created_at: new Date().toISOString(),
-            downloads: 0
+            downloads: 0,
+            rating: 0
           }])
           .select();
           
@@ -941,11 +1027,17 @@ const Admin = () => {
 
   // Handle filter change
  const handleFilterChange = (filterName, value) => {
+  console.log('Filter changed:', filterName, '=', value);
+  
   // Update filters
-  setFilters(prev => ({
-    ...prev,
-    [filterName]: value, // dynamically update the specific filter
-  }));
+  setFilters(prev => {
+    const newFilters = {
+      ...prev,
+      [filterName]: value,
+    };
+    console.log('New filters:', newFilters);
+    return newFilters;
+  });
 
   // Reset page number when filters change
   setPage(1);
@@ -967,31 +1059,45 @@ const Admin = () => {
     }
   };
 
-  // Handle actions on reported comments (dismiss report or remove comment)
+  // Handle actions on reported comments (approve or reject)
   const handleReportAction = async (report, action) => {
     try {
-      if (action === 'dismiss') {
+      if (action === 'approve') {
+        // Approve: Remove the report but keep the comment
         const { error } = await supabase
           .from('book_comment_reports')
           .delete()
           .eq('id', report.id);
         if (error) throw error;
-        toast.success('Report dismissed');
-      } else if (action === 'remove-comment') {
+        toast.success('Report dismissed - Comment approved');
+      } else if (action === 'reject') {
+        // Confirm before deleting
+        const confirmDelete = window.confirm(
+          'Are you sure you want to reject and delete this comment? This action cannot be undone.\n\n' +
+          `Comment: "${report.comment?.text?.substring(0, 100)}..."`
+        );
+        
+        if (!confirmDelete) return;
+
+        // Reject: Delete the comment and all associated reports
         const { error: deleteCommentError } = await supabase
           .from('book_comments')
           .delete()
           .eq('id', report.comment_id);
         if (deleteCommentError) throw deleteCommentError;
 
+        // Delete all reports for this comment (CASCADE should handle this, but being explicit)
         const { error: deleteReportsError } = await supabase
           .from('book_comment_reports')
           .delete()
           .eq('comment_id', report.comment_id);
         if (deleteReportsError) throw deleteReportsError;
 
-        toast.success('Comment removed and reports cleared');
+        toast.success('Comment rejected and deleted');
       }
+      
+      // Trigger a refresh of the metrics to update the list
+      window.location.reload();
     } catch (error) {
       console.error('Error handling report action:', error);
       toast.error(`Failed to update report: ${error.message}`);
@@ -1004,21 +1110,14 @@ const Admin = () => {
       id: "",
       title: "",
       author: "",
+      author_bio: "",
+      author_birth_year: "",
       description: "",
       genre: "",
       language: "English",
-      subjects: "",
       cover_image: DEFAULT_COVER_IMAGE,
       pdf_file: null,
-      downloads: 0,
-      status: 'active',
-      is_featured: false,
-      is_bestseller: false,
-      isbn: "",
-      published_date: "",
-      page_count: "",
-      publisher: "",
-      price: ""
+      cover_file: null
     });
     setEditingBook(null);
     setShowForm(false);
@@ -1688,22 +1787,62 @@ const Admin = () => {
 
             {/* Row 3: Reported Comments */}
             <div className="mt-8">
-              <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 flex flex-col justify-between h-full">
-                <h2 className="text-xl font-bold text-black dark:text-black mb-3 uppercase tracking-widest">
+              <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4">
+                <h2 className="text-xl font-bold text-white dark:text-dark-gray mb-4 uppercase tracking-widest">
                   Reported Comments
                 </h2>
-                <div>
-                  <p className="text-3xl font-extrabold text-dark-gray dark:text-black">
-                    {metrics.reportedComments?.toLocaleString() || '0'}
-                  </p>
-                  {metrics.reportedCommentsChange && (
-                    <p className={`mt-1 text-[11px] uppercase tracking-widest ${metrics.reportedCommentsChange.startsWith('+') ? 'text-red-500' : 'text-green-500'}`}>
-                      {metrics.reportedCommentsChange}
-                    </p>
+                
+                <div className="space-y-3 max-h-96 overflow-y-auto pr-1">
+                  {metrics.reportedCommentsList && metrics.reportedCommentsList.length > 0 ? (
+                    metrics.reportedCommentsList.map((report) => (
+                      <div 
+                        key={report.id} 
+                        className="p-3 bg-dark-gray dark:bg-white border border-white/20 dark:border-dark-gray/20"
+                      >
+                        {/* Book Title & Reason */}
+                        <div className="mb-2">
+                          <h3 className="text-xs uppercase tracking-widest text-white/70 dark:text-dark-gray/70 mb-1 line-clamp-1">
+                            {report.book?.title || 'Unknown Book'}
+                          </h3>
+                          {report.reason && (
+                            <span className="text-[10px] text-red-500 uppercase tracking-widest">
+                              {report.reason}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Comment Text */}
+                        <p className="text-xs text-white/80 dark:text-dark-gray/80 mb-3 line-clamp-2">
+                          "{report.comment?.text || 'Comment not available'}"
+                        </p>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleReportAction(report, 'approve')}
+                            className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-green-500/10 text-green-600 dark:text-green-500 hover:bg-green-500/20 transition-colors border border-green-500/30"
+                          >
+                            <Check className="w-3 h-3" />
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => handleReportAction(report, 'reject')}
+                            className="flex-1 flex items-center justify-center gap-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-red-500/10 text-red-600 dark:text-red-500 hover:bg-red-500/20 transition-colors border border-red-500/30"
+                          >
+                            <XCircle className="w-3 h-3" />
+                            Reject
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-center py-8">
+                      <Check className="w-12 h-12 text-green-500/50 mx-auto mb-3" />
+                      <p className="text-sm text-white/60 dark:text-dark-gray/60">
+                        No reported comments at this time.
+                      </p>
+                    </div>
                   )}
-                  <p className="mt-3 text-[11px] uppercase tracking-widest text-dark-gray/60 dark:text-black/60">
-                    Monitor and moderate user-reported comments here.
-                  </p>
                 </div>
               </div>
             </div>
@@ -1711,16 +1850,51 @@ const Admin = () => {
         </div>
 
         {/* === Catalogue Management === */}
-        <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <h2 className="text-3xl text-white dark:text-dark-gray font-bold uppercase tracking-widest">
-              Catalogue Management
-            </h2>
-            <p className="text-white/60 dark:text-dark-gray/60 text-sm uppercase tracking-widest">
-              Add, curate and maintain the reading experience.
-            </p>
+        <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+            <div>
+              <h2 className="text-3xl text-white dark:text-dark-gray font-bold uppercase tracking-widest">
+                Catalogue Management
+              </h2>
+              <p className="text-white/60 dark:text-dark-gray/60 text-sm uppercase tracking-widest">
+                Add, curate and maintain the reading experience.
+              </p>
+            </div>
           </div>
-          <div className="flex items-center">
+
+          {/* Search Bar with Filters and Add Button */}
+          <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex-1 relative">
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-white/40 dark:text-dark-gray/40" />
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search by title or author..."
+                className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white/30 dark:border-dark-gray/30 pl-12 pr-4 py-3 text-sm focus:outline-none focus:border-white dark:focus:border-dark-gray placeholder:text-white/40 dark:placeholder:text-dark-gray/40"
+              />
+            </div>
+            <select
+              value={filters.genre}
+              onChange={(e) => handleFilterChange('genre', e.target.value)}
+              className="bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white/30 dark:border-dark-gray/30 px-4 py-3 text-xs uppercase tracking-widest focus:outline-none focus:border-white dark:focus:border-dark-gray"
+            >
+              <option value="">All Genres</option>
+              {BOOK_GENRES.map((g) => (
+                <option key={g} value={g}>{g}</option>
+              ))}
+            </select>
+            <select
+              value={filters.rating || ''}
+              onChange={(e) => handleFilterChange('rating', e.target.value)}
+              className="bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white/30 dark:border-dark-gray/30 px-4 py-3 text-xs uppercase tracking-widest focus:outline-none focus:border-white dark:focus:border-dark-gray"
+            >
+              <option value="">All Ratings</option>
+              <option value="4">4+ Stars</option>
+              <option value="3">3+ Stars</option>
+              <option value="2">2+ Stars</option>
+              <option value="1">1+ Stars</option>
+            </select>
             <button
               type="button"
               onClick={() => {
@@ -1736,10 +1910,10 @@ const Admin = () => {
                   }, 0);
                 }
               }}
-              className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-5 py-2 text-xs font-medium uppercase tracking-widest border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray"
+              className="inline-flex items-center gap-2 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 py-3 text-xs font-bold uppercase tracking-widest border-2 border-white dark:border-dark-gray transition-all hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray whitespace-nowrap"
             >
               {showForm ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-              <span>{showForm ? 'Save Book' : 'Add Book'}</span>
+              <span>{showForm ? 'Save' : 'Add Book'}</span>
             </button>
           </div>
         </div>
@@ -1747,31 +1921,34 @@ const Admin = () => {
         {/* Add/Edit Book Form */}
         {showForm && (
           <div
-            className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-10"
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4"
             onClick={(e) => {
               if (e.target === e.currentTarget) resetForm();
             }}
             role="dialog"
             aria-modal="true"
           >
-            <div className="w-full max-w-3xl border-2 border-white dark:border-dark-gray bg-white dark:bg-dark-gray p-8 relative max-h-[85vh] overflow-y-auto">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl text-dark-gray dark:text-white font-bold uppercase tracking-widest">
-                  {editingBook ? 'Edit Book' : 'Add New Book'}
+            <div className="w-full max-w-2xl bg-white dark:bg-dark-gray border border-dark-gray/20 dark:border-white/20 shadow-2xl max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="sticky top-0 bg-white dark:bg-dark-gray border-b border-dark-gray/10 dark:border-white/10 px-6 py-4 flex items-center justify-between">
+                <h2 className="text-lg text-dark-gray dark:text-white font-medium uppercase tracking-wider">
+                  {editingBook ? 'Edit Book' : 'Add Book'}
                 </h2>
                 <button
                   type="button"
                   onClick={resetForm}
-                  className="p-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray hover:opacity-80 transition-opacity"
+                  className="p-1.5 text-dark-gray/50 dark:text-white/50 hover:text-dark-gray dark:hover:text-white transition-colors"
                   aria-label="Close"
                 >
-                  <X className="w-4 h-4" />
+                  <X className="w-5 h-5" />
                 </button>
               </div>
-              <form onSubmit={handleSubmit} ref={formRef} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              {/* Form */}
+              <form onSubmit={handleSubmit} ref={formRef} className="p-6 space-y-5">
+                {/* Book ID */}
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
+                  <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
                     Book ID *
                   </label>
                   <input
@@ -1781,81 +1958,125 @@ const Admin = () => {
                     onChange={handleInputChange}
                     required
                     disabled={!!editingBook}
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
+                    placeholder="unique-book-id"
+                    className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   />
                 </div>
 
+                {/* Title & Author */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
+                      Title *
+                    </label>
+                    <input
+                      type="text"
+                      name="title"
+                      value={formData.title}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Book title"
+                      className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
+                      Author *
+                    </label>
+                    <input
+                      type="text"
+                      name="author"
+                      value={formData.author}
+                      onChange={handleInputChange}
+                      required
+                      placeholder="Author name"
+                      className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                    />
+                  </div>
+                </div>
+
+                {/* Author Bio */}
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Title *
+                  <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
+                    Author Bio
                   </label>
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
+                  <textarea
+                    name="author_bio"
+                    value={formData.author_bio}
                     onChange={handleInputChange}
-                    required
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
+                    rows="2"
+                    placeholder="Brief biography of the author"
+                    className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors resize-none"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Author *
-                  </label>
-                  <input
-                    type="text"
-                    name="author"
-                    value={formData.author}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
+                {/* Author Birth Year & Language */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
+                      Author Birth Year
+                    </label>
+                    <input
+                      type="number"
+                      name="author_birth_year"
+                      value={formData.author_birth_year}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 1975"
+                      min="1800"
+                      max={new Date().getFullYear()}
+                      className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
+                      Language
+                    </label>
+                    <input
+                      type="text"
+                      name="language"
+                      value={formData.language}
+                      onChange={handleInputChange}
+                      placeholder="e.g., English"
+                      className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                    />
+                  </div>
                 </div>
 
+                {/* Genre */}
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Genre
+                  <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
+                    Genre (comma-separated)
                   </label>
                   <input
                     type="text"
                     name="genre"
                     value={formData.genre}
                     onChange={handleInputChange}
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
+                    placeholder="e.g., Fiction, Romance, Drama"
+                    className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
                   />
                 </div>
 
+                {/* Description */}
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Language
+                  <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
+                    Description
                   </label>
-                  <input
-                    type="text"
-                    name="language"
-                    value={formData.language}
+                  <textarea
+                    name="description"
+                    value={formData.description}
                     onChange={handleInputChange}
-                    placeholder="e.g., English, Spanish"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
+                    rows="3"
+                    placeholder="Book description or summary"
+                    className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors resize-none"
                   />
                 </div>
 
+                {/* Cover Image URL */}
                 <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Subjects (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    name="subjects"
-                    value={formData.subjects}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Fiction, Romance, Classic"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
+                  <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
                     Cover Image URL
                   </label>
                   <input
@@ -1863,101 +2084,72 @@ const Admin = () => {
                     name="cover_image"
                     value={formData.cover_image}
                     onChange={handleInputChange}
-                    placeholder="https://example.com/cover.jpg"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
+                    placeholder="https://..."
+                    className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
                   />
                 </div>
 
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Downloads
-                  </label>
-                  <input
-                    type="number"
-                    name="downloads"
-                    value={formData.downloads}
-                    onChange={handleInputChange}
-                    min="0"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-              </div>
+                {/* File Uploads */}
+                <div className="grid grid-cols-2 gap-4 pt-2">
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2 font-medium">
+                      Cover Image
+                    </label>
+                    <input
+                      type="file"
+                      name="cover_file"
+                      onChange={handleFileChange}
+                      accept="image/*"
+                      className="w-full text-xs text-dark-gray dark:text-white file:mr-2 file:py-1.5 file:px-3 file:border file:border-dark-gray/20 dark:file:border-white/20 file:text-xs file:uppercase file:tracking-wider file:bg-transparent file:text-dark-gray dark:file:text-white file:cursor-pointer hover:file:bg-dark-gray/5 dark:hover:file:bg-white/5 file:transition-colors"
+                    />
+                  </div>
 
-              <div>
-                <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="4"
-                  className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral resize-none"
-                />
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Upload PDF File
-                  </label>
-                  <div className="relative">
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2 font-medium">
+                      PDF File
+                    </label>
                     <input
                       type="file"
                       name="pdf_file"
                       onChange={handleFileChange}
                       accept=".pdf"
-                      className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:uppercase file:tracking-widest file:bg-white dark:file:bg-dark-gray file:text-dark-gray dark:file:text-white file:cursor-pointer"
+                      className="w-full text-xs text-dark-gray dark:text-white file:mr-2 file:py-1.5 file:px-3 file:border file:border-dark-gray/20 dark:file:border-white/20 file:text-xs file:uppercase file:tracking-wider file:bg-transparent file:text-dark-gray dark:file:text-white file:cursor-pointer hover:file:bg-dark-gray/5 dark:hover:file:bg-white/5 file:transition-colors"
                     />
+                    {formData.pdf_file && !(formData.pdf_file instanceof File) && (
+                      <p className="mt-1.5 text-xs text-dark-gray/40 dark:text-white/40 truncate">
+                        Current: {formData.pdf_file}
+                      </p>
+                    )}
                   </div>
-                  {formData.pdf_file && !(formData.pdf_file instanceof File) && (
-                    <p className="mt-2 text-xs text-white/60 dark:text-dark-gray/60">
-                      Current: {formData.pdf_file}
-                    </p>
-                  )}
                 </div>
 
-                <div>
-                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
-                    Upload Cover Image
-                  </label>
-                  <input
-                    type="file"
-                    name="cover_file"
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:uppercase file:tracking-widest file:bg-white dark:file:bg-dark-gray file:text-dark-gray dark:file:text-white file:cursor-pointer"
-                  />
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4 border-t border-dark-gray/10 dark:border-white/10">
+                  <button
+                    type="submit"
+                    disabled={uploading}
+                    className="flex-1 flex items-center justify-center gap-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-5 py-2.5 text-xs uppercase tracking-wider font-medium hover:opacity-90 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {uploading ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-4 h-4" />
+                        {editingBook ? 'Update' : 'Add'}
+                      </>
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={resetForm}
+                    className="px-5 py-2.5 text-xs uppercase tracking-wider font-medium text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white transition-colors"
+                  >
+                    Cancel
+                  </button>
                 </div>
-              </div>
-
-              <div className="flex gap-4">
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="flex items-center gap-2 bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-2 border-white dark:border-dark-gray px-6 py-3 text-xs uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-dark-gray dark:border-white"></div>
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      {editingBook ? 'Update Book' : 'Add Book'}
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex items-center gap-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-6 py-3 text-xs uppercase tracking-widest hover:opacity-80 transition-opacity"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-              </div>
               </form>
             </div>
           </div>
@@ -1965,42 +2157,6 @@ const Admin = () => {
 
         {/* Books Table */}
         <>
-          <div className="mb-6 bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-4">
-            <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
-              <div className="flex-1">
-                <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">Search</label>
-                <input
-                  type="text"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  placeholder="Search by title or author..."
-                  className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-2 text-sm focus:outline-none focus:border-coral"
-                />
-              </div>
-              <div className="w-full md:w-64">
-                <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">Genre</label>
-                <select
-                  value={filters.genre}
-                  onChange={(e) => handleFilterChange('genre', e.target.value)}
-                  className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-2 text-sm focus:outline-none focus:border-coral"
-                >
-                  <option value="">All</option>
-                  {BOOK_GENRES.map((g) => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex gap-3">
-                <button
-                  type="button"
-                  onClick={clearFilters}
-                  className="inline-flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest border-2 border-white dark:border-dark-gray text-dark-gray dark:text-white bg-white dark:bg-dark-gray hover:opacity-80"
-                >
-                  Clear
-                </button>
-              </div>
-            </div>
-          </div>
           <div className="border-2 border-white dark:border-dark-gray overflow-x-auto">
             <table className="w-full">
               <thead className="bg-white dark:bg-dark-gray">
@@ -2042,17 +2198,27 @@ const Admin = () => {
                   books.map((book) => (
                     <tr key={book.id} className="border-b border-white/10 dark:border-dark-gray/10 hover:bg-white/5 dark:hover:bg-dark-gray/5 transition-colors">
                       <td className="px-6 py-4">
-                        {book.cover_image ? (
-                          <img
-                            src={book.cover_image}
-                            alt={book.title}
-                            className="w-16 h-24 object-cover border-2 border-white dark:border-dark-gray"
-                          />
-                        ) : (
-                          <div className="w-16 h-24 bg-white dark:bg-dark-gray flex items-center justify-center text-2xl border-2 border-white dark:border-dark-gray">
-                            📚
-                          </div>
-                        )}
+                        {(() => {
+                          const imageUrl = getCoverImageUrl(book.cover_image);
+                          return imageUrl ? (
+                            <img
+                              src={imageUrl}
+                              alt={book.title}
+                              className="w-16 h-24 object-cover border-2 border-white dark:border-dark-gray"
+                              onError={(e) => {
+                                console.log('Image failed to load:', imageUrl);
+                                e.target.style.display = 'none';
+                                e.target.nextSibling.style.display = 'flex';
+                              }}
+                            />
+                          ) : null;
+                        })()}
+                        <div 
+                          className="w-16 h-24 bg-white/10 dark:bg-dark-gray/10 flex items-center justify-center text-2xl border-2 border-white/30 dark:border-dark-gray/30"
+                          style={{ display: getCoverImageUrl(book.cover_image) ? 'none' : 'flex' }}
+                        >
+                          📚
+                        </div>
                       </td>
                       <td className="px-6 py-4">
                         <div className="text-white dark:text-dark-gray text-sm font-medium uppercase tracking-widest">
@@ -2068,12 +2234,18 @@ const Admin = () => {
                         {book.author || 'Unknown'}
                       </td>
                       <td className="px-6 py-4 text-white dark:text-dark-gray text-sm uppercase tracking-widest">
-                        {book.genre || '-'}
+                        {Array.isArray(book.genres) && book.genres.length > 0 
+                          ? book.genres[0] 
+                          : (book.genre || '-')}
                       </td>
                       <td className="px-6 py-4 text-white dark:text-dark-gray text-sm">
                         <span className="inline-flex items-center gap-2">
                           <Star className="h-4 w-4 text-yellow-500" />
-                          {typeof book.rating === 'number' ? book.rating.toFixed(1) : (book.rating || '-')}
+                          {book.rating ? (
+                            typeof book.rating === 'number' 
+                              ? book.rating.toFixed(1) 
+                              : parseFloat(book.rating).toFixed(1)
+                          ) : '-'}
                         </span>
                       </td>
                       <td className="px-6 py-4">
