@@ -1,6 +1,7 @@
 /** @format */
 
 import { supabase } from "./supabaseClient";
+import { transformBookCoverUrls } from "./bookUtils";
 
 /**
  * Fetch all user dashboard data from Supabase
@@ -108,8 +109,9 @@ export async function fetchUserDashboardData(userId) {
 			if (booksError) {
 				console.error("Error fetching books for dashboard:", booksError);
 			} else if (Array.isArray(booksData)) {
+				const booksWithUrls = transformBookCoverUrls(booksData);
 				booksById = Object.fromEntries(
-					booksData.map((book) => [book.id, book])
+					booksWithUrls.map((book) => [book.id, book])
 				);
 			}
 		}
@@ -209,7 +211,7 @@ export async function fetchUserDashboardData(userId) {
 						.in("id", readIds);
 
 					if (booksData) {
-						booksRead = booksData;
+						booksRead = transformBookCoverUrls(booksData);
 					}
 				}
 			} catch (e) {

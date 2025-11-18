@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { transformBookCoverUrls } from './bookUtils'
 
 /**
  * Calculate trending score for a book using the formula:
@@ -154,9 +155,12 @@ export async function getTrendingBooks(limit = 10, days = 30) {
 
     console.log(`Found ${books.length} books, calculating trending scores...`)
 
+    // Transform cover URLs first
+    const booksWithUrls = transformBookCoverUrls(books)
+
     // Calculate trending score for each book
     const booksWithScores = await Promise.all(
-      books.map(async (book) => {
+      booksWithUrls.map(async (book) => {
         try {
           const metrics = await getBookMetrics(book.id, days)
           const trendingScore = calculateTrendingScore(metrics)

@@ -17,6 +17,7 @@ import {
 import { supabase } from '../lib/supabaseClient';
 import { io } from 'socket.io-client';
 import { moderationService } from '../services/moderation/moderationService';
+import { transformBookCoverUrls } from '../lib/bookUtils';
 
 
 
@@ -314,7 +315,8 @@ const BookDetailPage = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        setBook(data);
+        const bookWithUrl = transformBookCoverUrls(data);
+        setBook(bookWithUrl);
         syncReadingState();
       } else {
         // Fallback to local JSON
