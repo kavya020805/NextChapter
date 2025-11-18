@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import Header from '../components/Header'
 import { Search } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
+import { transformBookCoverUrls } from '../lib/bookUtils'
 
 function AlreadyReadPage() {
   const [allBooks, setAllBooks] = useState([])
@@ -50,7 +51,8 @@ function AlreadyReadPage() {
       
       if (error) throw error
       
-      setAllBooks(data || [])
+      const booksWithUrls = transformBookCoverUrls(data || [])
+      setAllBooks(booksWithUrls)
     } catch (e) {
       console.error('Failed to load books from Supabase:', e)
       // Fallback to local JSON

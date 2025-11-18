@@ -462,7 +462,7 @@ const ReaderLocal = () => {
             } else {
               const { data: urlData } = supabase
                 .storage
-                .from('book-storage')
+                .from('Book-storage')
                 .getPublicUrl(normalizedPdfPath);
 
               fullPdfUrl = urlData?.publicUrl || '';
