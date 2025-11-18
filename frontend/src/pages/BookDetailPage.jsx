@@ -16,6 +16,9 @@ import {
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { io } from 'socket.io-client';
+import { moderationService } from '../services/moderation/moderationService';
+
+
 
 const TABLE_PREFERENCES = {
   comments: ['book_comments'],
@@ -708,69 +711,85 @@ const BookDetailPage = () => {
     }
   };
 
+  const [showWarning, setShowWarning] = useState(false);
+  const [warningMessage, setWarningMessage] = useState("");
   
   const handleSubmitComment = async () => {
-    if (!user) {
-      alert('Sign in to comment on this book.');
+  if (!user) {
+    alert('Sign in to comment on this book.');
+    return;
+  }
+
+  const text = commentText.trim();
+
+  if (!text || isSubmittingComment) return;
+
+  setIsSubmittingComment(true);
+
+  try {
+    // First check the comment with moderation service
+    const moderationResult = await moderationService(text);
+    console.log("RAW moderation result:", moderationResult);
+    
+    if (!moderationResult.is_appropriate) {
+      // Show warning to user
+      setWarningMessage(
+        `Your comment was flagged for: ${moderationResult.reasons.join(', ')}. ` +
+        'Please revise your comment to follow our community guidelines.'
+      );
+      setShowWarning(true);
       return;
     }
 
-    const text = commentText.trim();
+    const displayName = user?.user_metadata?.full_name || user?.email || 'Anonymous';
+    const bookId = resolveBookId();
 
-    if (!text || isSubmittingComment) return;
+    const result = await runTableQuery(
+      'comments',
+      (table) =>
+        supabase
+          .from(table)
+          .insert([
+            {
+              book_id: bookId,
+              user_id: user.id,
+              author_name: displayName,
+              text
+            }
+          ])
+          .select('id, book_id, user_id, author_name, text, upvotes_count, created_at')
+          .limit(1)
+    );
 
-    setIsSubmittingComment(true);
-
-    try {
-      const displayName = user?.user_metadata?.full_name || user?.email || 'Anonymous';
-      const bookId = resolveBookId();
-
-      const result = await runTableQuery(
-        'comments',
-        (table) =>
-          supabase
-            .from(table)
-            .insert([
-              {
-                book_id: bookId,
-                user_id: user.id,
-                author_name: displayName,
-                text
-              }
-            ])
-            .select('id, book_id, user_id, author_name, text, upvotes_count, created_at')
-            .limit(1)
-      );
-
-      if (result.error) {
-        throw result.error;
-      }
-
-      if (!result.data || result.data.length === 0) {
-        throw new Error('Comment insert did not return a row.');
-      }
-
-      const formatted = formatComment({ ...result.data[0], replies: [] });
-
-      updateCommentsState((prev) =>
-        [formatted, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date))
-      );
-
-      setCommentText('');
-
-      if (socketRef.current) {
-        socketRef.current.emit('addComment', {
-          bookId,
-          comment: formatted
-        });
-      }
-    } catch (error) {
-      console.error('Error submitting comment:', error);
-      alert('Unable to post your comment right now. Please try again.');
-    } finally {
-      setIsSubmittingComment(false);
+    if (result.error) {
+      throw result.error;
     }
-  };
+
+    if (!result.data || result.data.length === 0) {
+      throw new Error('Comment insert did not return a row.');
+    }
+
+    const formatted = formatComment({ ...result.data[0], replies: [] });
+
+    updateCommentsState((prev) =>
+      [formatted, ...prev].sort((a, b) => new Date(b.date) - new Date(a.date))
+    );
+
+    setCommentText('');
+
+    if (socketRef.current) {
+      socketRef.current.emit('addComment', {
+        bookId,
+        comment: formatted
+      });
+    }
+  } catch (error) {
+    console.error('Error submitting comment:', error);
+    alert('Unable to post your comment right now. Please try again.');
+  } finally {
+    setIsSubmittingComment(false);
+  }
+};
 
   const handleReport = async (type, id) => {
     if (!user) {
@@ -1138,8 +1157,20 @@ const BookDetailPage = () => {
   const isFullyRead = progress >= 100 || isRead;
 
   return (
+
+    
       <div className="min-h-screen bg-dark-gray dark:bg-white">
         <Header />
+
+        {showWarning && (
+      <div className="warning-modal">
+        <div className="warning-content">
+          <h3>Content Warning</h3>
+          <p>{warningMessage}</p>
+          <button onClick={() => setShowWarning(false)}>I understand</button>
+        </div>
+      </div>
+    )}
 
         {/* Book Detail Section */}
         <section className="bg-dark-gray dark:bg-white py-12 md:py-20">
