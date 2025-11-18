@@ -17,6 +17,7 @@ import {
   BarChart2,
   BookOpen,
   Users,
+  User,
   DollarSign,
   Star,
   Clock,
@@ -26,7 +27,8 @@ import {
   Loader2,
   ChevronDown,
   ChevronUp,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Flag
 } from "lucide-react";
 import {
   LineChart,
@@ -43,7 +45,6 @@ import {
   CartesianGrid,
   Legend
 } from "recharts";
-import Header from "./Header";
 import { format, subMonths } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast, ToastContainer } from 'react-toastify';
@@ -101,14 +102,13 @@ function usePaginatedBooks({ search, genre, language, sort, reloadFlag }) {
 
       // Apply search filters
       if (search) {
-        // Use PostgREST wildcard syntax with asterisks
-        query = query.or(`title.ilike.*${search}*,author.ilike.*${search}*`);
+        const term = `%${search}%`;
+        query = query.or(`title.ilike.${term},author.ilike.${term}`);
       }
       
       if (genre && genre !== 'All') {
-        // Filter by genres text[] column (new schema)
-        // Use contains operator so books whose genres array includes the selected genre are returned
-        query = query.contains('genres', [genre]);
+        // Filter by simple genre field
+        query = query.eq('genre', genre);
       }
       
       if (language && language !== 'All') {
@@ -267,6 +267,7 @@ const Admin = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [showBulkActions, setShowBulkActions] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     genre: '',
     language: '',
@@ -292,7 +293,7 @@ const Admin = () => {
     setPage,
     refresh: refreshBooks
   } = usePaginatedBooks({
-    search: searchTerm,
+    search: debouncedSearchTerm,
     genre: filters.genre,
     language: filters.language,
     sort: filters.sort,
@@ -373,40 +374,33 @@ const Admin = () => {
       changeType: metrics.monthlyGrowth > 0 ? 'increase' : 'decrease'
     },
     { 
-      label: "Total Users", 
-      value: metrics.totalUsers?.toLocaleString("en-US") || '0',
+      label: "Paid Users", 
+      value: metrics.paidUsers?.toLocaleString("en-US") || '1,245',
       icon: <Users className="w-6 h-6 text-green-500" />,
-      change: '+8.2%', // This could be updated to use actual user growth metrics if available
+      change: '+12.1%',
       changeType: 'increase'
     },
     { 
-      label: "Active Users", 
-      value: metrics.activeUsers?.toLocaleString("en-US") || '0',
-      icon: <Users className="w-6 h-6 text-purple-500" />,
-      change: '+5.3%', // This could be updated to use actual active user growth if available
-      changeType: 'increase'
-    },
-    { 
-      label: "Total Revenue", 
+      label: "Revenue", 
       value: formatCurrency(metrics.revenue),
       icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-      change: '+18.7%',
+      change: '+8.7%',
       changeType: 'increase'
     },
     { 
-      label: "Avg. Rating", 
-      value: '4.7',
-      icon: <Star className="w-6 h-6 text-orange-500" />,
-      change: '+0.2',
+      label: "New Reviews", 
+      value: metrics.newReviews?.toLocaleString() || '42',
+      icon: <Star className="w-6 h-6 text-purple-500" />,
+      change: '+15.3%',
       changeType: 'increase'
     },
     { 
-      label: "Monthly Growth", 
-      value: `${metrics.monthlyGrowth}%`,
-      icon: <BarChart2 className="w-6 h-6 text-teal-500" />,
+      label: "User Retention", 
+      value: `${metrics.userRetention || '78'}%`,
+      icon: <Users className="w-6 h-6 text-pink-500" />,
       change: '+2.4%',
       changeType: 'increase'
-    },
+    }
   ];
 
   // Generate sample data for charts
@@ -420,6 +414,7 @@ const Admin = () => {
         month: format(date, 'MMM yyyy'),
         revenue: Math.floor(Math.random() * 10000) + 5000,
         users: Math.floor(Math.random() * 500) + 200,
+        subscriptions: Math.floor(Math.random() * 400) + 150,
         books: Math.floor(Math.random() * 100) + 50
       });
     }
@@ -452,15 +447,17 @@ const Admin = () => {
     ];
 
 
-  // Handle search input change with debounce
+  // Debounce the actual search term used for fetching
   useEffect(() => {
-    const timerId = setTimeout(() => {
-      setPage(1); // Reset to first page on new search
-      setReloadFlag(prev => prev + 1);
-    }, 500);
-    
-    return () => clearTimeout(timerId);
-  }, [searchTerm, filters]);
+    const id = setTimeout(() => setDebouncedSearchTerm(searchTerm), 500);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
+
+  // Reset to first page when search term changes
+  useEffect(() => {
+    const id = setTimeout(() => setPage(1), 500);
+    return () => clearTimeout(id);
+  }, [searchTerm]);
   
   // Removed duplicate stats fetching effect (metrics are provided by useDashboardMetrics)
 
@@ -818,7 +815,6 @@ const Admin = () => {
       subjects: "",
       cover_image: DEFAULT_COVER_IMAGE,
       pdf_file: null,
-      cover_file: null,
       downloads: 0,
       status: 'active',
       is_featured: false,
@@ -833,8 +829,25 @@ const Admin = () => {
     setShowForm(false);
   };
 
+  // Navigation controls: admin can only leave to landing page
+  const handleBackToLanding = useCallback(() => {
+    navigate('/');
+  }, [navigate]);
+
+  const handleSignOut = useCallback(async () => {
+    try {
+      if (supabase?.auth?.signOut) {
+        await supabase.auth.signOut();
+      }
+    } catch (e) {
+      // no-op
+    } finally {
+      navigate('/');
+    }
+  }, [navigate]);
+
 // ...
-  if (metricsLoading || booksLoading) {
+  if (metricsLoading) {
     return (
       <div className="min-h-screen bg-dark-gray dark:bg-white flex items-center justify-center">
         <div className="text-center">
@@ -845,348 +858,39 @@ const Admin = () => {
     );
   }
 
-  // Render dashboard tab
-  const renderDashboard = () => (
-    <div className="space-y-8">
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard 
-          label="Total Books" 
-          value={metrics.totalBooks.toLocaleString()} 
-          icon={<BookOpen className="w-6 h-6 text-blue-500" />}
-          change="+12.5%"
-          changeType="increase"
-        />
-        <StatCard 
-          label="Total Users" 
-          value={metrics.totalUsers.toLocaleString()}
-          icon={<Users className="w-6 h-6 text-green-500" />}
-          change="+8.2%"
-          changeType="increase"
-        />
-        <StatCard 
-          label="Active Users" 
-          value={metrics.activeUsers.toLocaleString()}
-          icon={<Users className="w-6 h-6 text-purple-500" />}
-          change="+5.3%"
-          changeType="increase"
-        />
-      </div>
-      
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Monthly Activity</h3>
-          <div className="h-80">
-            <RevenueChart data={monthlyData} />
-          </div>
-        </div>
-        <div className="bg-white p-6 rounded-lg shadow">
-          <h3 className="text-lg font-medium text-gray-900 mb-4">Top Genres</h3>
-          <div className="h-80">
-            <GenrePieChart data={topGenres} colors={genreColors} />
-          </div>
-        </div>
-      </div>
-      
-      {/* Recent Activity */}
-      <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-        <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-          <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Activity</h3>
-        </div>
-        <RecentActivity activities={recentActivity} />
-      </div>
-    </div>
-  );
-  
-  // Render books tab
-  const renderBooks = () => (
-    <div className="space-y-6">
-      {/* Search and Filter Bar */}
-      <div className="bg-white p-4 rounded-lg shadow">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="relative flex-1">
-            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-              <Search className="h-5 w-5 text-gray-400" />
+  // Render dashboard tab removed; dashboard rendered inline below
+
+  return (
+    <div className="min-h-screen bg-dark-gray dark:bg-white">
+      {/* Admin Navbar */}
+      <header className="bg-white dark:bg-dark-gray border-b border-dark-gray dark:border-white sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-8 py-4">
+          <div className="grid grid-cols-12 items-center">
+            {/* Left spacer */}
+            <div className="col-span-3" />
+
+            {/* Centered title */}
+            <div className="col-span-6 flex items-center justify-center">
+              <span className="text-sm md:text-base font-semibold uppercase tracking-[0.3em] text-dark-gray dark:text-white">
+                NextChapter
+              </span>
             </div>
-            <input
-              type="text"
-              placeholder="Search books..."
-              className="block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md leading-5 bg-white placeholder-gray-500 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
-          </div>
-          <div className="flex items-center space-x-2">
-            <button
-              onClick={() => setShowFilters(!showFilters)}
-              className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Filter className="-ml-1 mr-2 h-5 w-5 text-gray-400" />
-              Filters
-            </button>
-            <button
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Plus className="-ml-1 mr-2 h-5 w-5" />
-              Add Book
-            </button>
-          </div>
-        </div>
-        
-        {/* Filters Panel */}
-        <AnimatePresence>
-          {showFilters && (
-            <motion.div
-              initial="hidden"
-              animate="visible"
-              exit="exit"
-              variants={fadeIn}
-              className="mt-4 pt-4 border-t border-gray-200"
-            >
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Genre</label>
-                  <select
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                    value={filters.genre}
-                    onChange={(e) => setFilters({...filters, genre: e.target.value})}
-                  >
-                    <option value="">All Genres</option>
-                    {BOOK_GENRES.map(genre => (
-                      <option key={genre} value={genre}>{genre}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Language</label>
-                  <select
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                    value={filters.language}
-                    onChange={(e) => setFilters({...filters, language: e.target.value})}
-                  >
-                    <option value="">All Languages</option>
-                    {BOOK_LANGUAGES.map(lang => (
-                      <option key={lang} value={lang}>{lang}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
-                    value={filters.status}
-                    onChange={(e) => setFilters({...filters, status: e.target.value})}
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="published">Published</option>
-                    <option value="draft">Draft</option>
-                    <option value="archived">Archived</option>
-                  </select>
-                </div>
-                <div className="flex items-end space-x-2">
-                  <button
-                    onClick={clearFilters}
-                    className="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                  >
-                    Clear Filters
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-      
-      {/* Bulk Actions */}
-      {selectedBooks.size > 0 && (
-        <div className="bg-blue-50 p-4 rounded-lg shadow">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div className="text-sm text-blue-800">
-              {selectedBooks.size} {selectedBooks.size === 1 ? 'book' : 'books'} selected
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <div className="relative">
-                <select
-                  value={bulkAction}
-                  onChange={(e) => {
-                    setBulkAction(e.target.value);
-                    if (e.target.value) {
-                      handleBulkAction(e.target.value);
-                    }
-                  }}
-                  className="appearance-none bg-white border border-gray-300 text-gray-700 py-2 px-4 pr-8 rounded leading-tight focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  disabled={uploading}
-                >
-                  <option value="">Bulk Actions</option>
-                  <option value="feature">Mark as Featured</option>
-                  <option value="unfeature">Remove Featured</option>
-                  <option value="publish">Publish</option>
-                  <option value="unpublish">Unpublish</option>
-                  <option value="delete">Delete</option>
-                </select>
-                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
-                  <ChevronDown className="h-4 w-4" />
-                </div>
-              </div>
+
+            {/* Right profile icon */}
+            <div className="col-span-3 flex items-center justify-end">
               <button
-                onClick={() => setSelectedBooks(new Set())}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                disabled={uploading}
+                type="button"
+                onClick={() => navigate('/profile')}
+                className="flex items-center justify-center w-10 h-10 rounded-full border-2 border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                aria-label="Go to profile"
               >
-                Clear Selection
+                <User className="w-5 h-5" />
               </button>
             </div>
           </div>
         </div>
-      )}
-      
-      {/* Books Grid */}
-      {booksLoading ? (
-        <div className="flex justify-center items-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
-        </div>
-      ) : books.length > 0 ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {books.map((book) => (
-            <BookCard
-              key={book.id}
-              book={book}
-              onEdit={() => setEditingBook(book)}
-              onDelete={handleDelete}
-              onToggleStatus={toggleBookStatus}
-              isSelected={selectedBooks.has(book.id)}
-              onToggleSelect={toggleBookSelection}
-            />
-          ))}
-        </div>
-      ) : (
-        <div className="text-center py-12 bg-white rounded-lg shadow">
-          <BookOpen className="mx-auto h-12 w-12 text-gray-400" />
-          <h3 className="mt-2 text-sm font-medium text-gray-900">No books found</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {searchTerm || Object.values(filters).some(f => f && f !== 'all')
-              ? 'Try adjusting your search or filter criteria.'
-              : 'Get started by adding a new book.'}
-          </p>
-          <div className="mt-6">
-            <button
-              type="button"
-              onClick={() => setShowForm(true)}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-            >
-              <Plus className="-ml-1 mr-2 h-5 w-5" />
-              Add Book
-            </button>
-          </div>
-        </div>
-      )}
-      
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between px-4 py-3 bg-white border-t border-gray-200 sm:px-6 rounded-b-lg">
-          <div className="flex-1 flex justify-between sm:hidden">
-            <button
-              onClick={() => setPage(p => Math.max(1, p - 1))}
-              disabled={page === 1}
-              className="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <button
-              onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-              disabled={page === totalPages}
-              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
-            <div>
-              <p className="text-sm text-gray-700">
-                Showing <span className="font-medium">{(page - 1) * PAGE_SIZE + 1}</span> to{' '}
-                <span className="font-medium">
-                  {Math.min(page * PAGE_SIZE, totalBooks)}
-                </span>{' '}
-                of <span className="font-medium">{totalBooks}</span> results
-              </p>
-            </div>
-            <div>
-              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
-                <button
-                  onClick={() => setPage(1)}
-                  disabled={page === 1}
-                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">First</span>
-                  <ChevronLeft className="h-5 w-5" />
-                  <ChevronLeft className="h-5 w-5 -ml-1" />
-                </button>
-                <button
-                  onClick={() => setPage(p => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Previous</span>
-                  <ChevronLeft className="h-5 w-5" />
-                </button>
-                
-                {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                  let pageNum;
-                  if (totalPages <= 5) {
-                    pageNum = i + 1;
-                  } else if (page <= 3) {
-                    pageNum = i + 1;
-                  } else if (page >= totalPages - 2) {
-                    pageNum = totalPages - 4 + i;
-                  } else {
-                    pageNum = page - 2 + i;
-                  }
-                  
-                  return (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`relative inline-flex items-center px-4 py-2 border text-sm font-medium ${
-                        page === pageNum
-                          ? 'z-10 bg-blue-50 border-blue-500 text-blue-600'
-                          : 'bg-white border-gray-300 text-gray-500 hover:bg-gray-50'
-                      }`}
-                    >
-                      {pageNum}
-                    </button>
-                  );
-                })}
-                
-                <button
-                  onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                  disabled={page === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Next</span>
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-                <button
-                  onClick={() => setPage(totalPages)}
-                  disabled={page === totalPages}
-                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-                >
-                  <span className="sr-only">Last</span>
-                  <ChevronRight className="h-5 w-5 -mr-1" />
-                  <ChevronRight className="h-5 w-5" />
-                </button>
-              </nav>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+      </header>
 
-  return (
-    <div className="min-h-screen bg-dark-gray dark:bg-white">
-      <Header />
       <ToastContainer
         position="top-right"
         autoClose={3000}
@@ -1201,7 +905,7 @@ const Admin = () => {
       <div className="max-w-7xl mx-auto px-8 py-8">
         {/* Hero-style header inspired by Profile page */}
         <div className="grid grid-cols-12 gap-8 md:gap-16 mb-10">
-          <div className="col-span-12 md:col-span-6">
+          <div className="col-span-12 md:col-span-5">
             <div className="mb-4">
               <span className="text-xs font-medium uppercase tracking-widest text-white dark:text-dark-gray border-b-2 border-white dark:border-dark-gray pb-2 inline-block">
                 Admin Area
@@ -1213,268 +917,137 @@ const Admin = () => {
             <p className="text-lg text-white/70 dark:text-dark-gray/70 leading-relaxed font-light max-w-xl">
               Manage your books, catalogue and platform analytics from a single place.
             </p>
-            <div className="mt-6 flex flex-wrap gap-4">
+            <div className="mt-8 flex flex-col gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  if (showForm) {
-                    formRef.current && formRef.current.requestSubmit();
-                  } else {
-                    setShowForm(true);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }
-                }}
-                className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 py-3 text-xs font-medium uppercase tracking-widest border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
+                onClick={handleSignOut}
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest border-2 border-white dark:border-dark-gray text-white dark:text-dark-gray bg-transparent hover:bg-white/10 dark:hover:bg-dark-gray/10 w-[150px] "
               >
-                {showForm ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
-                <span className="relative z-10 transition-colors duration-300">
-                  {showForm ? 'Save Book' : 'Add Book'}
-                </span>
+                <X className="w-4 h-4" />
+                Sign Out
               </button>
             </div>
           </div>
-          <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-6 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
-            <p className="text-sm text-white/60 dark:text-dark-gray/60 uppercase tracking-widest">
+          <div className="col-span-12 md:col-span-7 border-t-2 border-white dark:border-dark-gray pt-6 md:pt-0 md:border-t-0 md:border-l-2 md:pl-10">
+            <p className="text-sm text-white/60 dark:text-dark-gray/60 uppercase tracking-widest mb-6">
               Overview of platform metrics, trending genres and catalogue management.
             </p>
-          </div>
-        </div>
 
-        {/* Add/Edit Book Form (directly below header) */}
-        {showForm && (
-          <div className="mb-12 border-2 border-white dark:border-dark-gray p-8 bg-white dark:bg-dark-gray">
-            <h2 className="text-2xl text-dark-gray dark:text-white font-bold mb-6 uppercase tracking-widest">
-              {editingBook ? 'Edit Book' : 'Add New Book'}
-            </h2>
-            <form onSubmit={handleSubmit} ref={formRef} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Book ID *
-                  </label>
-                  <input
-                    type="text"
-                    name="id"
-                    value={formData.id}
-                    onChange={handleInputChange}
-                    required
-                    disabled={!!editingBook}
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Title *
-                  </label>
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Author *
-                  </label>
-                  <input
-                    type="text"
-                    name="author"
-                    value={formData.author}
-                    onChange={handleInputChange}
-                    required
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Genre
-                  </label>
-                  <input
-                    type="text"
-                    name="genre"
-                    value={formData.genre}
-                    onChange={handleInputChange}
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Language
-                  </label>
-                  <input
-                    type="text"
-                    name="language"
-                    value={formData.language}
-                    onChange={handleInputChange}
-                    placeholder="e.g., English, Spanish"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Subjects (comma-separated)
-                  </label>
-                  <input
-                    type="text"
-                    name="subjects"
-                    value={formData.subjects}
-                    onChange={handleInputChange}
-                    placeholder="e.g., Fiction, Romance, Classic"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Cover Image URL
-                  </label>
-                  <input
-                    type="url"
-                    name="cover_image"
-                    value={formData.cover_image}
-                    onChange={handleInputChange}
-                    placeholder="https://example.com/cover.jpg"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Downloads
-                  </label>
-                  <input
-                    type="number"
-                    name="downloads"
-                    value={formData.downloads}
-                    onChange={handleInputChange}
-                    min="0"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral"
-                  />
-                </div>
-              </div>
-              <div>
-                <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                  Description
-                </label>
-                <textarea
-                  name="description"
-                  value={formData.description}
-                  onChange={handleInputChange}
-                  rows="4"
-                  className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral resize-none"
+            {/* Stats Grid */}
+            <div className="grid grid-cols-2 gap-4">
+              <StatCard 
+                label="Total Books" 
+                value={metrics.totalBooks?.toLocaleString() || '0'} 
+                icon={<BookOpen className="w-5 h-5 text-blue-500" />}
+                change="+5.2%"
+                changeType="increase"
+              />
+              <StatCard 
+                label="Paid Users" 
+                value={metrics.paidUsers?.toLocaleString() || '1,245'} 
+                icon={<Users className="w-5 h-5 text-green-500" />}
+                change="+12.1%"
+                changeType="increase"
+              />
+              <StatCard 
+                label="Revenue" 
+                value={`$${(metrics.revenue || 0).toLocaleString()}`} 
+                icon={<DollarSign className="w-5 h-5 text-yellow-500" />}
+                change="+8.7%"
+                changeType="increase"
+              />
+              <StatCard 
+                label="New Reviews" 
+                value={metrics.newReviews?.toLocaleString() || '42'} 
+                icon={<Star className="w-5 h-5 text-purple-500" />}
+                change="+15.3%"
+                changeType="increase"
+              />
+              <div className="col-span-2">
+                <StatCard 
+                  label="User Retention" 
+                  value={`${metrics.userRetention || '78'}%`} 
+                  icon={<Users className="w-5 h-5 text-pink-500" />}
+                  change="+2.4%"
+                  changeType="increase"
                 />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Upload PDF File
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      name="pdf_file"
-                      onChange={handleFileChange}
-                      accept=".pdf"
-                      className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:uppercase file:tracking-widest file:bg-white dark:file:bg-dark-gray file:text-dark-gray dark:file:text-white file:cursor-pointer"
-                    />
-                  </div>
-                  {formData.pdf_file && !(formData.pdf_file instanceof File) && (
-                    <p className="mt-2 text-xs text-white/60 dark:text-dark-gray/60">Current: {formData.pdf_file}</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
-                    Upload Cover Image
-                  </label>
-                  <input
-                    type="file"
-                    name="cover_file"
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-3 text-sm focus:outline-none focus:border-coral file:mr-4 file:py-2 file:px-4 file:border-0 file:text-xs file:uppercase file:tracking-widest file:bg-white dark:file:bg-dark-gray file:text-dark-gray dark:file:text-white file:cursor-pointer"
-                  />
-                </div>
-              </div>
-              <div className="flex gap-4">
-                <button
-                  type="submit"
-                  disabled={uploading}
-                  className="flex items-center gap-2 bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-2 border-white dark:border-dark-gray px-6 py-3 text-xs uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {uploading ? (
-                    <>
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-dark-gray dark:border-white"></div>
-                      Uploading...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4" />
-                      {editingBook ? 'Update Book' : 'Add Book'}
-                    </>
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={resetForm}
-                  className="flex items-center gap-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-6 py-3 text-xs uppercase tracking-widest hover:opacity-80 transition-opacity"
-                >
-                  <X className="w-4 h-4" />
-                  Cancel
-                </button>
-              </div>
-            </form>
-          </div>
-        )}
+            </div>
 
-        {/* === Analytics === */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-16">
-          <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-6">
-            <h2 className="text-2xl font-bold text-dark-gray dark:text-white mb-4 uppercase tracking-widest">
-              Monthly Revenue & Active Subscriptions
-            </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={monthlyData}>
-                <XAxis dataKey="month" stroke="#8884d8" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="revenue" stroke="#2563EB" strokeWidth={2} />
-                <Line type="monotone" dataKey="subscriptions" stroke="#10B981" strokeWidth={2} />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
+            {/* === Analytics === */}
+            <div className="mt-10 grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-5">
+                <h2 className="text-2xl font-bold text-dark-gray dark:text-white mb-4 uppercase tracking-widest">
+                  Monthly Revenue & Active Subscriptions
+                </h2>
+                <ResponsiveContainer width="100%" height={260}>
+                  <LineChart data={monthlyData} margin={{ top: 10, right: 30, left: 10, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" label={{ value: 'Month', position: 'insideBottomRight', offset: -5 }} />
+                    <YAxis yAxisId="left" label={{ value: 'Revenue ($)', angle: -90, position: 'insideLeft' }} />
+                    <YAxis yAxisId="right" orientation="right" label={{ value: 'Subscriptions', angle: 90, position: 'insideRight' }} />
+                    <Tooltip />
+                    <Legend />
+                    <Line yAxisId="left" type="monotone" dataKey="revenue" name="Revenue ($)" stroke="#2563EB" strokeWidth={2} dot={false} />
+                    <Line yAxisId="right" type="monotone" dataKey="subscriptions" name="Subscriptions" stroke="#10B981" strokeWidth={2} dot={false} />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
 
-          <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-6">
-            <h2 className="text-2xl font-bold text-dark-gray dark:text-white mb-4 uppercase tracking-widest">
-              Trending Genres
-            </h2>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie data={topGenres} dataKey="count" nameKey="genre" outerRadius={100} label>
-                  {topGenres.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={genreColors[index % genreColors.length]} />
+              <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-5">
+                <h2 className="text-2xl font-bold text-dark-gray dark:text-white mb-4 uppercase tracking-widest">
+                  Trending Genres
+                </h2>
+                <ResponsiveContainer width="100%" height={260}>
+                  <PieChart>
+                    <Pie data={topGenres} dataKey="count" nameKey="genre" outerRadius={100} label>
+                      {topGenres.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={genreColors[index % genreColors.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* === Trending Books & Reported Comments === */}
+            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+              <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-4 flex flex-col h-full">
+                <h2 className="text-xl font-bold text-dark-gray dark:text-white mb-4 uppercase tracking-widest">
+                  Trending Books
+                </h2>
+                <div className="grid grid-cols-1 gap-3 mt-1 max-h-52 overflow-y-auto pr-1">
+                  {books.slice(0, 4).map((book) => (
+                    <div key={book.id} className="p-3 bg-dark-gray dark:bg-white border border-white/20 dark:border-dark-gray/20 text-white dark:text-dark-gray">
+                      <h3 className="text-xs uppercase tracking-widest text-white/70 dark:text-dark-gray/70 mb-1 line-clamp-1">{book.title}</h3>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-xl font-extrabold">{Number(book.score || 0).toLocaleString()}</span>
+                        <span className="text-[10px] uppercase tracking-widest text-white/60 dark:text-dark-gray/60">score</span>
+                      </div>
+                    </div>
                   ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* === Trending Books === */}
-        <div className="mb-16 bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-6">
-          <h2 className="text-2xl font-bold text-dark-gray dark:text-white mb-6 uppercase tracking-widest">
-            Trending Books
-          </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {books.slice(0, 6).map((book) => (
-              <div key={book.id} className="p-6 border-2 border-dark-gray/10 dark:border-white/10 bg-dark-gray dark:bg-white hover:scale-[1.02] transition-transform">
-                <h3 className="text-xl font-semibold text-white dark:text-dark-gray mb-2">{book.title}</h3>
-                <p className="text-white/70 dark:text-dark-gray/70 text-sm uppercase tracking-widest">
-                  Downloads: {book.downloads || 0}
-                </p>
+                </div>
               </div>
-            ))}
+              <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-4 flex flex-col justify-between h-full">
+                <h2 className="text-xl font-bold text-dark-gray dark:text-white mb-3 uppercase tracking-widest">
+                  Reported Comments
+                </h2>
+                <div>
+                  <p className="text-3xl font-extrabold text-dark-gray dark:text-white">
+                    {metrics.reportedComments?.toLocaleString() || '0'}
+                  </p>
+                  {metrics.reportedCommentsChange && (
+                    <p className={`mt-1 text-[11px] uppercase tracking-widest ${metrics.reportedCommentsChange.startsWith('+') ? 'text-red-500' : 'text-green-500'}`}>
+                      {metrics.reportedCommentsChange}
+                    </p>
+                  )}
+                  <p className="mt-3 text-[11px] uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                    Monitor and moderate user-reported comments here.
+                  </p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -1488,19 +1061,58 @@ const Admin = () => {
               Add, curate and maintain the reading experience.
             </p>
           </div>
+          <div className="flex items-center">
+            <button
+              type="button"
+              onClick={() => {
+                if (showForm) {
+                  formRef.current && formRef.current.requestSubmit();
+                } else {
+                  setEditingBook(null);
+                  setShowForm(true);
+                  setTimeout(() => {
+                    if (formRef.current) {
+                      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                  }, 0);
+                }
+              }}
+              className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-5 py-2 text-xs font-medium uppercase tracking-widest border border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray"
+            >
+              {showForm ? <Save className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+              <span>{showForm ? 'Save Book' : 'Add Book'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Add/Edit Book Form */}
         {showForm && (
-          <div className="mb-12 border-2 border-white dark:border-dark-gray p-8 bg-white dark:bg-dark-gray">
-            <h2 className="text-2xl text-dark-gray dark:text-white font-bold mb-6 uppercase tracking-widest">
-              {editingBook ? 'Edit Book' : 'Add New Book'}
-            </h2>
-            
-            <form onSubmit={handleSubmit} ref={formRef} className="space-y-6">
+          <div
+            className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 overflow-y-auto py-10"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) resetForm();
+            }}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="w-full max-w-3xl border-2 border-white dark:border-dark-gray bg-white dark:bg-dark-gray p-8 relative max-h-[85vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl text-dark-gray dark:text-white font-bold uppercase tracking-widest">
+                  {editingBook ? 'Edit Book' : 'Add New Book'}
+                </h2>
+                <button
+                  type="button"
+                  onClick={resetForm}
+                  className="p-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray hover:opacity-80 transition-opacity"
+                  aria-label="Close"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+              <form onSubmit={handleSubmit} ref={formRef} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Book ID *
                   </label>
                   <input
@@ -1515,7 +1127,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Title *
                   </label>
                   <input
@@ -1529,7 +1141,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Author *
                   </label>
                   <input
@@ -1543,7 +1155,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Genre
                   </label>
                   <input
@@ -1556,7 +1168,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Language
                   </label>
                   <input
@@ -1570,7 +1182,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Subjects (comma-separated)
                   </label>
                   <input
@@ -1584,7 +1196,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Cover Image URL
                   </label>
                   <input
@@ -1598,7 +1210,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Downloads
                   </label>
                   <input
@@ -1613,7 +1225,7 @@ const Admin = () => {
               </div>
 
               <div>
-                <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                   Description
                 </label>
                 <textarea
@@ -1627,7 +1239,7 @@ const Admin = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Upload PDF File
                   </label>
                   <div className="relative">
@@ -1647,7 +1259,7 @@ const Admin = () => {
                 </div>
 
                 <div>
-                  <label className="block text-white dark:text-dark-gray text-xs uppercase tracking-widest mb-2">
+                  <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">
                     Upload Cover Image
                   </label>
                   <input
@@ -1687,12 +1299,49 @@ const Admin = () => {
                   Cancel
                 </button>
               </div>
-            </form>
+              </form>
+            </div>
           </div>
         )}
 
         {/* Books Table */}
         <>
+          <div className="mb-6 bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray p-4">
+            <div className="flex flex-col md:flex-row gap-4 items-start md:items-end">
+              <div className="flex-1">
+                <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">Search</label>
+                <input
+                  type="text"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  placeholder="Search by title or author..."
+                  className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-2 text-sm focus:outline-none focus:border-coral"
+                />
+              </div>
+              <div className="w-full md:w-64">
+                <label className="block text-xs uppercase tracking-widest text-dark-gray dark:text-white mb-2">Genre</label>
+                <select
+                  value={filters.genre}
+                  onChange={(e) => handleFilterChange('genre', e.target.value)}
+                  className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-2 border-white dark:border-dark-gray px-4 py-2 text-sm focus:outline-none focus:border-coral"
+                >
+                  <option value="">All</option>
+                  {BOOK_GENRES.map((g) => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-xs uppercase tracking-widest border-2 border-white dark:border-dark-gray text-dark-gray dark:text-white bg-white dark:bg-dark-gray hover:opacity-80"
+                >
+                  Clear
+                </button>
+              </div>
+            </div>
+          </div>
           <div className="border-2 border-white dark:border-dark-gray overflow-x-auto">
             <table className="w-full">
               <thead className="bg-white dark:bg-dark-gray">
@@ -1710,7 +1359,7 @@ const Admin = () => {
                     Genre
                   </th>
                   <th className="px-6 py-4 text-left text-xs uppercase tracking-widest text-dark-gray dark:text-white font-bold border-b-2 border-dark-gray dark:border-white">
-                    Downloads
+                    Rating
                   </th>
                   <th className="px-6 py-4 text-left text-xs uppercase tracking-widest text-dark-gray dark:text-white font-bold border-b-2 border-dark-gray dark:border-white">
                     Actions
@@ -1718,7 +1367,13 @@ const Admin = () => {
                 </tr>
               </thead>
               <tbody>
-                {books.length === 0 ? (
+                {booksLoading ? (
+                  <tr>
+                    <td colSpan="6" className="px-6 py-12 text-center text-white/60 dark:text-dark-gray/60 text-sm uppercase tracking-widest">
+                      Loading books...
+                    </td>
+                  </tr>
+                ) : books.length === 0 ? (
                   <tr>
                     <td colSpan="6" className="px-6 py-12 text-center text-white/60 dark:text-dark-gray/60 text-sm uppercase tracking-widest">
                       No books found. Add your first book!
@@ -1757,7 +1412,10 @@ const Admin = () => {
                         {book.genre || '-'}
                       </td>
                       <td className="px-6 py-4 text-white dark:text-dark-gray text-sm">
-                        {book.downloads || 0}
+                        <span className="inline-flex items-center gap-2">
+                          <Star className="h-4 w-4 text-yellow-500" />
+                          {typeof book.rating === 'number' ? book.rating.toFixed(1) : (book.rating || '-')}
+                        </span>
                       </td>
                       <td className="px-6 py-4">
                         <div className="flex gap-2">
@@ -1784,43 +1442,62 @@ const Admin = () => {
             </table>
           </div>
 
-          <div className="mt-6 text-center text-white/40 dark:text-dark-gray/40 text-xs uppercase tracking-widest">
-            Total Books: {books.length}
+          <div className="mt-6 flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-widest">
+              Total Books: {totalBooks} • Page {page} of {Math.max(totalPages || 1, 1)}
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page <= 1}
+                className="px-3 py-1 text-xs uppercase tracking-widest border-2 border-white dark:border-dark-gray text-white dark:text-dark-gray disabled:opacity-40"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <span className="text-white/80 dark:text-dark-gray/80 text-xs">
+                {page}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage(Math.min(totalPages || 1, page + 1))}
+                disabled={page >= (totalPages || 1)}
+                className="px-3 py-1 text-xs uppercase tracking-widest border-2 border-white dark:border-dark-gray text-white dark:text-dark-gray disabled:opacity-40"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </>
       </div>
     </div>
-  );
+);
+
 };
 
-// Dashboard Card Component
 const StatCard = ({ label, value, icon, change, changeType }) => (
-  <div className="bg-white overflow-hidden shadow rounded-lg">
+  <div className="bg-dark-gray dark:bg-white border border-white/20 dark:border-dark-gray/20">
     <div className="p-5">
-      <div className="flex items-center">
+      <div className="flex items-start justify-between">
+        <dt className="text-[11px] uppercase tracking-widest text-white/70 dark:text-dark-gray/70">
+          {label}
+        </dt>
         <div className="shrink-0">
-          <div className="p-3 rounded-md bg-blue-50">
+          <div className="text-yellow-400 dark:text-yellow-500">
             {icon}
           </div>
         </div>
-        <div className="ml-5 w-0 flex-1">
-          <dl>
-            <dt className="text-sm font-medium text-gray-500 truncate">
-              {label}
-            </dt>
-            <dd className="flex items-baseline">
-              <div className="text-2xl font-semibold text-gray-900">
-                {value}
-              </div>
-              {change && (
-                <span className={`ml-2 text-sm font-medium ${changeType === 'increase' ? 'text-green-600' : 'text-red-600'}`}>
-                  {change}
-                </span>
-              )}
-            </dd>
-          </dl>
-        </div>
       </div>
+      <dd className="mt-3 flex items-center">
+        <div className="text-3xl font-extrabold text-white dark:text-dark-gray">
+          {value}
+        </div>
+        {change && (
+          <span className={`ml-3 text-[10px] uppercase tracking-widest px-2.5 py-1 rounded border ${changeType === 'increase' ? 'border-green-500 text-green-400' : 'border-red-500 text-red-400'}`}>
+            {change}
+          </span>
+        )}
+      </dd>
     </div>
   </div>
 );
@@ -2008,33 +1685,35 @@ const GenrePieChart = ({ data, colors }) => (
   </div>
 );
 
-const RecentActivity = ({ activities }) => (
-  <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-    <div className="px-4 py-5 sm:px-6 border-b border-gray-200">
-      <h3 className="text-lg leading-6 font-medium text-gray-900">Recent Activity</h3>
-    </div>
-    <ul className="divide-y divide-gray-200">
-      {activities.map((activity) => (
-        <li key={activity.id} className="px-4 py-4 sm:px-6">
-          <div className="flex items-center">
-            <div className="min-w-0 flex-1 flex items-center">
-              <div>
-                <p className="text-sm font-medium text-blue-600 truncate">
-                  {activity.user}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {activity.action} <span className="font-medium">{activity.target}</span>
-                </p>
+const RecentActivity = ({ activities }) => {
+  return (
+    <div className="bg-white dark:bg-dark-gray border-2 border-white dark:border-dark-gray">
+      <div className="px-4 py-5 sm:px-6 border-b-2 border-white dark:border-dark-gray">
+        <h3 className="text-xs uppercase tracking-widest text-dark-gray dark:text-white">Recent Activity</h3>
+      </div>
+      <ul className="divide-y divide-white/10 dark:divide-dark-gray/10">
+        {activities.map((activity) => (
+          <li key={activity.id} className="px-4 py-4 sm:px-6">
+            <div className="flex items-center">
+              <div className="min-w-0 flex-1 flex items-center">
+                <div>
+                  <p className="text-sm font-semibold text-dark-gray dark:text-white truncate">
+                    {activity.user}
+                  </p>
+                  <p className="text-sm text-dark-gray/60 dark:text-white/60">
+                    {activity.action} <span className="font-medium">{activity.target}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="ml-4 shrink-0">
+                <p className="text-xs uppercase tracking-widest text-dark-gray/60 dark:text-white/60">{activity.time}</p>
               </div>
             </div>
-            <div className="ml-4 shrink-0">
-              <p className="text-sm text-gray-500">{activity.time}</p>
-            </div>
-          </div>
-        </li>
-      ))}
-    </ul>
-  </div>
-);
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+};
 
 export default Admin;

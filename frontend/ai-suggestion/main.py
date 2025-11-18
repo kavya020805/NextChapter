@@ -20,7 +20,6 @@ load_dotenv()
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-# GROQ_API_KEY = os.environ.get("GROQ_API_KEY") <-- REMOVED
 
 # Check if all required environment variables are set
 if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY, PINECONE_API_KEY]):
@@ -35,9 +34,6 @@ supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 # Initialize Pinecone client
 pc = Pinecone(api_key=PINECONE_API_KEY)
 
-# Initialize Groq client <-- REMOVED
-# GROQ_CHAT_MODEL = "llama-3.1-8b-instant" <-- REMOVED
-
 print("Loading SentenceTransformer model... (This may take a moment on first start)")
 start_model_load = time.time()
 # Load the model for creating vector embeddings
@@ -48,7 +44,7 @@ EMBEDDING_DIMENSION = 384 # Dimensions of the 'all-MiniLM-L6-v2' model
 # Connect to the Pinecone index where book vectors are stored
 index = pc.Index("nextchapter-books")
 
-print("Clients (Supabase, Pinecone, SentenceTransformer) initialized.") # <-- Groq removed
+print("Clients (Supabase, Pinecone, SentenceTransformer) initialized.")
 
 # --- 2. CORS Middleware ---
 # Configure Cross-Origin Resource Sharing (CORS)
@@ -85,7 +81,6 @@ class RecommendationResponse(BaseModel):
     """Defines the final JSON response sent to the frontend."""
     user_id: str
     books: List[RecommendedBook]
-    # justification: Optional[str] = None  <-- REMOVED
     strategy: Optional[str] = None
     is_fallback: bool = False
 
@@ -101,7 +96,7 @@ def get_text_to_embed(book: Dict[str, Any]) -> str:
     return (
         f"Title: {book.get('title', '')}. "
         f"Author: {book.get('author', '')}. "
-        f"Genre: {book.get('genre', '')}. " # 'genre' (singular) is kept for backward compatibility if it exists
+        f"Genre: {book.get('genre', '')}. " 
         f"Tags: {genres_str}."
     )
 
@@ -109,6 +104,8 @@ def calculate_love_score(history_item: Dict[str, Any]) -> float:
     """
     Calculates a "Love Score" (from 0 to 1) based on user's interaction
     with a book. This score weighs scroll depth, rating, and watchlist status.
+    
+    This function now works with the data from our new SQL function.
     """
     raw_scroll = history_item.get("scroll_depth", 0) or 0
     raw_rating = history_item.get("rating", 0) or 0
@@ -183,10 +180,10 @@ async def get_recs_from_preferences(user_id: str) -> Optional[List[Dict[str, Any
             supabase.table("user_profiles")
             .select("genres")
             .eq("user_id", user_id)
-            .maybe_single() # Use .maybe_single() to prevent crash if no profile exists
+            .maybe_single()
             .execute()
         )
-        # If no profile or no genres, return None
+        
         if not profile_res or not profile_res.data or not profile_res.data.get("genres"):
             print(f"User {user_id} has no preferences saved.")
             return None
@@ -197,17 +194,21 @@ async def get_recs_from_preferences(user_id: str) -> Optional[List[Dict[str, Any
             
         print(f"User {user_id} has preferred genres: {preferred_genres}")
         
-        # Find books where the 'genres' list contains any of the preferred genres
+        # --- FIX: Convert Python list to PostgreSQL array string ---
+        # e.g., ['Fiction', 'History'] becomes '{"Fiction","History"}'
+        postgres_array_string = "{" + ",".join(f'"{g}"' for g in preferred_genres) + "}"
+        
         book_res = (
             supabase.table("books")
             .select("id, title, author, cover_image")
-            .filter("genres", "cs", preferred_genres) # 'cs' = "contains"
+            # Use the correctly formatted string
+            .filter("genres", "cs", postgres_array_string) # 'cs' = "contains"
             .limit(10)
             .execute()
         )
         return book_res.data if book_res.data else None
     except APIError as e:
-        if e.code == "PGRST116": # Error for .single() finding 0 rows
+        if e.code == "PGRST116":
              print(f"No profile found for user {user_id}. Cannot get preferences.")
              return None
         print(f"Error fetching preference-based recommendations: {e}")
@@ -216,44 +217,41 @@ async def get_recs_from_preferences(user_id: str) -> Optional[List[Dict[str, Any
         print(f"A general error occurred in get_recs_from_preferences: {e}")
         return None
 
-# --- 5. Main Logic ---
+# --- 5. Main Logic (REPLACED WITH NEW RPC CALL) ---
 
 async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
     """
     This is the main function that builds the recommendation response.
     It handles both "Cold Start" (new users) and "Warm Start" (returning users).
+    
+    This version uses the 'get_full_user_history' RPC call to join data
+    from user_books, book_ratings, and book_wishlist.
     """
     start_total_time = time.time()
     print(f"Generating recommendations for {user_id}")
     top_book_details = None
     
     try:
-        # --- Step 1: Get ALL "read" book IDs for accurate filtering ---
-        # This is used to ensure we don't recommend a book the user has already read.
-        all_history_res = (
-            supabase.table("user_reading_history")
-            .select("book_id")
-            .eq("user_id", user_id)
-            .eq("status", "read")
-            .execute()
-        )
-        read_book_ids = set(item['book_id'] for item in all_history_res.data) if all_history_res.data else set()
-
-        # --- Step 2: Get RECENT 5 "read" books to calculate "Love Score" ---
+        # --- Step 1: Get ALL history data in ONE call ---
+        # This one RPC call replaces all our old, broken queries
         start_step_time = time.time()
-        recent_history_res = (
-            supabase.table("user_reading_history")
-            .select("book_id, scroll_depth, rating, was_in_watchlist")
-            .eq("user_id", user_id)
-            .eq("status", "read")
-            .order("updated_at", desc=True)
-            .limit(5)
+        history_res = (
+            supabase.rpc("get_full_user_history", {"p_user_id": user_id})
             .execute()
         )
-        recent_history_data = recent_history_res.data or []
-        print(f"   [TIMING] Fetched history: {time.time() - start_step_time:.2f}s")
+        
+        all_history_data = history_res.data or []
+        
+        # --- Step 2: Get ALL "read" book IDs for accurate filtering ---
+        read_book_ids = set(item['book_id'] for item in all_history_data) if all_history_data else set()
 
-        # --- Step 3: COLD START Logic ---
+        # --- Step 3: Get RECENT 5 "read" books for "Love Score" logic ---
+        # We just slice the list we already have, since it's pre-sorted by the SQL function
+        recent_history_data = all_history_data[:5]
+        print(f"   [TIMING] Fetched and processed history: {time.time() - start_step_time:.2f}s")
+
+
+        # --- Step 4: COLD START Logic ---
         # If the user has no recent reading history, they are a "Cold Start".
         if not recent_history_data:
             print(f"Cold start detected for user: {user_id}")
@@ -281,16 +279,18 @@ async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
                 is_fallback=True,
             )
 
-        # --- Step 4: WARM START Logic ---
+        # --- Step 5: WARM START Logic ---
         # If we are here, the user has reading history.
         print(f"Warm start for user: {user_id}. Using 'Love Score' logic.")
         (top_book, top_genre, top_author, top_book_details) = (None, None, None, None)
 
-        # --- Step 4a: Calculate "Love Score" and find top preferences ---
+        # --- Step 5a: Calculate "Love Score" and find top preferences ---
+        # We can use the *exact same* calculate_love_score function as before,
+        # because our SQL function provides the columns it needs.
         start_step_time = time.time()
         scored_books_history = []
         for item in recent_history_data: # Use the recent 5
-            score = calculate_love_score(item)
+            score = calculate_love_score(item) # This function still works!
             scored_books_history.append({"book_id": item["book_id"], "score": score})
         
         recent_book_ids = [b["book_id"] for b in scored_books_history]
@@ -330,21 +330,18 @@ async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
         top_book_details = top_book.get("details", {})
         print(f"   [TIMING] Calculated user preferences: {time.time() - start_step_time:.2f}s")
 
-        # --- Step 4b: Generate Query Vector ---
-        # Create an embedding based on the user's *favorite* book
+        # --- Step 5b: Generate Query Vector ---
         start_step_time = time.time()
         query_text = get_text_to_embed(top_book_details)
         query_vector = embedding_model.encode(query_text).tolist()
         print(f"   [TIMING] Generated query vector (encode): {time.time() - start_step_time:.2f}s")
 
-        # --- Step 4c: Query Pinecone (Vector Search) ---
+        # --- Step 5c: Query Pinecone (Vector Search) ---
         start_step_time = time.time()
-    
         pinecone_filter = {} 
-        
         query_results = index.query(
             vector=query_vector,
-            top_k=8, # Get 8 results to allow for filtering
+            top_k=8,
             include_metadata=True,
             filter=pinecone_filter if pinecone_filter else None,
         )
@@ -353,24 +350,17 @@ async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
         # Use the *complete* list of read_book_ids to filter the results
         similar_book_ids = [m["id"] for m in query_results["matches"] if m["id"] not in read_book_ids][:5]
 
-        # --- Step 4d: Handle Fallback Logic ---
+        # --- Step 5d: Handle Fallback Logic ---
         candidate_books: List[Dict[str, Any]] = []
         strategy = "vector_search"
         
-        # If Pinecone found no *new* books, fall back
         if not similar_book_ids:
             print("Vector search produced no unseen titles. Falling back to preferences/popular.")
-            # Plan B: Try preferences
             prefs = await get_recs_from_preferences(user_id)
             strategy = "preferences" if prefs else "popular"
-            
-            # Plan C: Try popular books
             candidate_books_raw = prefs or await get_popular_books_from_supabase()
-            
-            # Filter the fallback results as well
             candidate_books = [b for b in candidate_books_raw if b.get('id') not in read_book_ids]
         else:
-            # If Pinecone succeeded, fetch the book details
             start_step_time = time.time()
             final_books_response = (
                 supabase.table("books")
@@ -381,14 +371,12 @@ async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
             candidate_books = final_books_response.data or []
             print(f"   [TIMING] Fetched final book details: {time.time() - start_step_time:.2f}s")
 
-        # --- Step 5: Format and Return ---
+        # --- Step 6: Format and Return ---
         formatted = format_books(candidate_books)
         if not formatted:
-            # This happens if all recommended books were *also* read
             raise HTTPException(status_code=404, detail="No recommendations available for this user.")
         
         print(f"--- [TIMING] Total request time: {time.time() - start_total_time:.2f}s ---")
-        # Return the final response
         return RecommendationResponse(
             user_id=user_id,
             books=[RecommendedBook(**book) for book in formatted],
@@ -401,6 +389,7 @@ async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
     except Exception as e:
         print(f"An error occurred in recommendation generation: {e}")
         raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
 
 # --- 6. Main Recommendation Endpoints ---
 
