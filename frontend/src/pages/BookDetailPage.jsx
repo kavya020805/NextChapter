@@ -12,11 +12,13 @@ import {
   Minus,
   ArrowBigUp,
   MessageSquare,
-  Flag
+  Flag,
+  ArrowLeft
 } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { io } from 'socket.io-client';
 import { moderationService } from '../services/moderation/moderationService';
+import { transformBookCoverUrls } from '../lib/bookUtils';
 
 
 
@@ -149,6 +151,25 @@ const BookDetailPage = () => {
     if (raw == null) return null;
     const asString = typeof raw === 'string' ? raw : String(raw);
     return asString;
+  };
+
+  const getUserDisplayName = async () => {
+    if (!user?.id) return 'Anonymous';
+    
+    try {
+      const { data, error } = await supabase
+        .from('user_profiles')
+        .select('username')
+        .eq('user_id', user.id)
+        .single();
+      
+      if (error) throw error;
+      
+      return data?.username || user?.user_metadata?.full_name || user?.email || 'Anonymous';
+    } catch (error) {
+      console.error('Error fetching username:', error);
+      return user?.user_metadata?.full_name || user?.email || 'Anonymous';
+    }
   };
 
   const syncReadingState = () => {
@@ -314,7 +335,8 @@ const BookDetailPage = () => {
       if (error && error.code !== 'PGRST116') throw error;
 
       if (data) {
-        setBook(data);
+        const bookWithUrl = transformBookCoverUrls(data);
+        setBook(bookWithUrl);
         syncReadingState();
       } else {
         // Fallback to local JSON
@@ -408,6 +430,24 @@ const BookDetailPage = () => {
       const commentsData = Array.isArray(commentResult.data) ? commentResult.data : [];
       const commentIds = commentsData.map((comment) => comment.id);
 
+      // Fetch usernames for all unique user_ids in comments
+      const commentUserIds = [...new Set(commentsData.map(c => c.user_id).filter(Boolean))];
+      let usernameMap = {};
+      
+      if (commentUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('user_profiles')
+          .select('user_id, username')
+          .in('user_id', commentUserIds);
+        
+        if (profiles) {
+          usernameMap = profiles.reduce((acc, profile) => {
+            acc[profile.user_id] = profile.username;
+            return acc;
+          }, {});
+        }
+      }
+
       let repliesData = [];
       if (commentIds.length > 0) {
         const { data: replyRows, table: repliesTable } = await runTableQuery(
@@ -425,18 +465,41 @@ const BookDetailPage = () => {
         }
       }
 
+      // Fetch usernames for all unique user_ids in replies
+      const replyUserIds = [...new Set(repliesData.map(r => r.user_id).filter(Boolean))];
+      
+      if (replyUserIds.length > 0) {
+        const { data: replyProfiles } = await supabase
+          .from('user_profiles')
+          .select('user_id, username')
+          .in('user_id', replyUserIds);
+        
+        if (replyProfiles) {
+          replyProfiles.forEach(profile => {
+            usernameMap[profile.user_id] = profile.username;
+          });
+        }
+      }
+
       const repliesByComment = repliesData.reduce((acc, reply) => {
         const key = reply.comment_id;
         if (!acc[key]) {
           acc[key] = [];
         }
-        acc[key].push(reply);
+        // Replace author_name with username from user_profiles if available
+        const replyWithUsername = {
+          ...reply,
+          author_name: usernameMap[reply.user_id] || reply.author_name
+        };
+        acc[key].push(replyWithUsername);
         return acc;
       }, {});
 
       const formatted = commentsData.map((comment) =>
         formatComment({
           ...comment,
+          // Replace author_name with username from user_profiles if available
+          author_name: usernameMap[comment.user_id] || comment.author_name,
           replies: repliesByComment[comment.id] || []
         })
       );
@@ -741,7 +804,7 @@ const BookDetailPage = () => {
         return;
       }
 
-      const displayName = user?.user_metadata?.full_name || user?.email || 'Anonymous';
+      const displayName = await getUserDisplayName();
       const bookId = resolveBookId();
 
       const result = await runTableQuery(
@@ -903,7 +966,7 @@ const BookDetailPage = () => {
       }
 
       // Step 2: If appropriate, insert the reply
-      const displayName = user?.user_metadata?.full_name || user?.email || 'Anonymous';
+      const displayName = await getUserDisplayName();
       const bookId = getValidBookIdOrNull();
 
       const result = await runTableQuery(
@@ -1191,6 +1254,14 @@ const BookDetailPage = () => {
       {/* Book Detail Section */}
       <section className="bg-dark-gray dark:bg-white py-12 md:py-20">
         <div className="max-w-7xl mx-auto px-8">
+          {/* Back Button */}
+          <button
+            onClick={() => navigate('/books')}
+            className="mb-8 flex items-center gap-2 text-white dark:text-dark-gray hover:opacity-70 transition-opacity text-sm uppercase tracking-widest"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to Books
+          </button>
           <div className="grid grid-cols-12 gap-8 md:gap-16">
             {/* Left Column - Cover and Actions */}
             <div className="col-span-12 md:col-span-4">
@@ -1388,12 +1459,12 @@ const BookDetailPage = () => {
                     onChange={(e) => setCommentText(e.target.value)}
                     placeholder="Share your thoughts or start a conversation..."
                     rows={4}
-                    className="w-full bg-transparent border border-white/30 dark:border-dark-gray/30 text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 px-4 py-3 text-sm focus:outline-none focus:border-white dark:focus:border-dark-gray transition-colors resize-none"
+                    className="w-full bg-transparent border border-white/30 dark:border-dark-gray/30 text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 px-4 py-3 text-sm font-light focus:outline-none focus:border-white dark:focus:border-dark-gray transition-colors resize-none"
                   />
                   <button
                     onClick={handleSubmitComment}
                     disabled={isSubmittingComment || !commentText.trim()}
-                    className="self-start bg-white dark:bg-dark-gray text-dark-gray dark:text-white border border-white dark:border-dark-gray px-4 py-2 text-sm font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="self-start bg-white dark:bg-dark-gray text-dark-gray dark:text-white border border-white dark:border-dark-gray px-4 py-2 text-xs font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                   >
                     {isSubmittingComment ? 'Posting...' : 'Post Comment'}
                   </button>
@@ -1412,19 +1483,19 @@ const BookDetailPage = () => {
                           className={`p-5 space-y-3 ${index === 0 ? 'pt-6' : ''} ${index === comments.length - 1 ? 'pb-6' : ''}`}
                         >
                           <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <span className="text-white dark:text-dark-gray text-sm md:text-base font-semibold uppercase tracking-widest">
+                            <div className="flex items-end gap-2">
+                              <span className="text-white dark:text-dark-gray text-sm font-medium uppercase tracking-widest">
                                 {comment.user}
                               </span>
-                              <span className="text-white/45 dark:text-dark-gray/45 text-xs uppercase tracking-[0.35em]">
+                              <span className="text-white/45 dark:text-dark-gray/45 text-[0.6rem] uppercase tracking-[0.35em]">
                                 Comment
                               </span>
                             </div>
-                            <span className="text-white/45 dark:text-dark-gray/45 text-xs md:text-sm uppercase tracking-[0.3em]">
+                            <span className="text-white/45 dark:text-dark-gray/45 text-xs uppercase tracking-[0.3em]">
                               {new Date(comment.date).toLocaleDateString()}
                             </span>
                           </div>
-                          <p className="text-white/80 dark:text-dark-gray/70 text-sm md:text-base leading-relaxed">
+                          <p className="text-white/80 dark:text-dark-gray/70 text-sm md:text-base leading-relaxed font-light">
                             {comment.text}
                           </p>
                           <div className="flex flex-wrap items-center gap-x-5 gap-y-2 text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-[0.3em]">
@@ -1469,14 +1540,14 @@ const BookDetailPage = () => {
                                     className="space-y-2"
                                   >
                                     <div className="flex items-center justify-between gap-2">
-                                      <span className="text-white dark:text-dark-gray text-xs md:text-sm font-medium uppercase tracking-widest">
+                                      <span className="text-white dark:text-dark-gray text-xs font-medium uppercase tracking-widest">
                                         {reply.user}
                                       </span>
-                                      <span className="text-white/45 dark:text-dark-gray/45 text-[0.65rem] md:text-xs uppercase tracking-[0.3em]">
+                                      <span className="text-white/45 dark:text-dark-gray/45 text-[0.7rem] uppercase tracking-[0.3em]">
                                         {new Date(reply.date).toLocaleDateString()}
                                       </span>
                                     </div>
-                                    <p className="text-white/70 dark:text-dark-gray/65 text-xs md:text-sm leading-relaxed">
+                                    <p className="text-white/70 dark:text-dark-gray/65 text-xs md:text-sm leading-relaxed font-light">
                                       {reply.text}
                                     </p>
                                     <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-white/60 dark:text-dark-gray/60 text-[0.65rem] uppercase tracking-[0.3em]">
@@ -1513,19 +1584,19 @@ const BookDetailPage = () => {
                                 onChange={(e) => handleReplyChange(comment.id, e.target.value)}
                                 placeholder="Write a reply..."
                                 rows={3}
-                                className="w-full bg-transparent border border-white/20 dark:border-dark-gray/20 text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 px-3 py-2 text-sm focus:outline-none focus:border-white dark:focus:border-dark-gray transition-colors resize-none"
+                                className="w-full bg-transparent border border-white/20 dark:border-dark-gray/20 text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 px-3 py-2 text-sm font-light focus:outline-none focus:border-white dark:focus:border-dark-gray transition-colors resize-none"
                               />
                               <div className="flex gap-3">
                                 <button
                                   onClick={() => handleSubmitReply(comment.id)}
                                   disabled={!replyText[comment.id]?.trim()}
-                                  className="bg-white dark:bg-dark-gray text-dark-gray dark:text-white border border-white dark:border-dark-gray px-3 py-1.5 text-sm font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
+                                  className="bg-white dark:bg-dark-gray text-dark-gray dark:text-white border border-white dark:border-dark-gray px-3 py-1.5 text-xs font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                                 >
                                   Post Reply
                                 </button>
                                 <button
                                   onClick={() => setReplyingTo(null)}
-                                  className="text-white/60 dark:text-dark-gray/60 text-sm uppercase tracking-widest hover:opacity-80 transition-opacity"
+                                  className="text-white/60 dark:text-dark-gray/60 text-xs font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
                                 >
                                   Cancel
                                 </button>

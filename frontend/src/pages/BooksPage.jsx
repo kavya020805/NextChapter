@@ -5,6 +5,7 @@ import { Search, X, TrendingUp } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { hasCompletedPersonalization } from '../lib/personalizationUtils'
+import { transformBookCoverUrls } from '../lib/bookUtils'
 
 function BooksPage() {
   const { user } = useAuth()
@@ -110,9 +111,12 @@ function BooksPage() {
         throw error
       }
       
-      console.log('Fetched books from Supabase:', data?.length || 0)
-      setAllBooks(data || [])
-      setFilteredBooks(data || [])
+      // Transform cover_image paths to full URLs
+      const booksWithUrls = transformBookCoverUrls(data || [])
+      
+      console.log('Fetched books from Supabase:', booksWithUrls?.length || 0)
+      setAllBooks(booksWithUrls)
+      setFilteredBooks(booksWithUrls)
     } catch (e) {
       console.error('Failed to load books from Supabase:', e)
       // Optionally fallback to local JSON

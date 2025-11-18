@@ -1,4 +1,5 @@
 import { supabase } from './supabaseClient'
+import { transformBookCoverUrls } from './bookUtils'
 
 function toNumber(value) {
   const numeric = Number(value)
@@ -64,7 +65,9 @@ export async function getHighestRatedBooks(limit = 10, minimumRatings = 1) {
       return []
     }
 
-    const bookMap = new Map(books.map((book) => [book.id, book]))
+    // Transform cover URLs
+    const booksWithUrls = transformBookCoverUrls(books)
+    const bookMap = new Map(booksWithUrls.map((book) => [book.id, book]))
 
     return orderedStats
       .map((stat) => {

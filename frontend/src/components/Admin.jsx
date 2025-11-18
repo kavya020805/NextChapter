@@ -64,7 +64,8 @@ async function fetchTotalUsers() {
 
 // Constants
 const PAGE_SIZE = 10;
-const STORAGE_BUCKET = 'book-storage';
+const STORAGE_BUCKET = 'Book-storage';
+const COVERS_BUCKET = 'covers';
 const DEFAULT_COVER_IMAGE = 'https://placehold.co/300x450?text=No+Cover';
 
 // ToastContainer rendered in component tree below
@@ -776,13 +777,13 @@ const Admin = () => {
   };
 
   // Upload file to storage
-  const uploadFile = async (file, path) => {
+  const uploadFile = async (file, bucketName) => {
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${path}/${Date.now()}.${fileExt}`;
+      const fileName = `${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
-        .from(STORAGE_BUCKET)
+        .from(bucketName)
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: true
@@ -792,7 +793,7 @@ const Admin = () => {
 
       // Get public URL
       const { data: { publicUrl } } = supabase.storage
-        .from(STORAGE_BUCKET)
+        .from(bucketName)
         .getPublicUrl(fileName);
 
       return publicUrl;
@@ -813,12 +814,12 @@ const Admin = () => {
 
       // Upload PDF if a new file is selected
       if (formData.pdf_file instanceof File) {
-        pdfUrl = await uploadFile(formData.pdf_file, 'books');
+        pdfUrl = await uploadFile(formData.pdf_file, STORAGE_BUCKET);
       }
 
       // Upload cover image if a new file is selected
       if (formData.cover_file instanceof File) {
-        coverImageUrl = await uploadFile(formData.cover_file, 'covers');
+        coverImageUrl = await uploadFile(formData.cover_file, COVERS_BUCKET);
       }
 
       // Convert comma-separated genres to array
