@@ -858,3 +858,83 @@ body.dark-mode .empty {
     background: #ff4c4c;
   }
 }
+
+
+/* PDF Text Layer for Selection */
+.textLayer {
+  position: absolute;
+  text-align: initial;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  overflow: hidden;
+  opacity: 1;
+  line-height: 1.0;
+  -webkit-text-size-adjust: none;
+  -moz-text-size-adjust: none;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  pointer-events: auto;
+}
+
+.textLayer span {
+  color: transparent;
+  position: absolute;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+  pointer-events: auto;
+}
+
+.textLayer span::selection {
+  background: rgba(212, 114, 73, 0.3);
+}
+
+.textLayer span::-moz-selection {
+  background: rgba(212, 114, 73, 0.3);
+}
+
+/* Book Highlighting Styles */
+.textLayer span.book-highlight {
+  padding: 2px 0;
+  border-radius: 2px;
+  transition: opacity 0.2s;
+  color: transparent !important;
+  opacity: 0.6;
+}
+
+.textLayer span.book-highlight:hover {
+  opacity: 0.8;
+}
+
+.book-highlight {
+  padding: 2px 0;
+  border-radius: 2px;
+  transition: opacity 0.2s;
+}
+
+/* Highlight menu animation */
+@keyframes highlightMenuFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -100%) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%) scale(1);
+  }
+}
+
+.highlight-menu {
+  animation: highlightMenuFadeIn 0.2s ease-out;
+}
+
+/* Prevent text selection styling conflicts */
+::selection {
+  background-color: rgba(212, 114, 73, 0.3);
+}
+
+::-moz-selection {
+  background-color: rgba(212, 114, 73, 0.3);
+}
