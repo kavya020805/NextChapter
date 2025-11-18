@@ -902,6 +902,18 @@ body.dark-mode .empty {
   transition: opacity 0.2s;
   color: transparent !important;
   opacity: 0.6;
+  position: relative;
+}
+
+.textLayer span.book-highlight::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: -50px;
+  top: 0;
+  bottom: 0;
+  background-color: inherit;
+  z-index: -1;
 }
 
 .textLayer span.book-highlight:hover {

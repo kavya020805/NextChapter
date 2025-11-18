@@ -80,12 +80,28 @@ const ReaderLocal = () => {
   const [selectedRange, setSelectedRange] = useState(null);
   const [highlightsVisible, setHighlightsVisible] = useState(true);
 
+  // Bookmark states
+  const [bookmarks, setBookmarks] = useState([]);
+  const [showBookmarksDropdown, setShowBookmarksDropdown] = useState(false);
+  const [isCurrentPageBookmarked, setIsCurrentPageBookmarked] = useState(false);
+
   // Load highlights for current book
   useEffect(() => {
     if (user && bookId) {
       loadHighlights();
+      loadBookmarks();
     }
   }, [user, bookId]);
+
+  // Check if current page is bookmarked
+  useEffect(() => {
+    if (bookmarks.length > 0 && currentPage) {
+      const isBookmarked = bookmarks.some(b => b.page_number === currentPage);
+      setIsCurrentPageBookmarked(isBookmarked);
+    } else {
+      setIsCurrentPageBookmarked(false);
+    }
+  }, [bookmarks, currentPage]);
 
   const loadHighlights = async () => {
     if (!bookId) return;
@@ -339,6 +355,75 @@ const ReaderLocal = () => {
     }
   };
 
+  // Bookmark functions
+  const loadBookmarks = async () => {
+    if (!user || !bookId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('bookmarks')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('book_id', bookId)
+        .order('page_number', { ascending: true });
+
+      if (error) {
+        console.error('Error loading bookmarks:', error);
+        return;
+      }
+
+      setBookmarks(data || []);
+      console.log('Loaded bookmarks:', data?.length || 0);
+    } catch (err) {
+      console.error('Error loading bookmarks:', err);
+    }
+  };
+
+  const toggleBookmark = async () => {
+    if (!user || !bookId || !currentPage) return;
+
+    try {
+      if (isCurrentPageBookmarked) {
+        // Remove bookmark
+        const { error } = await supabase
+          .from('bookmarks')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('book_id', bookId)
+          .eq('page_number', currentPage);
+
+        if (error) throw error;
+
+        setBookmarks(prev => prev.filter(b => b.page_number !== currentPage));
+        console.log('Bookmark removed from page', currentPage);
+      } else {
+        // Add bookmark
+        const { data, error } = await supabase
+          .from('bookmarks')
+          .insert([{
+            user_id: user.id,
+            book_id: bookId,
+            page_number: currentPage
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setBookmarks(prev => [...prev, data].sort((a, b) => a.page_number - b.page_number));
+        console.log('Bookmark added to page', currentPage);
+      }
+    } catch (err) {
+      console.error('Error toggling bookmark:', err);
+    }
+  };
+
+  const goToBookmark = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    navigateToPage(pageNumber);
+    setShowBookmarksDropdown(false);
+  };
+
   const applyHighlightToSelection = (color, highlightId = null) => {
     const selection = window.getSelection();
     if (!selection.rangeCount) return;
@@ -525,11 +610,6 @@ const ReaderLocal = () => {
     const canvasMarginTop = isMobile ? '120px' : '80px';
     canvas.style.marginTop = canvasMarginTop;
 
-    // Apply same margin to text layer so it aligns with canvas
-    if (textLayer) {
-      textLayer.style.marginTop = canvasMarginTop;
-    }
-
     // Apply invert filter in reader mode
     canvas.style.filter = readerTheme === 'reader' ? 'invert(1)' : 'none';
 
@@ -576,6 +656,9 @@ const ReaderLocal = () => {
         textLayer.innerHTML = '';
         textLayer.style.width = `${viewport.width}px`;
         textLayer.style.height = `${viewport.height}px`;
+        // Use same margin as canvas and shift up one line
+        textLayer.style.marginTop = canvasMarginTop;
+        textLayer.style.top = '-7px';
         
         try {
           const textContent = await page.getTextContent();
@@ -1542,6 +1625,54 @@ Provide helpful, concise responses about the book considering the context of the
               )}
             </div>
 
+            {/* Bookmarks */}
+            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                Bookmarks
+              </div>
+              <button
+                className={`w-full px-3 py-2 text-[10px] uppercase tracking-widest border transition-colors ${
+                  isCurrentPageBookmarked
+                    ? 'bg-dark-gray text-white border-dark-gray dark:bg-white dark:text-dark-gray dark:border-white' 
+                    : 'bg-transparent text-dark-gray dark:text-white border-dark-gray/30 dark:border-white/30'
+                }`}
+                onClick={toggleBookmark}
+              >
+                {isCurrentPageBookmarked ? '★ Bookmarked' : '☆ Bookmark Page'}
+              </button>
+              {bookmarks.length > 0 && (
+                <div className="relative">
+                  <button
+                    className="w-full px-3 py-2 text-[10px] uppercase tracking-widest border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors flex items-center justify-between"
+                    onClick={() => setShowBookmarksDropdown(!showBookmarksDropdown)}
+                  >
+                    <span>View Bookmarks ({bookmarks.length})</span>
+                    <span>{showBookmarksDropdown ? '▲' : '▼'}</span>
+                  </button>
+                  {showBookmarksDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white max-h-48 overflow-y-auto z-50">
+                      {bookmarks.map((bookmark) => (
+                        <button
+                          key={bookmark.bookmark_id}
+                          className={`w-full px-3 py-2 text-left text-[10px] border-b border-dark-gray/10 dark:border-white/10 hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors ${
+                            bookmark.page_number === currentPage ? 'bg-dark-gray/5 dark:bg-white/5' : ''
+                          }`}
+                          onClick={() => goToBookmark(bookmark.page_number)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-dark-gray dark:text-white">Page {bookmark.page_number}</span>
+                            {bookmark.page_number === currentPage && (
+                              <span className="text-dark-gray dark:text-white">●</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Theme */}
             <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
               <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
@@ -1840,54 +1971,7 @@ Provide helpful, concise responses about the book considering the context of the
         </div>
       )}
 
-      {/* Highlights Sidebar */}
-      {highlights.length > 0 && (
-        <div className="fixed right-4 top-24 w-64 max-h-96 overflow-y-auto bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white shadow-lg z-40 hidden lg:block">
-          <div className="p-4">
-            <h3 className="text-sm font-bold uppercase tracking-widest mb-3 text-dark-gray dark:text-white">
-              Highlights ({highlights.length})
-            </h3>
-            <div className="space-y-2">
-              {highlights.map((highlight) => (
-                <div
-                  key={highlight.id}
-                  className="p-2 border border-dark-gray/20 dark:border-white/20 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors cursor-pointer"
-                  onClick={() => {
-                    const page = highlight.page_number || highlight.location?.page;
-                    if (page) setCurrentPage(page);
-                  }}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <div
-                        className="text-xs mb-1 p-1"
-                        style={{ backgroundColor: (highlight.color || '#ffeb3b') + '40' }}
-                      >
-                        {(() => {
-                          const text = highlight.content || highlight.highlighted_text || '';
-                          return `"${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`;
-                        })()}
-                      </div>
-                      <div className="text-[10px] text-dark-gray/60 dark:text-white/60">
-                        Page {highlight.page_number || highlight.location?.page || '?'}
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        deleteHighlight(highlight.id);
-                      }}
-                      className="text-dark-gray/60 dark:text-white/60 hover:text-red-500 transition-colors"
-                    >
-                      <X className="w-3 h-3" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
     </div>
   );
