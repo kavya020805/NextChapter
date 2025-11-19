@@ -23,7 +23,12 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
   }
 
   useEffect(() => {
+    console.log('=== GenrePreferencesCard Debug ===');
+    console.log('propGenreDistribution:', propGenreDistribution);
+    console.log('Keys count:', Object.keys(propGenreDistribution || {}).length);
+    
     if (propGenreDistribution && Object.keys(propGenreDistribution).length > 0) {
+      console.log('Using provided genre distribution');
       // Use provided genre distribution
       const total = Object.values(propGenreDistribution).reduce((sum, count) => sum + count, 0)
       const genres = Object.entries(propGenreDistribution)
@@ -35,13 +40,16 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
         .sort((a, b) => b.count - a.count)
         .slice(0, 5)
       
+      console.log('Processed genres:', genres);
       setGenreData(genres)
       setTotalBooks(total)
       setLoading(false)
     } else {
+      console.log('Falling back to loadGenreData (localStorage/database)');
       // Fallback to loading from database/localStorage
       loadGenreData()
     }
+    console.log('=================================');
   }, [propGenreDistribution])
 
   const loadGenreData = async () => {
@@ -59,16 +67,10 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
       }
 
       if (!Array.isArray(read) || read.length === 0) {
-        // Demo data
-        const demoData = [
-          { genre: 'Fantasy', count: 12, percentage: 35 },
-          { genre: 'Science Fiction', count: 8, percentage: 25 },
-          { genre: 'Mystery', count: 7, percentage: 20 },
-          { genre: 'Literary Fiction', count: 5, percentage: 15 },
-          { genre: 'Non-Fiction', count: 2, percentage: 5 }
-        ]
-        setGenreData(demoData)
-        setTotalBooks(34)
+        console.log('No books in localStorage - showing empty state');
+        // No books read - show empty state
+        setGenreData([])
+        setTotalBooks(0)
         setLoading(false)
         return
       }
@@ -78,7 +80,7 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
       // Fetch book details from Supabase using new schema
       const { data, error } = await supabase
         .from('books')
-        .select('id, genres, subjects')
+        .select('id, genres, genre, subjects')
         .in('id', read)
 
       if (error) {
@@ -86,17 +88,42 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
         throw error
       }
 
+      console.log('=== GenrePreferencesCard Fetch Debug ===');
+      console.log('Fetched books count:', data?.length || 0);
+      console.log('Read book IDs from localStorage:', read);
+      
+      if (data && data.length > 0) {
+        console.log('Sample book structure:', {
+          id: data[0].id,
+          genres: data[0].genres,
+          genre: data[0].genre,
+          subjects: data[0].subjects,
+          hasGenres: Array.isArray(data[0].genres),
+          genresLength: Array.isArray(data[0].genres) ? data[0].genres.length : 0
+        });
+      }
+
       // Count genres
       const genreCounts = {}
       const total = (data || []).length
 
       ;(data || []).forEach(book => {
-        // Prefer genres[] from new schema, fall back to subjects[] if needed
+        // Prefer genres[] from new schema, fall back to genre or subjects[] if needed
         const rawGenres = Array.isArray(book.genres)
           ? book.genres
+          : book.genre
+          ? [book.genre]
           : Array.isArray(book.subjects)
           ? book.subjects
           : []
+
+        console.log(`Book ${book.id}:`, {
+          title: book.title,
+          genres: book.genres,
+          genre: book.genre,
+          subjects: book.subjects,
+          rawGenres: rawGenres
+        });
 
         rawGenres.forEach(genre => {
           if (genre) {
@@ -106,6 +133,9 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
           }
         })
       })
+
+      console.log('Final genre counts:', genreCounts);
+      console.log('======================================');
 
       // Convert to array and calculate percentages
       let genres = Object.entries(genreCounts)
@@ -136,16 +166,9 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
       setTotalBooks(total)
     } catch (error) {
       console.error('Error loading genre data:', error)
-      // Demo data on error
-      const demoData = [
-        { genre: 'Fantasy', count: 12, percentage: 35 },
-        { genre: 'Science Fiction', count: 8, percentage: 25 },
-        { genre: 'Mystery', count: 7, percentage: 20 },
-        { genre: 'Literary Fiction', count: 5, percentage: 15 },
-        { genre: 'Non-Fiction', count: 2, percentage: 5 }
-      ]
-      setGenreData(demoData)
-      setTotalBooks(34)
+      // Show empty state on error instead of demo data
+      setGenreData([])
+      setTotalBooks(0)
     } finally {
       setLoading(false)
     }
@@ -202,6 +225,48 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
     )
   }
 
+  // Empty state when no books have been read
+  if (!genreData || genreData.length === 0) {
+    return (
+      <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 flex flex-col h-full">
+        {/* Header */}
+        <div className="mb-4">
+          <h3 className="text-base text-white dark:text-dark-gray font-semibold uppercase tracking-wider mb-1">
+            Genre Preferences
+          </h3>
+          <p className="text-xs text-white/60 dark:text-dark-gray/60">
+            Your reading habits by genre this year
+          </p>
+        </div>
+
+        {/* Empty State */}
+        <div className="flex-1 flex flex-col items-center justify-center py-8 text-center">
+          <div className="w-16 h-16 mb-4 rounded-full border-2 border-white/20 dark:border-dark-gray/20 flex items-center justify-center">
+            <svg 
+              className="w-8 h-8 text-white/40 dark:text-dark-gray/40" 
+              fill="none" 
+              stroke="currentColor" 
+              viewBox="0 0 24 24"
+            >
+              <path 
+                strokeLinecap="round" 
+                strokeLinejoin="round" 
+                strokeWidth={2} 
+                d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" 
+              />
+            </svg>
+          </div>
+          <p className="text-sm text-white/60 dark:text-dark-gray/60 mb-1">
+            No books read yet
+          </p>
+          <p className="text-xs text-white/40 dark:text-dark-gray/40">
+            Start reading to see your genre preferences
+          </p>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 flex flex-col h-full">
       {/* Header */}
@@ -210,7 +275,7 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
           Genre Preferences
         </h3>
         <p className="text-xs text-white/60 dark:text-dark-gray/60">
-          Your reading habits by genre this year
+          Based on {totalBooks} book{totalBooks !== 1 ? 's' : ''} you've read
         </p>
       </div>
 
