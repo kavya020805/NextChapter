@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabaseClient";
 import { useAuth } from "../contexts/AuthContext";
 import { getUserProfile } from "../lib/personalizationUtils";
 import { getTrendingBooks } from "../lib/trendingUtils";
+import { transformBookCoverUrls } from "../lib/bookUtils";
 import {
   Plus,
   Edit2,
@@ -183,7 +184,10 @@ function usePaginatedBooks({ search, genre, language, sort, rating, reloadFlag }
         console.log('After rating filter:', filteredData.length, 'books');
       }
 
-      setBooks(filteredData);
+      // Transform cover URLs to full public URLs
+      const booksWithUrls = transformBookCoverUrls(filteredData);
+
+      setBooks(booksWithUrls);
       setCount(count || 0);
       setTotalPages(Math.ceil((count || 0) / PAGE_SIZE));
     } catch (err) {
@@ -432,22 +436,7 @@ function useDashboardMetrics() {
   return { metrics, monthlySeries, loading, error };
 }
 
-// Helper function to get cover image URL
-const getCoverImageUrl = (coverImage) => {
-  if (!coverImage) return null;
-  
-  // If already a full URL, return as is
-  if (coverImage.startsWith('http://') || coverImage.startsWith('https://')) {
-    return coverImage;
-  }
-  
-  // Construct Supabase storage URL manually
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-  const url = `${supabaseUrl}/storage/v1/object/public/book-storage/${coverImage}`;
-  
-  console.log('Cover image URL:', url);
-  return url;
-};
+// Removed getCoverImageUrl - now using transformBookCoverUrls from bookUtils
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -851,11 +840,41 @@ const Admin = () => {
         if (error) throw error;
         toast.success('Book updated successfully!');
       } else {
-        // Create new book with ID
+        // Create new book with auto-generated ID or user-provided ID
+        let bookId = formData.id && formData.id.trim() !== '' 
+          ? formData.id.trim()
+          : null;
+        
+        // If no ID provided, generate one in BOOK_XXX format
+        if (!bookId) {
+          // Get the highest existing book number
+          const { data: existingBooks, error: fetchError } = await supabase
+            .from('books')
+            .select('id')
+            .like('id', 'BOOK_%')
+            .order('id', { ascending: false })
+            .limit(1);
+          
+          if (fetchError) {
+            console.warn('Could not fetch existing books, using timestamp-based ID:', fetchError);
+            bookId = `BOOK_${Date.now()}`;
+          } else {
+            let nextNumber = 1;
+            if (existingBooks && existingBooks.length > 0) {
+              const lastId = existingBooks[0].id;
+              const match = lastId.match(/BOOK_(\d+)/);
+              if (match) {
+                nextNumber = parseInt(match[1]) + 1;
+              }
+            }
+            bookId = `BOOK_${String(nextNumber).padStart(3, '0')}`;
+          }
+        }
+        
         const { data, error } = await supabase
           .from('books')
           .insert([{ 
-            id: formData.id,
+            id: bookId,
             ...bookData,
             created_at: new Date().toISOString(),
             downloads: 0,
@@ -1069,7 +1088,12 @@ const Admin = () => {
           .from('book_comment_reports')
           .delete()
           .eq('id', report.id);
-        if (error) throw error;
+        
+        if (error) {
+          console.error('Error approving report:', error);
+          throw error;
+        }
+        
         toast.success('Report dismissed - Comment approved');
       } else if (action === 'reject') {
         // Confirm before deleting
@@ -1080,25 +1104,55 @@ const Admin = () => {
         
         if (!confirmDelete) return;
 
-        // Reject: Delete the comment and all associated reports
-        const { error: deleteCommentError } = await supabase
-          .from('book_comments')
-          .delete()
-          .eq('id', report.comment_id);
-        if (deleteCommentError) throw deleteCommentError;
+        console.log('Attempting to delete comment with ID:', report.comment_id);
+        console.log('Current user:', user?.id);
 
-        // Delete all reports for this comment (CASCADE should handle this, but being explicit)
+        // Step 1: Delete all reports for this comment first
         const { error: deleteReportsError } = await supabase
           .from('book_comment_reports')
           .delete()
           .eq('comment_id', report.comment_id);
-        if (deleteReportsError) throw deleteReportsError;
+        
+        if (deleteReportsError) {
+          console.error('Error deleting reports:', deleteReportsError);
+          throw deleteReportsError;
+        }
 
-        toast.success('Comment rejected and deleted');
+        console.log('Reports deleted, now deleting comment...');
+
+        // Step 2: Delete the comment from book_comments table
+        // Note: This requires admin DELETE policy on book_comments table
+        const { data: deleteData, error: deleteCommentError } = await supabase
+          .from('book_comments')
+          .delete()
+          .eq('id', report.comment_id)
+          .select();
+        
+        if (deleteCommentError) {
+          console.error('Error deleting comment:', deleteCommentError);
+          console.error('Error details:', {
+            message: deleteCommentError.message,
+            details: deleteCommentError.details,
+            hint: deleteCommentError.hint,
+            code: deleteCommentError.code
+          });
+          
+          // Check if it's a permission error
+          if (deleteCommentError.code === '42501' || deleteCommentError.message.includes('permission')) {
+            toast.error('Permission denied. Please run the admin_comments_permissions.sql script to grant admin delete permissions.');
+          }
+          
+          throw deleteCommentError;
+        }
+
+        console.log('Comment deleted successfully:', deleteData);
+        toast.success('Comment rejected and permanently deleted from database');
       }
       
       // Trigger a refresh of the metrics to update the list
-      window.location.reload();
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       console.error('Error handling report action:', error);
       toast.error(`Failed to update report: ${error.message}`);
@@ -1423,9 +1477,11 @@ const Admin = () => {
         pauseOnHover
         theme="light"
       />
-      <div className="max-w-7xl mx-auto px-8 py-8">
-        {/* Hero-style header inspired by Profile page */}
-        <div className="grid grid-cols-12 gap-8 md:gap-16 mb-10">
+      {/* Admin Dashboard Section */}
+      <section className="bg-dark-gray dark:bg-white py-24 md:py-32">
+        <div className="max-w-7xl mx-auto px-8">
+          {/* Hero-style header inspired by Profile page */}
+          <div className="grid grid-cols-12 gap-8 md:gap-16 mb-10">
           <div className="col-span-12 md:col-span-5">
             <div className="mb-4">
               <span className="text-xs font-medium uppercase tracking-widest text-white dark:text-dark-gray border-b-2 border-white dark:border-dark-gray pb-2 inline-block">
@@ -1448,7 +1504,7 @@ const Admin = () => {
                   handleSignOut();
                 }}
                 disabled={signOutLoading}
-                className="group inline-flex items-center gap-3 bg-transparent border border-white dark:border-dark-gray text-white dark:text-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed relative z-0 w-[150px]"
+                className="group inline-flex items-center justify-center gap-3 bg-transparent border border-white dark:border-dark-gray text-white dark:text-dark-gray px-6 py-3 text-xs font-medium uppercase tracking-wider transition-all duration-300 hover:border-red-400 dark:hover:border-red-400 hover:text-red-400 disabled:opacity-50 disabled:cursor-not-allowed relative z-0 w-[150px]"
               >
                 <span className="relative z-10 transition-colors duration-300">
                   {signOutLoading ? 'Signing Out...' : 'Sign Out'}
@@ -1629,7 +1685,7 @@ const Admin = () => {
             </div>
 
             {/* Stats Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
+            <div className="mb-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               <StatCard 
                 label="Total Books" 
                 value={metrics.totalBooks?.toLocaleString() || '0'} 
@@ -1664,7 +1720,7 @@ const Admin = () => {
 
             {/* === Analytics === */}
             {/* Row 1: Full-width dual-line monthly revenue vs subscriptions chart */}
-            <div className="mt-10">
+            <div className="mb-4">
               <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-5">
                 <h2 className="text-2xl font-bold text-white dark:text-dark-gray mb-2 uppercase tracking-widest">
                   Monthly Revenue & Active Subscriptions
@@ -1700,7 +1756,7 @@ const Admin = () => {
             </div>
 
             {/* Row 2: Trending Genres (with pie chart) & Trending Books in one row */}
-            <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+            <div className="mb-4 grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
               <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 flex flex-col h-full">
                 {/* Header */}
                 <div className="mb-4">
@@ -1787,7 +1843,7 @@ const Admin = () => {
             </div>
 
             {/* Row 3: Reported Comments */}
-            <div className="mt-8">
+            <div className="mb-4">
               <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4">
                 <h2 className="text-xl font-bold text-white dark:text-dark-gray mb-4 uppercase tracking-widest">
                   Reported Comments
@@ -1851,7 +1907,7 @@ const Admin = () => {
         </div>
 
         {/* === Catalogue Management === */}
-        <div className="mb-8">
+        <div className="mt-32 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <div>
               <h2 className="text-3xl text-white dark:text-dark-gray font-bold uppercase tracking-widest">
@@ -1950,18 +2006,20 @@ const Admin = () => {
                 {/* Book ID */}
                 <div>
                   <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-1.5 font-medium">
-                    Book ID *
+                    Book ID (optional - auto-generated if empty)
                   </label>
                   <input
                     type="text"
                     name="id"
                     value={formData.id}
                     onChange={handleInputChange}
-                    required
                     disabled={!!editingBook}
-                    placeholder="unique-book-id"
+                    placeholder="e.g., BOOK_026 (auto-generated if empty)"
                     className="w-full bg-transparent text-dark-gray dark:text-white border-b border-dark-gray/20 dark:border-white/20 px-0 py-2 text-sm focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   />
+                  <p className="mt-1 text-xs text-dark-gray/40 dark:text-white/40">
+                    Leave empty to auto-generate next ID (e.g., BOOK_026, BOOK_027...)
+                  </p>
                 </div>
 
                 {/* Title & Author */}
@@ -2199,24 +2257,21 @@ const Admin = () => {
                   books.map((book) => (
                     <tr key={book.id} className="border-b border-white/10 dark:border-dark-gray/10 hover:bg-white/5 dark:hover:bg-dark-gray/5 transition-colors">
                       <td className="px-6 py-4">
-                        {(() => {
-                          const imageUrl = getCoverImageUrl(book.cover_image);
-                          return imageUrl ? (
-                            <img
-                              src={imageUrl}
-                              alt={book.title}
-                              className="w-16 h-24 object-cover border-2 border-white dark:border-dark-gray"
-                              onError={(e) => {
-                                console.log('Image failed to load:', imageUrl);
-                                e.target.style.display = 'none';
-                                e.target.nextSibling.style.display = 'flex';
-                              }}
-                            />
-                          ) : null;
-                        })()}
+                        {book.cover_image ? (
+                          <img
+                            src={book.cover_image}
+                            alt={book.title}
+                            className="w-16 h-24 object-cover border-2 border-white dark:border-dark-gray"
+                            onError={(e) => {
+                              console.log('Image failed to load:', book.cover_image);
+                              e.target.style.display = 'none';
+                              e.target.nextSibling.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
                         <div 
                           className="w-16 h-24 bg-white/10 dark:bg-dark-gray/10 flex items-center justify-center text-2xl border-2 border-white/30 dark:border-dark-gray/30"
-                          style={{ display: getCoverImageUrl(book.cover_image) ? 'none' : 'flex' }}
+                          style={{ display: book.cover_image ? 'none' : 'flex' }}
                         >
                           📚
                         </div>
@@ -2301,10 +2356,10 @@ const Admin = () => {
             </div>
           </div>
         </>
-      </div>
+        </div>
+      </section>
     </div>
-);
-
+  );
 };
 
 const StatCard = ({ label, value, icon, change }) => (
