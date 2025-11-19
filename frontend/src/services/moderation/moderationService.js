@@ -1,6 +1,7 @@
 export const moderationService = async (comment) => {
   try {
-    const response = await fetch("http://localhost:8000/api/moderate", {
+    const moderationUrl = import.meta.env.VITE_MODERATION_API_URL || "http://localhost:8000";
+    const response = await fetch(`${moderationUrl}/api/moderate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text: comment }),

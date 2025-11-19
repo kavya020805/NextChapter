@@ -15,5 +15,11 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  server: {
+    historyApiFallback: true,
+  },
+  preview: {
+    historyApiFallback: true,
+  },
 })
 
