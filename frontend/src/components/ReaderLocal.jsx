@@ -72,6 +72,436 @@ const ReaderLocal = () => {
 
   const audioRef = useRef(null);
 
+  // Highlighting states
+  const [highlights, setHighlights] = useState([]);
+  const [showHighlightMenu, setShowHighlightMenu] = useState(false);
+  const [highlightMenuPosition, setHighlightMenuPosition] = useState({ x: 0, y: 0 });
+  const [selectedText, setSelectedText] = useState('');
+  const [selectedRange, setSelectedRange] = useState(null);
+  const [highlightsVisible, setHighlightsVisible] = useState(true);
+
+  // Bookmark states
+  const [bookmarks, setBookmarks] = useState([]);
+  const [showBookmarksDropdown, setShowBookmarksDropdown] = useState(false);
+  const [isCurrentPageBookmarked, setIsCurrentPageBookmarked] = useState(false);
+
+  // Load highlights for current book
+  useEffect(() => {
+    if (user && bookId) {
+      loadHighlights();
+      loadBookmarks();
+    }
+  }, [user, bookId]);
+
+  // Check if current page is bookmarked
+  useEffect(() => {
+    if (bookmarks.length > 0 && currentPage) {
+      const isBookmarked = bookmarks.some(b => b.page_number === currentPage);
+      setIsCurrentPageBookmarked(isBookmarked);
+    } else {
+      setIsCurrentPageBookmarked(false);
+    }
+  }, [bookmarks, currentPage]);
+
+  const loadHighlights = async () => {
+    if (!bookId) return;
+    
+    let loadedHighlights = [];
+
+    // Try to load from database if user is logged in
+    if (user) {
+      try {
+        const { data, error } = await supabase
+          .from('book_highlights')
+          .select('*')
+          .eq('user_id', user.id)
+          .eq('book_id', bookId)
+          .order('created_at', { ascending: false });
+
+        if (!error && data) {
+          loadedHighlights = data;
+          console.log('Loaded highlights from database:', data.length);
+        } else {
+          console.log('Database load failed or table missing:', error);
+        }
+      } catch (err) {
+        console.log('Error loading from database:', err);
+      }
+    }
+
+    // Fallback to localStorage
+    if (loadedHighlights.length === 0) {
+      try {
+        const storageKey = `highlights_${bookId}`;
+        const stored = localStorage.getItem(storageKey);
+        if (stored) {
+          loadedHighlights = JSON.parse(stored);
+          console.log('Loaded highlights from localStorage:', loadedHighlights.length);
+        }
+      } catch (err) {
+        console.error('Error loading from localStorage:', err);
+      }
+    }
+
+    setHighlights(loadedHighlights);
+  };
+
+  // Toggle highlights visibility
+  const toggleHighlights = () => {
+    const textLayer = viewerRef.current?.querySelector('#text-layer');
+    if (!textLayer) return;
+    
+    const newVisibility = !highlightsVisible;
+    setHighlightsVisible(newVisibility);
+    
+    // Show/hide all highlights
+    const highlightedSpans = textLayer.querySelectorAll('.book-highlight');
+    highlightedSpans.forEach(span => {
+      span.style.display = newVisibility ? '' : 'none';
+    });
+  };
+
+  // Restore highlights for current page
+  const restoreHighlightsForPage = useCallback((pageNum) => {
+    if (!highlights.length || !highlightsVisible) return;
+    
+    // Wait for text layer to render
+    setTimeout(() => {
+      const textLayer = viewerRef.current?.querySelector('#text-layer');
+      if (!textLayer) return;
+      
+      // Get all text from the page
+      const spans = Array.from(textLayer.querySelectorAll('span'));
+      const pageText = spans.map(s => s.textContent).join('');
+      
+      // Filter highlights for current page
+      const pageHighlights = highlights.filter(h => {
+        const page = h.page_number || h.location?.page;
+        return page === pageNum;
+      });
+      
+      console.log(`Restoring ${pageHighlights.length} highlights for page ${pageNum}`);
+      
+      pageHighlights.forEach(highlight => {
+        try {
+          const text = highlight.content || highlight.highlighted_text;
+          if (!text) return;
+          
+          // Find the text in the page
+          const textIndex = pageText.indexOf(text);
+          if (textIndex === -1) {
+            console.log('Text not found on page:', text.substring(0, 50));
+            return;
+          }
+          
+          // Calculate which spans contain this text
+          let charCount = 0;
+          let startSpanIndex = -1;
+          let endSpanIndex = -1;
+          
+          for (let i = 0; i < spans.length; i++) {
+            const spanText = spans[i].textContent;
+            const spanStart = charCount;
+            const spanEnd = charCount + spanText.length;
+            
+            if (startSpanIndex === -1 && spanEnd > textIndex) {
+              startSpanIndex = i;
+            }
+            
+            if (spanEnd >= textIndex + text.length) {
+              endSpanIndex = i;
+              break;
+            }
+            
+            charCount += spanText.length;
+          }
+          
+          // Apply highlight to the spans
+          if (startSpanIndex !== -1 && endSpanIndex !== -1) {
+            for (let i = startSpanIndex; i <= endSpanIndex; i++) {
+              const span = spans[i];
+              span.style.backgroundColor = highlight.color || '#ffeb3b';
+              span.style.color = 'transparent';
+              span.style.opacity = '0.6';
+              span.classList.add('book-highlight');
+              span.setAttribute('data-highlight-id', highlight.id);
+            }
+            console.log('Restored highlight:', text.substring(0, 50));
+          }
+        } catch (err) {
+          console.error('Error restoring highlight:', err);
+        }
+      });
+    }, 300);
+  }, [highlights, highlightsVisible]);
+
+  const saveHighlight = async (color = '#ffeb3b') => {
+    if (!selectedText) {
+      console.log('No text selected');
+      return;
+    }
+
+    console.log('Saving highlight:', { selectedText, color, currentPage });
+
+    // Create highlight object for local state
+    const tempId = Date.now().toString();
+    const highlightData = {
+      id: tempId,
+      user_id: user?.id || 'local',
+      book_id: bookId,
+      page_number: currentPage,
+      content: selectedText,
+      color: color,
+      created_at: new Date().toISOString()
+    };
+
+    // Apply the visual highlight with temp ID
+    applyHighlightToSelection(color, tempId);
+
+    // Try to save to database if user is logged in
+    if (user && bookId) {
+      try {
+        const { data, error } = await supabase
+          .from('book_highlights')
+          .insert([{
+            user_id: user.id,
+            book_id: bookId,
+            content: selectedText,
+            color: color,
+            location: {
+              page: currentPage,
+              startOffset: selectedRange?.startOffset,
+              endOffset: selectedRange?.endOffset,
+              startContainer: selectedRange?.startContainer?.textContent,
+              endContainer: selectedRange?.endContainer?.textContent
+            }
+          }])
+          .select()
+          .single();
+
+        if (error) {
+          console.error('Database error:', error);
+          // Continue with local storage even if DB fails
+        } else if (data) {
+          highlightData.id = data.id;
+          highlightData.location = data.location;
+          console.log('Highlight saved to database:', data);
+        }
+      } catch (err) {
+        console.error('Error saving to database:', err);
+        // Continue with local storage
+      }
+    }
+
+    // Add to local state
+    setHighlights(prev => [highlightData, ...prev]);
+    
+    // Save to localStorage as backup
+    try {
+      const storageKey = `highlights_${bookId}`;
+      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      existing.push(highlightData);
+      localStorage.setItem(storageKey, JSON.stringify(existing));
+    } catch (err) {
+      console.error('Error saving to localStorage:', err);
+    }
+
+    setShowHighlightMenu(false);
+    setSelectedText('');
+    setSelectedRange(null);
+  };
+
+  const deleteHighlight = async (highlightId) => {
+    // Try to delete from database if user is logged in
+    if (user) {
+      try {
+        const { error } = await supabase
+          .from('book_highlights')
+          .delete()
+          .eq('id', highlightId)
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('Database delete error:', error);
+        }
+      } catch (err) {
+        console.error('Error deleting from database:', err);
+      }
+    }
+
+    // Remove from local state
+    setHighlights(prev => prev.filter(h => h.id !== highlightId));
+
+    // Remove from localStorage
+    try {
+      const storageKey = `highlights_${bookId}`;
+      const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
+      const updated = existing.filter(h => h.id !== highlightId);
+      localStorage.setItem(storageKey, JSON.stringify(updated));
+    } catch (err) {
+      console.error('Error deleting from localStorage:', err);
+    }
+
+    // Remove visual highlight from page
+    const textLayer = viewerRef.current?.querySelector('#text-layer');
+    if (textLayer) {
+      const highlightedSpans = textLayer.querySelectorAll(`[data-highlight-id="${highlightId}"]`);
+      highlightedSpans.forEach(span => {
+        span.style.backgroundColor = '';
+        span.style.opacity = '';
+        span.classList.remove('book-highlight');
+        span.removeAttribute('data-highlight-id');
+      });
+    }
+  };
+
+  // Bookmark functions
+  const loadBookmarks = async () => {
+    if (!user || !bookId) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('bookmarks')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('book_id', bookId)
+        .order('page_number', { ascending: true });
+
+      if (error) {
+        console.error('Error loading bookmarks:', error);
+        return;
+      }
+
+      setBookmarks(data || []);
+      console.log('Loaded bookmarks:', data?.length || 0);
+    } catch (err) {
+      console.error('Error loading bookmarks:', err);
+    }
+  };
+
+  const toggleBookmark = async () => {
+    if (!user || !bookId || !currentPage) return;
+
+    try {
+      if (isCurrentPageBookmarked) {
+        // Remove bookmark
+        const { error } = await supabase
+          .from('bookmarks')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('book_id', bookId)
+          .eq('page_number', currentPage);
+
+        if (error) throw error;
+
+        setBookmarks(prev => prev.filter(b => b.page_number !== currentPage));
+        console.log('Bookmark removed from page', currentPage);
+      } else {
+        // Add bookmark
+        const { data, error } = await supabase
+          .from('bookmarks')
+          .insert([{
+            user_id: user.id,
+            book_id: bookId,
+            page_number: currentPage
+          }])
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setBookmarks(prev => [...prev, data].sort((a, b) => a.page_number - b.page_number));
+        console.log('Bookmark added to page', currentPage);
+      }
+    } catch (err) {
+      console.error('Error toggling bookmark:', err);
+    }
+  };
+
+  const goToBookmark = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    navigateToPage(pageNumber);
+    setShowBookmarksDropdown(false);
+  };
+
+  const applyHighlightToSelection = (color, highlightId = null) => {
+    const selection = window.getSelection();
+    if (!selection.rangeCount) return;
+
+    try {
+      const range = selection.getRangeAt(0);
+      const textLayer = viewerRef.current?.querySelector('#text-layer');
+      
+      if (!textLayer) return;
+      
+      // Get all text spans in the selection
+      const spans = Array.from(textLayer.querySelectorAll('span'));
+      const selectedSpans = spans.filter(span => {
+        const spanRange = document.createRange();
+        spanRange.selectNodeContents(span);
+        return range.intersectsNode(span);
+      });
+      
+      // Apply highlight color to selected spans
+      selectedSpans.forEach(span => {
+        span.style.backgroundColor = color;
+        span.style.color = 'transparent';
+        span.style.opacity = '0.6';
+        span.classList.add('book-highlight');
+        span.setAttribute('data-highlight-color', color);
+        if (highlightId) {
+          span.setAttribute('data-highlight-id', highlightId);
+        }
+      });
+      
+      selection.removeAllRanges();
+    } catch (e) {
+      console.error('Error applying highlight:', e);
+    }
+  };
+
+  // Handle text selection
+  const handleTextSelection = () => {
+    const selection = window.getSelection();
+    const text = selection.toString().trim();
+    
+    if (text.length > 0) {
+      // Check if selection is within the text layer
+      const textLayer = viewerRef.current?.querySelector('#text-layer');
+      if (textLayer && (textLayer.contains(selection.anchorNode) || textLayer.contains(selection.focusNode))) {
+        const range = selection.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        
+        setSelectedText(text);
+        setSelectedRange({
+          startOffset: range.startOffset,
+          endOffset: range.endOffset,
+          startContainer: range.startContainer,
+          endContainer: range.endContainer
+        });
+        
+        setHighlightMenuPosition({
+          x: rect.left + rect.width / 2,
+          y: rect.top - 10
+        });
+        setShowHighlightMenu(true);
+        return;
+      }
+    }
+    
+    setShowHighlightMenu(false);
+  };
+
+  // Add mouseup listener for text selection
+  useEffect(() => {
+    const handleMouseUp = () => {
+      setTimeout(handleTextSelection, 10);
+    };
+
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => document.removeEventListener('mouseup', handleMouseUp);
+  }, [currentPage]);
+
   // Render a single page into a canvas inside the viewer
   const renderPage = useCallback(async (pageNumber, zoomOverride) => {
     if (!pdfDocRef.current || !viewerRef.current) return;
@@ -92,9 +522,11 @@ const ReaderLocal = () => {
     const container = viewerRef.current;
     const headerHeight = headerRef.current?.offsetHeight || 0;
 
-    // Ensure we have a wrapper div and canvas inside the viewer
+    // Ensure we have a wrapper div, canvas, and text layer inside the viewer
     let wrapper = container.querySelector('#pdf-wrapper');
+    let pageContainer;
     let canvas;
+    let textLayer;
     
     if (!wrapper) {
       container.innerHTML = '';
@@ -105,22 +537,78 @@ const ReaderLocal = () => {
       wrapper.style.flexDirection = 'column';
       wrapper.style.alignItems = 'center';
       
+      // Create page container to hold canvas and text layer
+      pageContainer = document.createElement('div');
+      pageContainer.id = 'page-container';
+      pageContainer.style.position = 'relative';
+      pageContainer.style.maxWidth = '900px';
+      pageContainer.style.width = '100%';
+      
       canvas = document.createElement('canvas');
       canvas.id = 'pdfCanvas';
-      canvas.style.maxWidth = '900px';
       canvas.style.width = '100%';
       canvas.style.height = 'auto';
       canvas.style.display = 'block';
       
-      wrapper.appendChild(canvas);
+      // Create text layer for text selection
+      textLayer = document.createElement('div');
+      textLayer.id = 'text-layer';
+      textLayer.className = 'textLayer';
+      textLayer.style.position = 'absolute';
+      textLayer.style.left = '0';
+      textLayer.style.top = '0';
+      textLayer.style.right = '0';
+      textLayer.style.bottom = '0';
+      textLayer.style.overflow = 'hidden';
+      textLayer.style.opacity = '1';
+      textLayer.style.lineHeight = '1.0';
+      textLayer.style.pointerEvents = 'auto';
+      
+      pageContainer.appendChild(canvas);
+      pageContainer.appendChild(textLayer);
+      wrapper.appendChild(pageContainer);
       container.appendChild(wrapper);
     } else {
+      pageContainer = wrapper.querySelector('#page-container');
       canvas = wrapper.querySelector('canvas');
+      textLayer = wrapper.querySelector('#text-layer');
+      
+      if (!pageContainer) {
+        // Upgrade old structure
+        canvas = wrapper.querySelector('canvas');
+        pageContainer = document.createElement('div');
+        pageContainer.id = 'page-container';
+        pageContainer.style.position = 'relative';
+        pageContainer.style.maxWidth = '900px';
+        pageContainer.style.width = '100%';
+        
+        if (canvas) {
+          wrapper.removeChild(canvas);
+          pageContainer.appendChild(canvas);
+        }
+        
+        textLayer = document.createElement('div');
+        textLayer.id = 'text-layer';
+        textLayer.className = 'textLayer';
+        textLayer.style.position = 'absolute';
+        textLayer.style.left = '0';
+        textLayer.style.top = '0';
+        textLayer.style.right = '0';
+        textLayer.style.bottom = '0';
+        textLayer.style.overflow = 'hidden';
+        textLayer.style.opacity = '1';
+        textLayer.style.lineHeight = '1.0';
+        textLayer.style.pointerEvents = 'auto';
+        
+        pageContainer.appendChild(textLayer);
+        wrapper.appendChild(pageContainer);
+      }
     }
 
     // Add device-specific top margin to the canvas for better visibility below header
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
-    canvas.style.marginTop = isMobile ? '120px' : '80px';
+    const canvasMarginTop = isMobile ? '120px' : '80px';
+    canvas.style.marginTop = canvasMarginTop;
 
     // Apply invert filter in reader mode
     canvas.style.filter = readerTheme === 'reader' ? 'invert(1)' : 'none';
@@ -162,10 +650,56 @@ const ReaderLocal = () => {
 
       // Apply invert filter in reader mode after rendering
       canvas.style.filter = readerTheme === 'reader' ? 'invert(1)' : 'none';
+
+      // Render text layer for text selection
+      if (textLayer) {
+        textLayer.innerHTML = '';
+        textLayer.style.width = `${viewport.width}px`;
+        textLayer.style.height = `${viewport.height}px`;
+        // Use same margin as canvas and shift up one line
+        textLayer.style.marginTop = canvasMarginTop;
+        textLayer.style.top = '-7px';
+        
+        try {
+          const textContent = await page.getTextContent();
+          
+          // Create text layer items
+          textContent.items.forEach((item) => {
+            const tx = pdfjsLib.Util.transform(
+              pdfjsLib.Util.transform(viewport.transform, item.transform),
+              [1, 0, 0, -1, 0, 0]
+            );
+            
+            const style = textContent.styles?.[item.fontName];
+            const angle = Math.atan2(tx[1], tx[0]);
+            
+            const span = document.createElement('span');
+            span.textContent = item.str;
+            span.style.position = 'absolute';
+            span.style.left = `${tx[4]}px`;
+            span.style.top = `${tx[5]}px`;
+            span.style.fontSize = `${Math.sqrt(tx[2] * tx[2] + tx[3] * tx[3])}px`;
+            span.style.fontFamily = style?.fontFamily || 'sans-serif';
+            span.style.transform = `rotate(${angle}rad)`;
+            span.style.transformOrigin = 'left bottom';
+            span.style.whiteSpace = 'pre';
+            span.style.color = 'transparent';
+            span.style.userSelect = 'text';
+            span.style.cursor = 'text';
+            
+            textLayer.appendChild(span);
+          });
+          
+          // Restore highlights for this page
+          restoreHighlightsForPage(safePage);
+        } catch (textError) {
+          console.error('Error rendering text layer:', textError);
+        }
+      }
     } catch (e) {
       console.error('Error rendering PDF page', e);
     }
-  }, [totalPages, zoomLevel, readerTheme]);
+  }, [totalPages, zoomLevel, readerTheme, restoreHighlightsForPage]);
 
   // Re-render when readerTheme changes to apply invert filter
   useEffect(() => {
@@ -1069,6 +1603,76 @@ Provide helpful, concise responses about the book considering the context of the
               </div>
             </div>
 
+            {/* Highlights Toggle */}
+            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                Highlights
+              </div>
+              <button
+                className={`w-full px-3 py-2 text-[10px] uppercase tracking-widest border transition-colors ${
+                  highlightsVisible 
+                    ? 'bg-dark-gray text-white border-dark-gray dark:bg-white dark:text-dark-gray dark:border-white' 
+                    : 'bg-transparent text-dark-gray dark:text-white border-dark-gray/30 dark:border-white/30'
+                }`}
+                onClick={toggleHighlights}
+              >
+                {highlightsVisible ? 'Hide Highlights' : 'Show Highlights'}
+              </button>
+              {highlights.length > 0 && (
+                <div className="text-[9px] text-dark-gray/60 dark:text-white/60 text-center">
+                  {highlights.length} highlight{highlights.length !== 1 ? 's' : ''} saved
+                </div>
+              )}
+            </div>
+
+            {/* Bookmarks */}
+            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                Bookmarks
+              </div>
+              <button
+                className={`w-full px-3 py-2 text-[10px] uppercase tracking-widest border transition-colors ${
+                  isCurrentPageBookmarked
+                    ? 'bg-dark-gray text-white border-dark-gray dark:bg-white dark:text-dark-gray dark:border-white' 
+                    : 'bg-transparent text-dark-gray dark:text-white border-dark-gray/30 dark:border-white/30'
+                }`}
+                onClick={toggleBookmark}
+              >
+                {isCurrentPageBookmarked ? '★ Bookmarked' : '☆ Bookmark Page'}
+              </button>
+              {bookmarks.length > 0 && (
+                <div className="relative">
+                  <button
+                    className="w-full px-3 py-2 text-[10px] uppercase tracking-widest border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors flex items-center justify-between"
+                    onClick={() => setShowBookmarksDropdown(!showBookmarksDropdown)}
+                  >
+                    <span>View Bookmarks ({bookmarks.length})</span>
+                    <span>{showBookmarksDropdown ? '▲' : '▼'}</span>
+                  </button>
+                  {showBookmarksDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white max-h-48 overflow-y-auto z-50">
+                      {bookmarks.map((bookmark) => (
+                        <button
+                          key={bookmark.bookmark_id}
+                          className={`w-full px-3 py-2 text-left text-[10px] border-b border-dark-gray/10 dark:border-white/10 hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors ${
+                            bookmark.page_number === currentPage ? 'bg-dark-gray/5 dark:bg-white/5' : ''
+                          }`}
+                          onClick={() => goToBookmark(bookmark.page_number)}
+                        >
+                          <div className="flex items-center justify-between">
+                            <span className="text-dark-gray dark:text-white">Page {bookmark.page_number}</span>
+                            {bookmark.page_number === currentPage && (
+                              <span className="text-dark-gray dark:text-white">●</span>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Theme */}
             <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
               <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
@@ -1314,6 +1918,60 @@ Provide helpful, concise responses about the book considering the context of the
           </div>
         </div>
       )}
+
+      {/* Highlight Menu */}
+      {showHighlightMenu && (
+        <div 
+          className="fixed z-50 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white shadow-lg"
+          style={{
+            left: `${highlightMenuPosition.x}px`,
+            top: `${highlightMenuPosition.y}px`,
+            transform: 'translate(-50%, -100%)'
+          }}
+        >
+          <div className="flex gap-1 p-2">
+            <button
+              onClick={() => saveHighlight('#ffeb3b')}
+              className="w-8 h-8 rounded-full border-2 border-dark-gray dark:border-white hover:scale-110 transition-transform"
+              style={{ backgroundColor: '#ffeb3b' }}
+              title="Yellow"
+            />
+            <button
+              onClick={() => saveHighlight('#4caf50')}
+              className="w-8 h-8 rounded-full border-2 border-dark-gray dark:border-white hover:scale-110 transition-transform"
+              style={{ backgroundColor: '#4caf50' }}
+              title="Green"
+            />
+            <button
+              onClick={() => saveHighlight('#2196f3')}
+              className="w-8 h-8 rounded-full border-2 border-dark-gray dark:border-white hover:scale-110 transition-transform"
+              style={{ backgroundColor: '#2196f3' }}
+              title="Blue"
+            />
+            <button
+              onClick={() => saveHighlight('#ff9800')}
+              className="w-8 h-8 rounded-full border-2 border-dark-gray dark:border-white hover:scale-110 transition-transform"
+              style={{ backgroundColor: '#ff9800' }}
+              title="Orange"
+            />
+            <button
+              onClick={() => saveHighlight('#e91e63')}
+              className="w-8 h-8 rounded-full border-2 border-dark-gray dark:border-white hover:scale-110 transition-transform"
+              style={{ backgroundColor: '#e91e63' }}
+              title="Pink"
+            />
+            <button
+              onClick={() => setShowHighlightMenu(false)}
+              className="w-8 h-8 flex items-center justify-center border-2 border-dark-gray dark:border-white hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors"
+              title="Cancel"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
+
     </div>
     </div>
   );
