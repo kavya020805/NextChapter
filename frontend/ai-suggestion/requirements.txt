@@ -3,6 +3,6 @@ uvicorn
 python-dotenv
 sentence-transformers
 supabase
-pinecone-client
+pinecone
 pydantic
 postgrest
