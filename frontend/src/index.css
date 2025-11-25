@@ -295,6 +295,7 @@ body.dark-mode .pdf-viewer-container {
   transition: all 0.2s;
   z-index: 10;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  color: #1a1a1a; /* Black text for light theme */
 }
 
 .page-nav:hover:not(:disabled) {
@@ -318,7 +319,7 @@ body.dark-mode .pdf-viewer-container {
 
 body.dark-mode .page-nav {
   background-color: rgba(45, 45, 45, 0.9);
-  color: white;
+  color: white; /* White text for dark theme */
 }
 
 body.dark-mode .page-nav:hover:not(:disabled) {

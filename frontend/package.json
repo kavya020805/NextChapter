@@ -12,6 +12,7 @@
 		"@fingerprintjs/fingerprintjs": "^5.0.1",
 		"@supabase/supabase-js": "^2.49.2",
 		"date-fns": "^4.1.0",
+		"dompurify": "^3.3.0",
 		"framer-motion": "^12.23.16",
 		"lucide-react": "^0.553.0",
 		"motion": "^12.23.24",

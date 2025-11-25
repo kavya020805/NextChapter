@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
+import Footer from '../components/Footer'
 import { useTheme } from '../contexts/ThemeContext'
 import { useAuth } from '../contexts/AuthContext'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff } from 'lucide-react'
 import { hasCompletedPersonalization } from '../lib/personalizationUtils'
 
 function SignInPage() {
@@ -16,6 +17,7 @@ function SignInPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
 
   // Redirect if already logged in
   useEffect(() => {
@@ -192,6 +194,7 @@ function SignInPage() {
                     <input
                       type="email"
                       id="email"
+                      data-testid="signin-email-input"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
@@ -208,15 +211,31 @@ function SignInPage() {
                     >
                       Password
                     </label>
-                    <input
-                      type="password"
-                      id="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="w-full bg-transparent border-2 border-white dark:border-dark-gray px-6 py-4 text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 focus:outline-none focus:border-white dark:focus:border-dark-gray transition-colors font-light"
-                      placeholder="Enter your password"
-                    />
+                    <div className="relative">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        id="password"
+                        data-testid="signin-password-input"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="w-full bg-transparent border-2 border-white dark:border-dark-gray px-6 py-4 pr-14 text-white dark:text-dark-gray placeholder-white/40 dark:placeholder-dark-gray/40 focus:outline-none focus:border-white dark:focus:border-dark-gray transition-colors font-light"
+                        placeholder="Enter your password"
+                      />
+                      <button
+                        type="button"
+                        data-testid="signin-password-toggle"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 text-white/60 dark:text-dark-gray/60 hover:text-white dark:hover:text-dark-gray transition-colors"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff className="w-5 h-5" />
+                        ) : (
+                          <Eye className="w-5 h-5" />
+                        )}
+                      </button>
+                    </div>
                   </div>
 
                   {/* Remember Me & Forgot Password */}
@@ -259,6 +278,7 @@ function SignInPage() {
                   <button
                     type="submit"
                     disabled={loading}
+                    data-testid="signin-submit-button"
                     className="group w-full inline-flex items-center justify-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-8 py-4 text-sm font-medium uppercase tracking-widest border-2 border-white dark:border-dark-gray transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <span className="relative z-10 transition-colors duration-300">
@@ -316,40 +336,7 @@ function SignInPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-dark-gray dark:bg-white border-t-2 border-white dark:border-dark-gray py-16">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="grid grid-cols-12 gap-8">
-            <div className="col-span-12 md:col-span-6">
-              <div className="text-4xl text-white dark:text-dark-gray mb-8 leading-none">
-                NextChapter
-              </div>
-              <p className="text-sm text-white/60 dark:text-dark-gray/60 font-light uppercase tracking-widest max-w-md">
-                Redefining digital reading with AI-powered intelligence
-              </p>
-            </div>
-            <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                <Link to="/" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  About
-                </Link>
-                <Link to="/books" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  Books
-                </Link>
-                <Link to="/subscription" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  Subscription
-                </Link>
-                <Link to="#" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  Privacy
-                </Link>
-              </div>
-              <div className="text-xs text-white/40 dark:text-dark-gray/40 font-light uppercase tracking-widest">
-                © 2025 NextChapter. All rights reserved.
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

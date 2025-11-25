@@ -16,6 +16,11 @@ import TrendingBooksPage from './pages/TrendingBooksPage'
 import HighestRatedBooksPage from './pages/HighestRatedBooksPage'
 import ExploreBooksPage from './pages/ExploreBooksPage'
 import OAuthCallbackPage from './pages/OAuthCallbackPage'
+import PrivacyPage from './pages/PrivacyPage'
+import TermsPage from './pages/TermsPage'
+import RefundsPage from './pages/RefundsPage'
+import ContactPage from './pages/ContactPage'
+import ShippingPage from './pages/ShippingPage'
 import Gallery from './components/Gallery'
 import GalleryLocal from './components/GalleryLocal'
 import Reader from './components/Reader'
@@ -23,18 +28,91 @@ import ReaderLocal from './components/ReaderLocal'
 import Admin from './components/Admin'
 import OAuthCallbackHandler from './components/OAuthCallbackHandler'
 import ProtectedRoute from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
   return (
-    <>
+    <ErrorBoundary>
       <OAuthCallbackHandler />
       <Routes>
-        {/* Public routes */}
+        {/* Public routes - Landing page accessible to everyone including admin */}
         <Route path="/" element={<LandingPage />} />
-        <Route path="/sign-in" element={<SignInPage />} />
-        <Route path="/sign-up" element={<SignUpPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
+        
+        {/* Auth routes - Block admin access */}
+        <Route 
+          path="/sign-in" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <SignInPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/sign-up" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <SignUpPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/forgot-password" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <ForgotPasswordPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/reset-password" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <ResetPasswordPage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Policy pages - Block admin access */}
+        <Route 
+          path="/privacy" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <PrivacyPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/terms" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <TermsPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/refunds" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <RefundsPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/contact" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <ContactPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/shipping" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <ShippingPage />
+            </ProtectedRoute>
+          } 
+        />
         
         {/* OAuth callback route - handles OAuth redirects for both old and new users */}
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
@@ -85,7 +163,7 @@ function App() {
         <Route 
           path="/explore" 
           element={
-            <ProtectedRoute>
+            <ProtectedRoute blockAdmin>
               <ExploreBooksPage />
             </ProtectedRoute>
           } 
@@ -171,7 +249,7 @@ function App() {
           } 
         />
       </Routes>
-    </>
+    </ErrorBoundary>
   )
 }
 

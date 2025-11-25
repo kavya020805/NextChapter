@@ -43,14 +43,15 @@ export async function getBookMetrics(bookId, days = 30) {
 
   try {
     // Get NewReads (books marked as read in the last N days)
+    // Note: Silently handle missing tables to avoid console errors
     const { count: newReads, error: readsError } = await supabase
       .from('book_reads')
       .select('*', { count: 'exact', head: true })
       .eq('book_id', bookId)
       .gte('read_at', cutoffDateStr)
 
-    if (readsError && readsError.code !== 'PGRST116') {
-      // PGRST116 is "relation does not exist" - we'll handle that gracefully
+    if (readsError && readsError.code !== 'PGRST116' && readsError.code !== 'PGRST205') {
+      // PGRST116 = "relation does not exist", PGRST205 = "table not found in schema cache"
       console.warn(`Error fetching reads for book ${bookId}:`, readsError)
     }
 
@@ -61,7 +62,7 @@ export async function getBookMetrics(bookId, days = 30) {
       .eq('book_id', bookId)
       .gte('added_at', cutoffDateStr)
 
-    if (wishlistError && wishlistError.code !== 'PGRST116') {
+    if (wishlistError && wishlistError.code !== 'PGRST116' && wishlistError.code !== 'PGRST205') {
       console.warn(`Error fetching wishlist for book ${bookId}:`, wishlistError)
     }
 
@@ -72,7 +73,7 @@ export async function getBookMetrics(bookId, days = 30) {
       .eq('book_id', bookId)
       .gte('rated_at', cutoffDateStr)
 
-    if (ratingsError && ratingsError.code !== 'PGRST116') {
+    if (ratingsError && ratingsError.code !== 'PGRST116' && ratingsError.code !== 'PGRST205') {
       console.warn(`Error fetching ratings for book ${bookId}:`, ratingsError)
     }
 
@@ -82,6 +83,11 @@ export async function getBookMetrics(bookId, days = 30) {
       : 0
 
     // Get Average Scroll Depth (average of all scroll depths for this book)
+    // Note: book_scroll_depth table doesn't exist yet, so we'll skip this metric
+    let avgScrollDepth = 0
+    
+    // Uncomment when book_scroll_depth table is created:
+    /*
     const { data: scrollDepths, error: scrollError } = await supabase
       .from('book_scroll_depth')
       .select('scroll_depth_percentage')
@@ -91,18 +97,20 @@ export async function getBookMetrics(bookId, days = 30) {
       console.warn(`Error fetching scroll depth for book ${bookId}:`, scrollError)
     }
 
-    const avgScrollDepth = scrollDepths && scrollDepths.length > 0
+    avgScrollDepth = scrollDepths && scrollDepths.length > 0
       ? scrollDepths.reduce((sum, s) => sum + (s.scroll_depth_percentage || 0), 0) / scrollDepths.length
       : 0
+    */
 
     // Get NewDiscussions (discussions created in the last N days)
+    // Note: book_discussions table doesn't exist yet, so we'll use comments instead
     const { count: newDiscussions, error: discussionsError } = await supabase
-      .from('book_discussions')
+      .from('book_comments')
       .select('*', { count: 'exact', head: true })
       .eq('book_id', bookId)
       .gte('created_at', cutoffDateStr)
 
-    if (discussionsError && discussionsError.code !== 'PGRST116') {
+    if (discussionsError && discussionsError.code !== 'PGRST116' && discussionsError.code !== 'PGRST205') {
       console.warn(`Error fetching discussions for book ${bookId}:`, discussionsError)
     }
 

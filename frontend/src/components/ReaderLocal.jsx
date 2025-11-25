@@ -47,8 +47,10 @@ const ReaderLocal = () => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioTime, setAudioTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
+  const [showControls, setShowControls] = useState(true);
   
   const viewerRef = useRef(null);
+  const controlsTimeoutRef = useRef(null);
   const headerRef = useRef(null);
   const lastScrollPageRef = useRef(1);
   // Track last page and timestamp used for reading session logging
@@ -102,6 +104,42 @@ const ReaderLocal = () => {
       setIsCurrentPageBookmarked(false);
     }
   }, [bookmarks, currentPage]);
+
+  // Auto-hide controls after 3 seconds of inactivity
+  useEffect(() => {
+    const handleMouseMove = () => {
+      setShowControls(true);
+      
+      // Clear existing timeout
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+      
+      // Set new timeout to hide controls after 3 seconds
+      controlsTimeoutRef.current = setTimeout(() => {
+        setShowControls(false);
+      }, 3000);
+    };
+
+    // Show controls initially
+    setShowControls(true);
+    
+    // Add event listener
+    window.addEventListener('mousemove', handleMouseMove);
+    
+    // Set initial timeout
+    controlsTimeoutRef.current = setTimeout(() => {
+      setShowControls(false);
+    }, 3000);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      if (controlsTimeoutRef.current) {
+        clearTimeout(controlsTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const loadHighlights = async () => {
     if (!bookId) return;
@@ -1410,8 +1448,20 @@ Provide helpful, concise responses about the book considering the context of the
           
           {/* PDF Viewer */}
           <div className={`flex-1 relative overflow-hidden ${readerTheme === 'reader' ? 'bg-black' : 'bg-white/5 dark:bg-dark-gray/5'}`}>
+            {/* Previous Page Button */}
             <button 
-              className={`absolute left-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed ${loading ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`
+                absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-10 
+                w-12 h-12
+                bg-white/90 dark:bg-dark-gray/90
+                ${readerTheme === 'reader' ? 'bg-dark-gray/90 text-white' : 'text-dark-gray dark:text-white'}
+                flex items-center justify-center
+                hover:bg-white dark:hover:bg-dark-gray hover:scale-105
+                transition-all duration-300
+                disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100
+                shadow-lg
+                ${loading || !showControls ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+              `}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1421,16 +1471,32 @@ Provide helpful, concise responses about the book considering the context of the
               }}
               disabled={currentPage <= 1}
               title="Previous Page"
+              aria-label="Previous Page"
             >
-              <ArrowLeft className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5" />
             </button>
+
+            {/* PDF Container */}
             <div 
               id="viewer" 
               ref={viewerRef} 
               className={`w-full h-full relative overflow-y-auto overflow-x-hidden pt-4 md:pt-6 ${loading ? 'invisible' : ''}`}
             ></div>
+
+            {/* Next Page Button */}
             <button 
-              className={`absolute right-8 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-transparent border-2 border-dark-gray dark:border-white text-dark-gray dark:text-white flex items-center justify-center hover:opacity-80 transition-opacity disabled:opacity-20 disabled:cursor-not-allowed ${readerTheme === 'reader' ? 'border-white text-white' : ''} ${loading ? 'opacity-0 pointer-events-none' : ''}`}
+              className={`
+                absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-10 
+                w-12 h-12
+                bg-white/90 dark:bg-dark-gray/90
+                ${readerTheme === 'reader' ? 'bg-dark-gray/90 text-white' : 'text-dark-gray dark:text-white'}
+                flex items-center justify-center
+                hover:bg-white dark:hover:bg-dark-gray hover:scale-105
+                transition-all duration-300
+                disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:scale-100
+                shadow-lg
+                ${loading || !showControls ? 'opacity-0 pointer-events-none' : 'opacity-100'}
+              `}
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -1440,8 +1506,9 @@ Provide helpful, concise responses about the book considering the context of the
               }}
               disabled={totalPages > 0 && currentPage >= totalPages}
               title="Next Page"
+              aria-label="Next Page"
             >
-              <ArrowRight className="w-4 h-4" />
+              <ArrowRight className="w-5 h-5" />
             </button>
             {loading && (
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-dark-gray dark:text-white text-sm uppercase tracking-widest">

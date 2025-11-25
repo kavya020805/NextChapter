@@ -104,39 +104,27 @@ function LibraryDropdownMobile() {
     setIsOpen(false)
   }
 
-  const currentOption = options.find(opt => location.pathname === opt.path) || options[0]
-  const currentLabel = currentOption.label
-
   return (
-    <div className="relative">
+    <div>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full text-left font-medium py-2 text-gray-700 dark:text-gray-300 hover:text-coral flex items-center justify-between transition-colors duration-200 cursor-pointer"
+        className="w-full px-3 py-2.5 text-sm uppercase tracking-wider text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white flex items-center justify-between transition-colors"
       >
-        <span>My Shelf: {currentLabel}</span>
-        <ChevronDown className={`w-4 h-4 transition-transform duration-300 ease-in-out ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
+        <span>My Shelf</span>
+        <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${isOpen ? 'rotate-180' : 'rotate-0'}`} />
       </button>
       {isOpen && (
-        <div 
-          className="mt-3 space-y-1.5 pl-4 overflow-hidden border-l-2 border-coral/20 dark:border-coral/30"
-          style={{ animation: 'slideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1)' }}
-        >
-          {options.map((option, index) => (
+        <div className="pl-6 space-y-1 mt-1">
+          {options.map((option) => (
             <button
               key={option.value}
               onClick={() => handleSelect(option)}
-              className={`w-full text-left py-2.5 px-4 text-sm transition-all duration-200 ease-out cursor-pointer relative ${
+              className={`w-full text-left px-3 py-2 text-xs uppercase tracking-wider transition-colors ${
                 location.pathname === option.path
-                  ? 'bg-coral/15 dark:bg-coral/20 text-coral font-semibold shadow-sm'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-coral hover:bg-gray-100/80 dark:hover:bg-gray-700/80 hover:translate-x-1'
+                  ? 'text-dark-gray dark:text-white bg-dark-gray/5 dark:bg-white/5'
+                  : 'text-dark-gray/50 dark:text-white/50 hover:text-dark-gray dark:hover:text-white'
               }`}
-              style={{
-                animation: `fadeIn 0.2s ease-out ${index * 0.04}s both`
-              }}
             >
-              {location.pathname === option.path && (
-                <span className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-2 w-1 h-6 bg-coral rounded-r-full"></span>
-              )}
               {option.label}
             </button>
           ))}
@@ -300,12 +288,14 @@ function FilterDropdown({ location, navigate }) {
 function ProfileDropdown({ user, onSignOut }) {
   const [isOpen, setIsOpen] = useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null)
+  const [username, setUsername] = useState(null)
   const location = useLocation()
 
   useEffect(() => {
-    const loadProfilePhoto = async () => {
+    const loadProfileData = async () => {
       if (!user?.id) {
         setProfilePhotoUrl(null)
+        setUsername(null)
         return
       }
       try {
@@ -315,20 +305,30 @@ function ProfileDropdown({ user, onSignOut }) {
         } else {
           setProfilePhotoUrl(null)
         }
+        if (profile?.username) {
+          setUsername(profile.username)
+        } else {
+          setUsername(null)
+        }
       } catch (error) {
-        console.error('Error loading profile photo:', error)
+        console.error('Error loading profile data:', error)
         setProfilePhotoUrl(null)
+        setUsername(null)
       }
     }
-    loadProfilePhoto()
+    loadProfileData()
     
     // Listen for profile updates
     const handleProfileUpdate = (event) => {
       if (event.detail?.profile_photo_url !== undefined) {
         setProfilePhotoUrl(event.detail.profile_photo_url)
-      } else {
-        // If no URL in event, reload from database
-        loadProfilePhoto()
+      }
+      if (event.detail?.username !== undefined) {
+        setUsername(event.detail.username)
+      }
+      // If no specific fields in event, reload from database
+      if (!event.detail?.profile_photo_url && !event.detail?.username) {
+        loadProfileData()
       }
     }
     
@@ -399,7 +399,7 @@ function ProfileDropdown({ user, onSignOut }) {
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-semibold uppercase tracking-widest text-dark-gray dark:text-white truncate">
-                    {user?.email || 'User'}
+                    {username || user?.email?.split('@')[0] || user?.email || 'User'}
                   </p>
                   <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-0.5">Account</p>
                 </div>
@@ -442,15 +442,17 @@ function ProfileDropdown({ user, onSignOut }) {
 function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [profilePhotoUrl, setProfilePhotoUrl] = useState(null)
+  const [username, setUsername] = useState(null)
   const { isDark, toggleTheme } = useTheme()
   const { user, signOut } = useAuth()
   const location = useLocation()
   const navigate = useNavigate()
 
   useEffect(() => {
-    const loadProfilePhoto = async () => {
+    const loadProfileData = async () => {
       if (!user?.id) {
         setProfilePhotoUrl(null)
+        setUsername(null)
         return
       }
       try {
@@ -460,20 +462,30 @@ function Header() {
         } else {
           setProfilePhotoUrl(null)
         }
+        if (profile?.username) {
+          setUsername(profile.username)
+        } else {
+          setUsername(null)
+        }
       } catch (error) {
-        console.error('Error loading profile photo:', error)
+        console.error('Error loading profile data:', error)
         setProfilePhotoUrl(null)
+        setUsername(null)
       }
     }
-    loadProfilePhoto()
+    loadProfileData()
     
     // Listen for profile updates
     const handleProfileUpdate = (event) => {
       if (event.detail?.profile_photo_url !== undefined) {
         setProfilePhotoUrl(event.detail.profile_photo_url)
-      } else {
-        // If no URL in event, reload from database
-        loadProfilePhoto()
+      }
+      if (event.detail?.username !== undefined) {
+        setUsername(event.detail.username)
+      }
+      // If no specific fields in event, reload from database
+      if (!event.detail?.profile_photo_url && !event.detail?.username) {
+        loadProfileData()
       }
     }
     
@@ -499,28 +511,28 @@ function Header() {
 
   return (
     <header className="bg-white dark:bg-dark-gray border-b border-dark-gray dark:border-white sticky top-0 z-50">
-      <div className="max-w-7xl mx-auto px-8 py-6">
-        <div className="grid grid-cols-12 items-center gap-4">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-6">
+        <div className="flex items-center justify-between">
           {/* Logo - Left aligned */}
-          <div className="col-span-3">
+          <div className="flex-shrink-0">
             <Link to="/" className="flex items-center">
               <img
                 src="/LOGO.svg"
                 alt="NextChapter logo"
-                className="h-10 w-auto"
+                className="h-7 sm:h-8 md:h-10 w-auto"
               />
             </Link>
           </div>
           
-          {/* Desktop Navigation - Centered grid */}
-          <nav className="hidden md:flex items-center justify-center col-span-6 gap-12">
+          {/* Desktop Navigation - Centered */}
+          <nav className="hidden md:flex items-center justify-center flex-1 gap-8 lg:gap-12 mx-8">
             <Link to="/books" className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === '/books' ? 'text-dark-gray dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-dark-gray dark:hover:text-white'}`}>
               Library
             </Link>
             <LibraryDropdown location={location} />
             <Link 
               to="/subscription" 
-              className={`bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-6 py-2 text-xs font-medium uppercase tracking-widest hover:scale-105 subscription-glow ${
+              className={`bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-4 lg:px-6 py-2 text-xs font-medium uppercase tracking-widest hover:scale-105 subscription-glow ${
                 location.pathname === '/subscription' ? 'opacity-100' : ''
               }`}
             >
@@ -529,7 +541,7 @@ function Header() {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="hidden md:flex items-center justify-end col-span-3 gap-4">
+          <div className="hidden md:flex items-center justify-end gap-3 lg:gap-4">
             <FilterDropdown location={location} navigate={navigate} />
             
             {user ? (
@@ -549,87 +561,112 @@ function Header() {
           </div>
 
           {/* Mobile Menu Button */}
-          <div className="md:hidden flex items-center space-x-2">
+          <div className="md:hidden flex items-center">
             <button 
-              className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              className="p-2 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors touch-manipulation"
               onClick={() => setIsMenuOpen(!isMenuOpen)}
+              aria-label="Toggle menu"
             >
               {isMenuOpen ? (
-                <X className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                <X className="w-6 h-6 text-dark-gray dark:text-white" />
               ) : (
-                <Menu className="w-6 h-6 text-gray-700 dark:text-gray-300" />
+                <Menu className="w-6 h-6 text-dark-gray dark:text-white" />
               )}
             </button>
           </div>
         </div>
 
-        {/* Mobile Menu */}
+        {/* Mobile Menu - Minimal Design */}
         {isMenuOpen && (
-          <div className="md:hidden mt-4 pb-4 border-t border-dark-gray/20 dark:border-white/20 pt-4 animate-fade-in">
-            <nav className="flex flex-col space-y-3">
-              <Link to="/books" className={`font-medium py-2 transition-colors ${location.pathname === '/books' ? 'text-coral' : 'text-dark-gray/70 dark:text-white/70 hover:text-coral'}`}>
+          <div className="md:hidden mt-3 pb-3 border-t border-dark-gray/10 dark:border-white/10 pt-3">
+            <nav className="flex flex-col space-y-1">
+              {/* Library Link */}
+              <Link 
+                to="/books" 
+                onClick={() => setIsMenuOpen(false)}
+                className={`px-3 py-2.5 text-sm uppercase tracking-wider transition-colors ${
+                  location.pathname === '/books' 
+                    ? 'text-dark-gray dark:text-white bg-dark-gray/5 dark:bg-white/5' 
+                    : 'text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white'
+                }`}
+              >
                 Library
               </Link>
+
+              {/* My Shelf Submenu */}
               <LibraryDropdownMobile />
+
+              {/* Subscription Link */}
               <Link 
-                to="/subscription" 
-                className="w-full bg-coral hover:bg-pink-500 text-white px-6 py-2.5 rounded-full font-medium hover:scale-105 subscription-glow text-left"
+                to="/subscription"
+                onClick={() => setIsMenuOpen(false)}
+                className="mx-3 mt-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-4 py-2.5 text-xs uppercase tracking-widest text-center font-medium transition-all hover:opacity-90"
               >
                 Subscription
               </Link>
-              <div className="pt-2">
-                {user ? (
-                  <>
-                    <div className="px-4 py-2 text-sm text-dark-gray/70 dark:text-white/70 border-b border-dark-gray/20 dark:border-white/20 mb-2">
-                      <div className="flex items-center gap-2 mb-1">
-                        {profilePhotoUrl ? (
-                          <>
-                            <img
-                              src={profilePhotoUrl}
-                              alt="Profile"
-                              className="w-5 h-5 rounded-full object-cover border border-dark-gray/20 dark:border-white/20"
-                              onError={(e) => {
-                                e.target.style.display = 'none'
-                                e.target.nextElementSibling.style.display = 'block'
-                              }}
-                            />
-                            <UserCircle className="w-5 h-5 hidden" />
-                          </>
-                        ) : (
-                          <UserCircle className="w-5 h-5" />
-                        )}
-                        <span className="font-medium truncate">{user.email}</span>
-                      </div>
+
+              {/* Divider */}
+              <div className="h-px bg-dark-gray/10 dark:bg-white/10 my-2"></div>
+
+              {/* User Section */}
+              {user ? (
+                <>
+                  {/* User Info */}
+                  <div className="px-3 py-2 flex items-center gap-2">
+                    {profilePhotoUrl ? (
+                      <img
+                        src={profilePhotoUrl}
+                        alt="Profile"
+                        className="w-8 h-8 rounded-full object-cover border border-dark-gray/20 dark:border-white/20"
+                        onError={(e) => {
+                          e.target.style.display = 'none'
+                          e.target.nextElementSibling.style.display = 'flex'
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-8 h-8 rounded-full bg-dark-gray/10 dark:bg-white/10 items-center justify-center ${profilePhotoUrl ? 'hidden' : 'flex'}`}>
+                      <User className="w-4 h-4 text-dark-gray dark:text-white" />
                     </div>
-                    <Link
-                      to="/profile"
-                      onClick={() => setIsMenuOpen(false)}
-                      className={`w-full text-left font-medium py-2 transition-colors flex items-center gap-2 ${
-                        location.pathname === '/profile'
-                          ? 'text-coral'
-                          : 'text-dark-gray/70 dark:text-white/70 hover:text-coral'
-                      }`}
-                    >
-                      <User className="w-4 h-4" />
-                      User Profile
-                    </Link>
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full text-left text-dark-gray/70 dark:text-white/70 hover:bg-red-500 dark:hover:bg-red-600 hover:text-white font-medium py-2 px-3 transition-all duration-200 ease-out flex items-center gap-2"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      Logout
-                    </button>
-                  </>
-                ) : (
-                  <Link 
-                    to="/sign-in" 
-                    className="w-full text-left text-dark-gray/70 dark:text-white/70 hover:text-coral font-medium py-2 transition-colors"
+                    <span className="text-xs text-dark-gray/60 dark:text-white/60 truncate flex-1">
+                      {username || user.email?.split('@')[0] || user.email}
+                    </span>
+                  </div>
+
+                  {/* Profile Link */}
+                  <Link
+                    to="/profile"
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`px-3 py-2.5 text-sm uppercase tracking-wider transition-colors flex items-center gap-2 ${
+                      location.pathname === '/profile'
+                        ? 'text-dark-gray dark:text-white bg-dark-gray/5 dark:bg-white/5'
+                        : 'text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white'
+                    }`}
                   >
-                    Sign In
+                    <User className="w-4 h-4" />
+                    Profile
                   </Link>
-                )}
-              </div>
+
+                  {/* Logout Button */}
+                  <button
+                    onClick={() => {
+                      setIsMenuOpen(false)
+                      handleSignOut()
+                    }}
+                    className="px-3 py-2.5 text-sm uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Logout
+                  </button>
+                </>
+              ) : (
+                <Link 
+                  to="/sign-in"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="px-3 py-2.5 text-sm uppercase tracking-wider text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white transition-colors"
+                >
+                  Sign In
+                </Link>
+              )}
             </nav>
           </div>
         )}

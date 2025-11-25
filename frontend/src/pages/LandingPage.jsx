@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import Header from '../components/Header'
 import HeroSection from '../components/HeroSection'
+import Footer from '../components/Footer'
 import CountUp from '../components/CountUp'
 import { BookOpen, Sparkles, Brain, Search, BookMarked, Globe, ArrowRight, TrendingUp, MessageCircle, Download, Trophy } from 'lucide-react'
 
@@ -9,7 +10,7 @@ import { BookOpen, Sparkles, Brain, Search, BookMarked, Globe, ArrowRight, Trend
 function CounterStat({ target, suffix, label, duration = 2 }) {
   return (
     <div>
-      <div className="text-7xl md:text-8xl text-dark-gray dark:text-white mb-4 leading-none">
+      <div className="text-5xl sm:text-6xl md:text-7xl lg:text-8xl text-dark-gray dark:text-white mb-3 sm:mb-4 leading-none">
         <CountUp
           from={0}
           to={target}
@@ -79,18 +80,18 @@ function LandingPage() {
       <HeroSection />
       
       {/* About Section - Swiss Grid */}
-      <section className="bg-dark-gray dark:bg-white py-24 md:py-32">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="grid grid-cols-12 gap-8 md:gap-16">
-            <div className="col-span-12 md:col-span-4">
-              <h2 className="text-5xl md:text-6xl text-white dark:text-dark-gray mb-8 leading-none">
+      <section className="bg-dark-gray dark:bg-white py-16 sm:py-20 md:py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 md:gap-12 lg:gap-16">
+            <div className="md:col-span-4">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-white dark:text-dark-gray mb-6 sm:mb-8 leading-none">
                 About
                 <br />
                 NextChapter
               </h2>
             </div>
-            <div className="col-span-12 md:col-span-8 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
-              <p className="text-lg md:text-xl text-white/70 dark:text-dark-gray/70 leading-relaxed font-light max-w-2xl">
+            <div className="md:col-span-8 border-t-2 border-white dark:border-dark-gray pt-6 sm:pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-8 lg:pl-12">
+              <p className="text-base sm:text-lg md:text-xl text-white/70 dark:text-dark-gray/70 leading-relaxed font-light max-w-2xl">
                 NextChapter is more than just an online bookstore—it's a revolutionary platform that redefines 
                 digital reading. We combine cutting-edge AI technology with a beautifully designed interface 
                 to create an unparalleled reading experience. Discover, purchase, and read books with 
@@ -103,25 +104,25 @@ function LandingPage() {
       </section>
 
       {/* Features Section - Bento Grid */}
-      <section className="bg-white dark:bg-dark-gray py-24 md:py-32">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="grid grid-cols-12 gap-8 mb-20">
-            <div className="col-span-12 md:col-span-4">
-              <h2 className="text-5xl md:text-6xl text-dark-gray dark:text-white mb-6 leading-none">
+      <section className="bg-white dark:bg-dark-gray py-16 sm:py-20 md:py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-6 sm:gap-8 mb-12 sm:mb-16 md:mb-20">
+            <div className="md:col-span-4">
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-dark-gray dark:text-white mb-4 sm:mb-6 leading-none">
                 Features
               </h2>
             </div>
-            <div className="col-span-12 md:col-span-8 border-t-2 border-dark-gray dark:border-white pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
-              <p className="text-lg text-dark-gray/70 dark:text-white/70 font-light">
+            <div className="md:col-span-8 border-t-2 border-dark-gray dark:border-white pt-6 sm:pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-8 lg:pl-12">
+              <p className="text-base sm:text-lg text-dark-gray/70 dark:text-white/70 font-light">
                 Everything you need for the perfect reading journey
               </p>
             </div>
           </div>
 
           {/* Bento Grid Layout */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-1 md:gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 sm:gap-3 md:gap-2">
             {/* AI Recommendations - Large Card (2x2) */}
-            <div className="md:col-span-2 md:row-span-2 border-2 border-dark-gray dark:border-white p-6 md:p-8 lg:p-10 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-all duration-300 hover:scale-[1.02] group relative overflow-hidden">
+            <div className="md:col-span-2 md:row-span-2 border-2 border-dark-gray dark:border-white p-6 sm:p-8 md:p-6 lg:p-8 xl:p-10 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-all duration-300 md:hover:scale-[1.02] group relative overflow-hidden">
               {/* Animated Background Glow */}
               <motion.div
                 className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
@@ -772,10 +773,10 @@ function LandingPage() {
       </section>
 
       {/* Stats Section - Swiss Grid */}
-      <section className="bg-white dark:bg-dark-gray py-24 md:py-32">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="grid grid-cols-12 gap-8 md:gap-16 border-t-2 border-dark-gray dark:border-white pt-16">
-            <div className="col-span-12 md:col-span-4">
+      <section className="bg-white dark:bg-dark-gray py-16 sm:py-20 md:py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10 md:gap-12 lg:gap-16 border-t-2 border-dark-gray dark:border-white pt-10 sm:pt-12 md:pt-16">
+            <div>
               <CounterStat 
                 target={10000} 
                 suffix="+" 
@@ -783,7 +784,7 @@ function LandingPage() {
                 duration={2.5}
               />
             </div>
-            <div className="col-span-12 md:col-span-4 border-t-2 border-dark-gray dark:border-white pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
+            <div className="border-t-2 md:border-t-0 md:border-l-2 border-dark-gray dark:border-white pt-8 md:pt-0 md:pl-8 lg:pl-12">
               <CounterStat 
                 target={50000} 
                 suffix="+" 
@@ -791,7 +792,7 @@ function LandingPage() {
                 duration={3}
               />
             </div>
-            <div className="col-span-12 md:col-span-4 border-t-2 border-dark-gray dark:border-white pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
+            <div className="border-t-2 md:border-t-0 md:border-l-2 border-dark-gray dark:border-white pt-8 md:pt-0 md:pl-8 lg:pl-12">
               <CounterStat 
                 target={4.8} 
                 suffix="" 
@@ -804,23 +805,23 @@ function LandingPage() {
       </section>
 
       {/* CTA Section - Swiss Style */}
-      <section className="bg-dark-gray dark:bg-white py-24 md:py-32">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="grid grid-cols-12 gap-8 md:gap-16">
-            <div className="col-span-12 md:col-span-6">
-              <h2 className="text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-8 leading-none">
+      <section className="bg-dark-gray dark:bg-white py-16 sm:py-20 md:py-24 lg:py-32">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8 md:gap-12 lg:gap-16">
+            <div>
+              <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-white dark:text-dark-gray mb-6 sm:mb-8 leading-none">
                 Ready to Start
                 <br />
                 Your Next Chapter?
               </h2>
             </div>
-            <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12 flex flex-col justify-center">
-              <p className="text-lg text-white/70 dark:text-dark-gray/70 mb-8 font-light">
+            <div className="border-t-2 border-white dark:border-dark-gray pt-6 sm:pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-8 lg:pl-12 flex flex-col justify-center">
+              <p className="text-base sm:text-lg text-white/70 dark:text-dark-gray/70 mb-6 sm:mb-8 font-light">
                 Join thousands of readers discovering their next favorite book
               </p>
               <Link 
                 to="/books" 
-                className="group inline-flex items-center gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-8 py-4 text-sm font-medium uppercase tracking-widest border-2 border-white dark:border-dark-gray w-fit transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative"
+                className="group inline-flex items-center justify-center sm:justify-start gap-3 bg-white dark:bg-dark-gray text-dark-gray dark:text-white px-6 sm:px-8 py-3 sm:py-4 text-xs sm:text-sm font-medium uppercase tracking-widest border-2 border-white dark:border-dark-gray w-full sm:w-fit transition-all duration-300 hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray overflow-hidden relative touch-manipulation"
               >
                 <span className="relative z-10 transition-colors duration-300">Get Started Free</span>
                 <ArrowRight 
@@ -832,32 +833,7 @@ function LandingPage() {
         </div>
       </section>
 
-      {/* Footer - Swiss Style */}
-      <footer className="bg-dark-gray dark:bg-white border-t-2 border-white dark:border-dark-gray py-16">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="grid grid-cols-12 gap-8">
-            <div className="col-span-12 md:col-span-6">
-              <div className="text-4xl text-white dark:text-dark-gray mb-8 leading-none">
-                NextChapter
-              </div>
-              <p className="text-sm text-white/60 dark:text-dark-gray/60 font-light uppercase tracking-widest max-w-md">
-                Redefining digital reading with AI-powered intelligence
-              </p>
-            </div>
-            <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                <a href="#" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">About</a>
-                <a href="#" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">Features</a>
-                <a href="#" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">Contact</a>
-                <a href="#" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">Privacy</a>
-              </div>
-              <div className="text-xs text-white/40 dark:text-dark-gray/40 font-light uppercase tracking-widest">
-                © 2025 NextChapter. All rights reserved.
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

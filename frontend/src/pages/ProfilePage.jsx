@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
+import Footer from '../components/Footer'
 import { useAuth } from '../contexts/AuthContext'
 import { User, Mail, Calendar, ArrowRight, X, Edit2, Save, ArrowUpRight, Upload, Camera } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
@@ -800,41 +801,7 @@ function ProfilePage() {
           </div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer className="bg-dark-gray dark:bg-white border-t-2 border-white dark:border-dark-gray py-16">
-        <div className="max-w-7xl mx-auto px-8">
-          <div className="grid grid-cols-12 gap-8">
-            <div className="col-span-12 md:col-span-6">
-              <div className="text-4xl text-white dark:text-dark-gray mb-8 leading-none">
-                NextChapter
-              </div>
-              <p className="text-sm text-white/60 dark:text-dark-gray/60 font-light uppercase tracking-widest max-w-md">
-                Redefining digital reading with AI-powered intelligence
-              </p>
-            </div>
-            <div className="col-span-12 md:col-span-6 border-t-2 border-white dark:border-dark-gray pt-8 md:pt-0 md:border-t-0 md:border-l-2 md:pl-12">
-              <div className="grid grid-cols-2 gap-8 mb-8">
-                <Link to="/" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  Home
-                </Link>
-                <Link to="/books" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  Books
-                </Link>
-                <Link to="/subscription" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  Subscription
-                </Link>
-                <Link to="/profile" className="text-xs text-white dark:text-dark-gray font-medium uppercase tracking-widest hover:opacity-60 transition-opacity">
-                  Profile
-                </Link>
-              </div>
-              <div className="text-xs text-white/40 dark:text-dark-gray/40 font-light uppercase tracking-widest">
-                © 2025 NextChapter. All rights reserved.
-              </div>
-            </div>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

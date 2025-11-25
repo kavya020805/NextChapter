@@ -42,7 +42,10 @@ export function AuthProvider({ children }) {
       if (event === 'SIGNED_OUT') {
         console.log('👋 SIGNED_OUT event detected')
         console.log('🚀 Redirecting to landing page after sign out')
-        window.location.href = '/'
+        // Use setTimeout to ensure state updates complete before redirect
+        setTimeout(() => {
+          window.location.href = '/'
+        }, 100)
       }
       
       // For SIGNED_IN events, let the OAuthCallbackPage handle redirects
