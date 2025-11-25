@@ -4,8 +4,13 @@ import Footer from '../components/Footer'
 
 function PrivacyPage() {
   return (
-    <div className="min-h-screen bg-dark-gray dark:bg-white">
-      <Header />
+    <>
+      {/* Meta tags for Razorpay validation */}
+      <title>Privacy Policy - NextChapter</title>
+      <meta name="description" content="NextChapter Privacy Policy - Learn how we collect, use, and protect your personal information." />
+      
+      <div className="min-h-screen bg-dark-gray dark:bg-white">
+        <Header />
       
       <section className="bg-dark-gray dark:bg-white py-16 sm:py-20 md:py-24 lg:py-32">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -184,8 +189,9 @@ function PrivacyPage() {
           </div>
         </div>
       </section>
-      <Footer />
-    </div>
+        <Footer />
+      </div>
+    </>
   )
 }
 

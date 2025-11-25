@@ -8,6 +8,9 @@ import { sanitizeObject } from '../lib/sanitize'
 import logger from '../lib/logger'
 
 function ContactPage() {
+  // Meta tags for Razorpay validation
+  document.title = 'Contact Us - NextChapter';
+  
   const [formData, setFormData] = useState({
     name: '',
     email: '',
