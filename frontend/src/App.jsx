@@ -28,10 +28,11 @@ import ReaderLocal from './components/ReaderLocal'
 import Admin from './components/Admin'
 import OAuthCallbackHandler from './components/OAuthCallbackHandler'
 import ProtectedRoute from './components/ProtectedRoute'
+import ErrorBoundary from './components/ErrorBoundary'
 
 function App() {
   return (
-    <>
+    <ErrorBoundary>
       <OAuthCallbackHandler />
       <Routes>
         {/* Public routes - Landing page accessible to everyone including admin */}
@@ -248,7 +249,7 @@ function App() {
           } 
         />
       </Routes>
-    </>
+    </ErrorBoundary>
   )
 }
 

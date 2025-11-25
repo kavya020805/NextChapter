@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { hasCompletedPersonalization, isAdmin } from '../lib/personalizationUtils'
 import { reportLoginActivity } from '../lib/loginActivity'
+import logger from '../lib/logger'
 
 function OAuthCallbackPage() {
   const navigate = useNavigate()
@@ -11,27 +12,27 @@ function OAuthCallbackPage() {
   useEffect(() => {
     const handleOAuthCallback = async () => {
       try {
-        console.log('🔄 OAuth Callback Page: Processing authentication...')
-        console.log('📍 Current URL:', window.location.href)
-        console.log('🔗 Hash present:', window.location.hash ? 'YES' : 'NO')
+        logger.log('🔄 OAuth Callback Page: Processing authentication...')
+        logger.log('📍 Current URL:', window.location.href)
+        logger.log('🔗 Hash present:', window.location.hash ? 'YES' : 'NO')
 
         // Get the session from the URL hash
         const { data: { session }, error: sessionError } = await supabase.auth.getSession()
 
         if (sessionError) {
-          console.error('❌ Session error:', sessionError)
+          logger.error('❌ Session error:', sessionError)
           setError(sessionError.message)
           setTimeout(() => navigate('/sign-in'), 3000)
           return
         }
 
         if (!session) {
-          console.log('⚠️ No session found, redirecting to sign-in')
+          logger.log('⚠️ No session found, redirecting to sign-in')
           navigate('/sign-in', { replace: true })
           return
         }
 
-        console.log('✅ Session found:', session.user.email)
+        logger.log('✅ Session found:', session.user.email)
 
         // Report login activity
         await reportLoginActivity(session)
@@ -40,7 +41,7 @@ function OAuthCallbackPage() {
         const admin = await isAdmin(session.user.id)
         
         if (admin) {
-          console.log('🚀 Admin user, redirecting to /admin')
+          logger.log('🚀 Admin user, redirecting to /admin')
           navigate('/admin', { replace: true })
           return
         }
@@ -49,15 +50,15 @@ function OAuthCallbackPage() {
         const completed = await hasCompletedPersonalization(session.user.id)
         
         if (!completed) {
-          console.log('🚀 New user, redirecting to /personalization')
+          logger.log('🚀 New user, redirecting to /personalization')
           navigate('/personalization', { replace: true })
         } else {
-          console.log('🚀 Existing user, redirecting to /books')
+          logger.log('🚀 Existing user, redirecting to /books')
           navigate('/books', { replace: true })
         }
 
       } catch (err) {
-        console.error('❌ OAuth callback error:', err)
+        logger.error('❌ OAuth callback error:', err)
         setError(err.message || 'Authentication failed')
         setTimeout(() => navigate('/sign-in'), 3000)
       }

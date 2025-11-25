@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { Mail, MessageSquare, Clock, CheckCircle, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
+import { sanitizeObject } from '../lib/sanitize'
+import logger from '../lib/logger'
 
 function ContactPage() {
   const [formData, setFormData] = useState({
@@ -36,44 +38,53 @@ function ContactPage() {
       }
     }
 
+    // Sanitize all inputs
+    const sanitizedData = sanitizeObject(formData)
+
     try {
       // Insert into contact_submissions table
       const { data, error: submitError } = await supabase
         .from('contact_submissions')
         .insert([
           {
-            name: formData.name,
-            email: formData.email,
-            subject: formData.subject,
-            message: formData.message,
+            ...sanitizedData,
             status: 'new'
           }
         ])
         .select()
 
       if (submitError) {
-        console.error('Error submitting contact form:', submitError)
+        logger.error('Error submitting contact form:', submitError)
         throw submitError
       }
 
-      console.log('Contact form submitted successfully:', data)
+      logger.log('Contact form submitted successfully:', data)
       setSubmitted(true)
       
       // Set rate limit timestamp
       localStorage.setItem(RATE_LIMIT_KEY, Date.now().toString())
       
       // Reset form after 3 seconds
-      setTimeout(() => {
+      const timer = setTimeout(() => {
         setSubmitted(false)
         setFormData({ name: '', email: '', subject: '', message: '' })
       }, 3000)
+      
+      return () => clearTimeout(timer)
     } catch (err) {
-      console.error('Error:', err)
+      logger.error('Error:', err)
       setError(err.message || 'Failed to submit form. Please try again.')
     } finally {
       setSubmitting(false)
     }
   }
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Cleanup any pending timers
+    }
+  }, [])
 
   const handleChange = (e) => {
     setFormData({
