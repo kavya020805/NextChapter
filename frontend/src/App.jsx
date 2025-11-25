@@ -38,11 +38,11 @@ function App() {
         {/* Public routes - Landing page accessible to everyone including admin */}
         <Route path="/" element={<LandingPage />} />
         
-        {/* Auth routes - Block admin access */}
+        {/* Auth routes - Public access, redirect if already logged in */}
         <Route 
           path="/sign-in" 
           element={
-            <ProtectedRoute blockAdmin>
+            <ProtectedRoute publicRoute>
               <SignInPage />
             </ProtectedRoute>
           } 
@@ -50,7 +50,7 @@ function App() {
         <Route 
           path="/sign-up" 
           element={
-            <ProtectedRoute blockAdmin>
+            <ProtectedRoute publicRoute>
               <SignUpPage />
             </ProtectedRoute>
           } 
@@ -58,7 +58,7 @@ function App() {
         <Route 
           path="/forgot-password" 
           element={
-            <ProtectedRoute blockAdmin>
+            <ProtectedRoute publicRoute>
               <ForgotPasswordPage />
             </ProtectedRoute>
           } 
@@ -66,58 +66,23 @@ function App() {
         <Route 
           path="/reset-password" 
           element={
-            <ProtectedRoute blockAdmin>
+            <ProtectedRoute publicRoute>
               <ResetPasswordPage />
             </ProtectedRoute>
           } 
         />
         
-        {/* Policy pages - Block admin access */}
-        <Route 
-          path="/privacy" 
-          element={
-            <ProtectedRoute blockAdmin>
-              <PrivacyPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/terms" 
-          element={
-            <ProtectedRoute blockAdmin>
-              <TermsPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/refunds" 
-          element={
-            <ProtectedRoute blockAdmin>
-              <RefundsPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/contact" 
-          element={
-            <ProtectedRoute blockAdmin>
-              <ContactPage />
-            </ProtectedRoute>
-          } 
-        />
-        <Route 
-          path="/shipping" 
-          element={
-            <ProtectedRoute blockAdmin>
-              <ShippingPage />
-            </ProtectedRoute>
-          } 
-        />
+        {/* Policy pages - Public access for everyone */}
+        <Route path="/privacy" element={<PrivacyPage />} />
+        <Route path="/terms" element={<TermsPage />} />
+        <Route path="/refunds" element={<RefundsPage />} />
+        <Route path="/contact" element={<ContactPage />} />
+        <Route path="/shipping" element={<ShippingPage />} />
         
         {/* OAuth callback route - handles OAuth redirects for both old and new users */}
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />
         
-        {/* Personalization - shown after first sign-in */}
+        {/* Personalization - shown after first sign-in, blocks admin */}
         <Route 
           path="/personalization" 
           element={
@@ -127,7 +92,7 @@ function App() {
           } 
         />
         
-        {/* Protected routes - require authentication */}
+        {/* Protected routes - require authentication, block admin */}
         <Route 
           path="/books" 
           element={

@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { isAdmin as fetchIsAdmin } from '../lib/personalizationUtils'
 
-function ProtectedRoute({ children, requireAdmin = false, blockAdmin = false }) {
+function ProtectedRoute({ children, requireAdmin = false, blockAdmin = false, publicRoute = false }) {
   const { user, loading } = useAuth()
   const [roleLoading, setRoleLoading] = useState(true)
   const [isAdminUser, setIsAdminUser] = useState(false)
@@ -59,20 +59,29 @@ function ProtectedRoute({ children, requireAdmin = false, blockAdmin = false }) 
     )
   }
 
-  // If blockAdmin is true, this is a public/auth page - allow access if not logged in OR if logged in but not admin
-  if (blockAdmin) {
-    // If user is logged in and is admin, redirect to admin dashboard
-    if (user && isAdminUser) {
-      return <Navigate to="/admin" replace />
+  // Handle public routes (auth pages like sign-in, sign-up)
+  // These should be accessible without authentication, but redirect logged-in users
+  if (publicRoute) {
+    if (user) {
+      // If user is admin, send to admin dashboard
+      if (isAdminUser) {
+        return <Navigate to="/admin" replace />
+      }
+      // If regular user, send to books page
+      return <Navigate to="/books" replace />
     }
-    // Otherwise (no user or non-admin user), allow access to the page
+    // No user, allow access to public route
     return children
   }
 
-  // For protected routes (requireAdmin or regular protected routes)
-  // Redirect to sign-in if not authenticated
+  // For all other routes, require authentication
   if (!user) {
     return <Navigate to="/sign-in" replace />
+  }
+
+  // If this route blocks admin and user is admin, redirect to admin dashboard
+  if (blockAdmin && isAdminUser) {
+    return <Navigate to="/admin" replace />
   }
 
   // If this route is admin-only and user is not admin, send to main app
