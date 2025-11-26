@@ -18,9 +18,11 @@ const Reader = () => {
   const [messages, setMessages] = useState([]);
   const [chatbotInput, setChatbotInput] = useState('');
   const [loading, setLoading] = useState(true);
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
 
   const viewerRef = useRef(null);
   const pdfUrlRef = useRef('');
+  const messagesEndRef = useRef(null);
 
   const {
     loadPdf,
@@ -54,10 +56,22 @@ const Reader = () => {
       setDarkMode(true);
       document.body.classList.add('dark-mode');
     }
+    
+    // Use environment variable as default, or fall back to saved key
+    const envGroqKey = import.meta.env.VITE_GROQ_API_KEY;
     const savedKey = localStorage.getItem('ai_api_key');
     const savedProvider = localStorage.getItem('ai_api_provider');
-    if (savedKey) setApiKey(savedKey);
-    if (savedProvider) setApiProvider(savedProvider);
+    
+    if (savedKey) {
+      setApiKey(savedKey);
+    } else if (envGroqKey) {
+      setApiKey(envGroqKey);
+      console.log('Using Groq API key from environment:', envGroqKey.substring(0, 10) + '...');
+    }
+    
+    if (savedProvider) {
+      setApiProvider(savedProvider);
+    }
   }, []);
 
   useEffect(() => { 
@@ -170,52 +184,91 @@ const Reader = () => {
   };
 
   const sendMessage = async () => {
-    if (!chatbotInput.trim() || !apiKey) return;
+    console.log('Send button clicked', { 
+      hasInput: !!chatbotInput.trim(), 
+      hasApiKey: !!apiKey, 
+      apiProvider: apiProvider,
+      isSending: isSendingMessage 
+    });
+    
+    if (!chatbotInput.trim() || !apiKey || isSendingMessage) {
+      console.log('Message blocked - missing requirements');
+      return;
+    }
     
     const message = chatbotInput.trim();
     setMessages(prev => [...prev, { role: 'user', text: message }]);
     setChatbotInput('');
+    setIsSendingMessage(true);
+    
+    // Add loading message
+    setMessages(prev => [...prev, { role: 'loading', text: 'Thinking...' }]);
     
     try {
-      const apiUrl = apiProvider === 'groq' 
-        ? 'https://api.groq.com/openai/v1/chat/completions'
-        : 'https://api.openai.com/v1/chat/completions';
+      // Use local backend proxy to avoid CORS issues
+      const apiUrl = 'http://localhost:8001/api/chat';
       
-      const model = apiProvider === 'groq' ? 'llama-3.3-70b-versatile' : 'gpt-4o-mini';
+      console.log('Making API call to backend:', apiUrl);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`
+          'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          model,
-          messages: [
-            { role: 'system', content: `You are helping with "${bookTitle}" on page ${currentPage}.` },
-            { role: 'user', content: message }
-          ],
-          temperature: 0.7,
-          max_tokens: 500
+          message: message,
+          book_title: bookTitle,
+          current_page: currentPage,
+          total_pages: totalPages
         })
       });
       
+      // Remove loading message
+      setMessages(prev => prev.filter(msg => msg.role !== 'loading'));
+      
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || `API Error: ${response.status}`;
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
-      const aiResponse = data.choices[0]?.message?.content || 'Sorry, I could not generate a response.';
+      const aiResponse = data.response || 'Sorry, I could not generate a response.';
       setMessages(prev => [...prev, { role: 'ai', text: aiResponse }]);
     } catch (error) {
-      setMessages(prev => [...prev, { role: 'ai', text: `Error: ${error.message}` }]);
+      // Remove loading message
+      setMessages(prev => prev.filter(msg => msg.role !== 'loading'));
+      
+      let errorMessage = 'An error occurred. Please try again.';
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        errorMessage = 'Invalid API key. Please check your key and try again.';
+      } else if (error.message.includes('429')) {
+        errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      setMessages(prev => [...prev, { role: 'ai', text: `❌ ${errorMessage}` }]);
+    } finally {
+      setIsSendingMessage(false);
     }
   };
 
   const saveApiKey = () => {
+    if (!apiKey.trim()) {
+      alert('Please enter an API key');
+      return;
+    }
+    
     localStorage.setItem('ai_api_key', apiKey);
     localStorage.setItem('ai_api_provider', apiProvider);
+    alert('API key saved successfully!');
   };
+
+  // Auto-scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -410,24 +463,30 @@ const Reader = () => {
           </div>
           <div className="chatbot-settings">
             <div style={{ fontSize: '11px', color: 'rgba(0,0,0,0.6)', marginBottom: '4px' }}>
-              Enter your API key (OpenAI: sk-... or Groq: gsk-...):
+              {apiKey && !localStorage.getItem('ai_api_key') ? '✓ Using API key from config' : 'Groq API key (optional - already configured):'}
             </div>
             <input 
               type="password"
-              placeholder="sk-... or gsk-..."
+              placeholder={apiKey ? '••••••••••••••••' : 'gsk_...'}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
-            <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+            <div style={{ display: 'flex', gap: '8px', marginTop: '4px', alignItems: 'center' }}>
               <button onClick={saveApiKey}>Save API Key</button>
               <select 
                 value={apiProvider} 
-                onChange={(e) => setApiProvider(e.target.value)}
+                onChange={(e) => {
+                  setApiProvider(e.target.value);
+                  localStorage.setItem('ai_api_provider', e.target.value);
+                }}
                 style={{ padding: '6px 10px', borderRadius: '6px', border: '1px solid rgba(0,0,0,0.15)', background: 'rgba(255,255,255,0.95)', fontSize: '12px' }}
               >
+                <option value="groq">Groq (Free)</option>
                 <option value="openai">OpenAI</option>
-                <option value="groq">Groq</option>
               </select>
+              {apiKey && (
+                <span style={{ fontSize: '11px', color: '#10b981' }}>✓ Ready</span>
+              )}
             </div>
           </div>
           <div className="chatbot-context">
@@ -448,22 +507,35 @@ const Reader = () => {
                 {msg.text}
               </div>
             ))}
+            <div ref={messagesEndRef} />
           </div>
           <div className="chatbot-input-area">
             <input 
               type="text" 
               className="chatbot-input" 
-              placeholder="Ask about the book..."
+              placeholder={apiKey ? "Ask about the book..." : "Enter API key first..."}
               value={chatbotInput}
               onChange={(e) => setChatbotInput(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter') {
+                if (e.key === 'Enter' && !isSendingMessage && apiKey && chatbotInput.trim()) {
                   sendMessage();
                 }
               }}
+              disabled={isSendingMessage || !apiKey}
             />
-            <button className="chatbot-send" onClick={sendMessage}>
-              Send
+            <button 
+              className="chatbot-send" 
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                sendMessage();
+              }}
+              disabled={isSendingMessage || !apiKey || !chatbotInput.trim()}
+              style={{ 
+                pointerEvents: (isSendingMessage || !apiKey || !chatbotInput.trim()) ? 'none' : 'auto'
+              }}
+            >
+              {isSendingMessage ? '⏳' : 'Send'}
             </button>
           </div>
         </div>
