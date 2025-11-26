@@ -38,6 +38,7 @@ export const createRazorpayOrder = async (supabase, planId, billingCycle, amount
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify({
           planId,
@@ -49,8 +50,9 @@ export const createRazorpayOrder = async (supabase, planId, billingCycle, amount
     );
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Failed to create order');
+      const errorText = await response.text();
+      logger.error('Order creation failed:', errorText);
+      throw new Error('Failed to create order. Please contact support.');
     }
 
     const data = await response.json();
@@ -77,14 +79,16 @@ export const verifyRazorpayPayment = async (supabase, paymentData) => {
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`,
+          'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
         body: JSON.stringify(paymentData),
       }
     );
 
     if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || 'Payment verification failed');
+      const errorText = await response.text();
+      logger.error('Payment verification failed:', errorText);
+      throw new Error('Payment verification failed. Please contact support.');
     }
 
     const data = await response.json();
