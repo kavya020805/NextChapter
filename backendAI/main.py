@@ -33,6 +33,15 @@ class ModerationResult(BaseModel):
     message: str
     reasons: list[str] = []
 
+class ChatRequest(BaseModel):
+    message: str
+    book_title: str = ""
+    current_page: int = 1
+    total_pages: int = 0
+
+class ChatResponse(BaseModel):
+    response: str
+
 
 @app.post("/api/moderate", response_model=ModerationResult)
 async def moderate_comment(comment: CommentRequest):
@@ -102,7 +111,40 @@ Reject ANY content with:
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.post("/api/chat")
+async def chat(request: ChatRequest):
+    try:
+        print(f"Received chat request: {request.message[:50]}...")
+        print(f"Book: {request.book_title}, Page: {request.current_page}")
+        
+        system_prompt = f"""You are a helpful AI assistant for the book "{request.book_title}". 
+The user is currently on page {request.current_page}{f' of {request.total_pages}' if request.total_pages > 0 else ''}. 
+Provide concise, relevant answers about the book's content, themes, characters, and context."""
+
+        print("Calling Groq API...")
+        response = client.chat.completions.create(
+            model="llama-3.1-8b-instant",  # Using the same model as moderation
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": request.message},
+            ],
+            temperature=0.7,
+            max_tokens=500,
+        )
+
+        ai_response = response.choices[0].message.content.strip()
+        print(f"Got response: {ai_response[:50]}...")
+        
+        return {"response": ai_response}
+
+    except Exception as e:
+        print(f"Error in chat endpoint: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 # Local development only
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("main:app", host="0.0.0.0", port=8001, reload=True)

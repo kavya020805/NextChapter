@@ -28,10 +28,11 @@ const ReaderLocal = () => {
   const [error, setError] = useState('');
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [imageGenOpen, setImageGenOpen] = useState(false);
-  const apiKey = import.meta.env.VITE_AI_API_KEY || ''; // Gemini API key from environment
-  const apiProvider = 'gemini'; // Using Google Gemini
+  const [apiKey, setApiKey] = useState('');
+  const [apiProvider, setApiProvider] = useState('groq'); // Using Groq instead of Gemini
   const [messages, setMessages] = useState([]);
   const [chatbotInput, setChatbotInput] = useState('');
+  const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageGenResult, setImageGenResult] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -86,6 +87,24 @@ const ReaderLocal = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [showBookmarksDropdown, setShowBookmarksDropdown] = useState(false);
   const [isCurrentPageBookmarked, setIsCurrentPageBookmarked] = useState(false);
+
+  // Initialize API key from environment or localStorage
+  useEffect(() => {
+    const envGroqKey = import.meta.env.VITE_GROQ_API_KEY;
+    const savedKey = localStorage.getItem('ai_api_key');
+    const savedProvider = localStorage.getItem('ai_api_provider');
+    
+    if (savedKey) {
+      setApiKey(savedKey);
+    } else if (envGroqKey) {
+      setApiKey(envGroqKey);
+      console.log('Using Groq API key from environment');
+    }
+    
+    if (savedProvider) {
+      setApiProvider(savedProvider);
+    }
+  }, []);
 
   // Load highlights for current book
   useEffect(() => {
@@ -1329,37 +1348,28 @@ const ReaderLocal = () => {
   };
 
   const handleChatSend = async () => {
-    if (!chatbotInput.trim() || !apiKey) return;
+    console.log('handleChatSend called', { 
+      hasInput: !!chatbotInput.trim(), 
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length,
+      apiProvider: apiProvider,
+      isSending: isSendingMessage 
+    });
+    
+    if (!chatbotInput.trim() || !apiKey || isSendingMessage) return;
     
     const userMessage = chatbotInput.trim();
     setChatbotInput('');
     setMessages(prev => [...prev, { role: 'user', text: userMessage }]);
+    setIsSendingMessage(true);
     
-    const systemPrompt = `You are an AI assistant helping a reader with the book "${bookTitle}". The reader is currently on page ${currentPage}${totalPages > 0 ? ` of ${totalPages}` : ''}.
-
-Book: ${bookTitle}
-Current Page: ${currentPage}
-
-Provide helpful, concise responses about the book considering the context of the current page they're reading.`;
-    
-    setMessages(prev => [...prev, { role: 'ai', text: 'Thinking...' }]);
+    setMessages(prev => [...prev, { role: 'loading', text: 'Thinking...' }]);
     
     try {
-      // Build conversation history for Gemini
-      const conversationHistory = messages.map(m => ({
-        role: m.role === 'ai' ? 'model' : 'user',
-        parts: [{ text: m.text }]
-      }));
+      // Use local backend proxy to avoid CORS issues
+      const apiUrl = 'http://localhost:8001/api/chat';
       
-      // Add system prompt as first user message and model response
-      const geminiMessages = [
-        { role: 'user', parts: [{ text: systemPrompt }] },
-        { role: 'model', parts: [{ text: 'I understand. I will help you with questions about this book.' }] },
-        ...conversationHistory,
-        { role: 'user', parts: [{ text: userMessage }] }
-      ];
-      
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`;
+      console.log('Making API call to backend:', apiUrl);
       
       const response = await fetch(apiUrl, {
         method: 'POST',
@@ -1367,44 +1377,49 @@ Provide helpful, concise responses about the book considering the context of the
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          contents: geminiMessages,
-          generationConfig: {
-            temperature: 0.7,
-            maxOutputTokens: 500
-          }
+          message: userMessage,
+          book_title: bookTitle,
+          current_page: currentPage,
+          total_pages: totalPages
         })
       });
       
+      // Remove loading message
+      setMessages(prev => prev.filter(msg => msg.role !== 'loading'));
+      
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        const errorMessage = errorData.detail || `API Error: ${response.status}`;
+        throw new Error(errorMessage);
       }
       
       const data = await response.json();
-      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
-      
-      setMessages(prev => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = { role: 'ai', text: aiResponse };
-        return newMessages;
-      });
+      const aiResponse = data.response || 'Sorry, I could not generate a response.';
+      setMessages(prev => [...prev, { role: 'ai', text: aiResponse }]);
     } catch (error) {
-      let errorMsg = 'Sorry, I encountered an error. ';
-      if (error.message.includes('401') || error.message.includes('Unauthorized') || error.message.includes('API_KEY_INVALID')) {
-        errorMsg += 'Invalid API key. Please check your Gemini API key.';
-      } else if (error.message.includes('429') || error.message.includes('RESOURCE_EXHAUSTED')) {
-        errorMsg += 'Rate limit exceeded. Please try again later.';
-      } else {
-        errorMsg += error.message;
+      // Remove loading message
+      setMessages(prev => prev.filter(msg => msg.role !== 'loading'));
+      
+      console.error('Chat error:', error);
+      
+      let errorMessage = 'An error occurred. Please try again.';
+      if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+        errorMessage = 'Invalid API key. Please check your Groq API key.';
+      } else if (error.message.includes('429')) {
+        errorMessage = 'Rate limit exceeded. Please wait a moment and try again.';
+      } else if (error.message.includes('Failed to fetch') || error.message.includes('Load failed')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
       }
       
-      setMessages(prev => {
-        const newMessages = [...prev];
-        newMessages[newMessages.length - 1] = { role: 'ai', text: errorMsg };
-        return newMessages;
-      });
+      setMessages(prev => [...prev, { role: 'ai', text: `❌ ${errorMessage}` }]);
+    } finally {
+      setIsSendingMessage(false);
     }
   };
+
+
 
   const handleGenerateImage = async () => {
     if (!imagePrompt.trim() || !apiKey) return;
