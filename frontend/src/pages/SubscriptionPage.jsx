@@ -32,8 +32,8 @@ function SubscriptionPage() {
     },
     {
       name: 'Pro',
-      monthlyPrice: 59,
-      yearlyPrice: 599,
+      monthlyPrice: 1,
+      yearlyPrice: 1,
       description: 'For avid readers and book lovers',
       features: [
         'Access to 10,000+ books',
@@ -49,8 +49,8 @@ function SubscriptionPage() {
     },
     {
       name: 'Premium',
-      monthlyPrice: 99,
-      yearlyPrice: 999,
+      monthlyPrice: 1,
+      yearlyPrice: 1,
       description: 'The ultimate reading experience',
       features: [
         'Access to all books',
