@@ -4,6 +4,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, ArrowRight, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, MessageSquare, Image as ImageIcon, X, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
+import { transformBookCoverUrls } from '../lib/bookUtils';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
 
@@ -35,6 +36,8 @@ const ReaderLocal = () => {
   const [isSendingMessage, setIsSendingMessage] = useState(false);
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageGenResult, setImageGenResult] = useState(null);
+  const [imageSize, setImageSize] = useState('1024x1024');
+  const [imageLoading, setImageLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [readerTheme, setReaderTheme] = useState('light');
   // Dictionary states
@@ -1019,9 +1022,17 @@ const ReaderLocal = () => {
         }
         
         console.log('Book found:', book);
-        setBookTitle(book.title || 'Untitled');
-        setBookDescription(book.description || '');
-        setBookCover(book.cover_image || '');
+        console.log('Book cover_image field (before transform):', book.cover_image);
+        
+        // Transform cover URL just like BookDetailPage does
+        const bookWithUrl = transformBookCoverUrls(book);
+        console.log('Book cover_image field (after transform):', bookWithUrl.cover_image);
+        
+        setBookTitle(bookWithUrl.title || 'Untitled');
+        setBookDescription(bookWithUrl.description || '');
+        setBookCover(bookWithUrl.cover_image || '');
+        
+        console.log('Final cover URL set to:', bookWithUrl.cover_image);
         
         // Get PDF file from Supabase Storage
         // Prefer full URL in pdf_file, then explicit path/filename fields
@@ -1347,6 +1358,72 @@ const ReaderLocal = () => {
     }
   };
 
+  // Render page preview in chatbot
+  const renderChatbotPreview = useCallback(async () => {
+    if (!pdfDocRef.current || !chatbotOpen) {
+      console.log('Preview not ready:', { hasPdf: !!pdfDocRef.current, chatbotOpen });
+      return;
+    }
+    
+    try {
+      // Wait a bit for the canvas to be in the DOM
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      const previewCanvas = document.getElementById('chatbot-page-preview');
+      
+      if (!previewCanvas) {
+        console.log('Preview canvas not found in DOM');
+        return;
+      }
+      
+      console.log('Rendering preview for page:', currentPage);
+      const page = await pdfDocRef.current.getPage(currentPage);
+      const viewport = page.getViewport({ scale: 0.3 }); // Small scale for preview
+      const context = previewCanvas.getContext('2d');
+      
+      previewCanvas.width = viewport.width;
+      previewCanvas.height = viewport.height;
+      
+      const renderContext = {
+        canvasContext: context,
+        viewport: viewport
+      };
+      
+      await page.render(renderContext).promise;
+      console.log('Preview rendered successfully');
+    } catch (error) {
+      console.error('Error rendering chatbot preview:', error);
+    }
+  }, [currentPage, chatbotOpen]);
+
+  // Update preview when page changes or chatbot opens
+  useEffect(() => {
+    if (chatbotOpen && pdfDocRef.current) {
+      console.log('Triggering preview render');
+      // Add a small delay to ensure DOM is ready
+      const timer = setTimeout(() => {
+        renderChatbotPreview();
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [currentPage, chatbotOpen, renderChatbotPreview]);
+
+  // Debug book cover changes
+  useEffect(() => {
+    console.log('Book cover state changed to:', bookCover);
+    console.log('Book cover is truthy:', !!bookCover);
+  }, [bookCover]);
+
+  // Debug image generation result changes
+  useEffect(() => {
+    console.log('🖼️ ImageGenResult state changed:', imageGenResult);
+    if (imageGenResult) {
+      console.log('  - Has URL:', !!imageGenResult.url);
+      console.log('  - Is loading:', imageGenResult.loading);
+      console.log('  - URL value:', imageGenResult.url);
+    }
+  }, [imageGenResult]);
+
   const handleChatSend = async () => {
     console.log('handleChatSend called', { 
       hasInput: !!chatbotInput.trim(), 
@@ -1422,52 +1499,58 @@ const ReaderLocal = () => {
 
 
   const handleGenerateImage = async () => {
-    if (!imagePrompt.trim() || !apiKey) return;
+    if (!imagePrompt.trim()) {
+      alert('Please enter a prompt for image generation');
+      return;
+    }
     
     const prompt = imagePrompt.trim();
-    setImageGenResult(null);
+    setImageGenResult({ loading: true });
     
     try {
-      const enhancedPrompt = `${prompt}. Book context: "${bookTitle}", page ${currentPage}. Create a high-quality, detailed, artistic visualization.`;
+      console.log('Generating image with prompt:', prompt, 'size:', imageSize);
       
-      // Use Gemini Imagen 4.0 API
-      const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/imagen-4.0-generate-001:predict?key=${apiKey}`, {
+      // Use backend API
+      const response = await fetch('http://localhost:8001/api/generate-image', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          instances: [{
-            prompt: enhancedPrompt
-          }],
-          parameters: {
-            sampleCount: 1,
-            aspectRatio: "1:1",
-            safetyFilterLevel: "block_some",
-            personGeneration: "allow_adult"
-          }
+          prompt: prompt,
+          book_title: bookTitle,
+          current_page: currentPage,
+          size: imageSize
         })
       });
       
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: { message: 'Unknown error' } }));
-        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `API Error: ${response.status}`);
       }
       
       const data = await response.json();
-      const imageData = data.predictions?.[0]?.bytesBase64Encoded;
+      console.log('Response data:', data);
       
-      if (imageData) {
-        const imageUrl = `data:image/png;base64,${imageData}`;
-        setImageGenResult({
-          url: imageUrl,
-          prompt: enhancedPrompt
-        });
+      if (data.image_url) {
+        console.log('✅ Image URL received:', data.image_url);
+        const result = {
+          url: data.image_url,
+          prompt: data.prompt,
+          loading: false,
+          timestamp: Date.now() // Add timestamp for cache busting
+        };
+        console.log('Setting imageGenResult with timestamp:', result.timestamp);
+        setImageLoading(true); // Start image loading state
+        setImageGenResult(result);
       } else {
-        throw new Error('No image data received');
+        console.error('❌ No image_url in response:', data);
+        throw new Error('No image URL received');
       }
     } catch (error) {
+      console.error('Image generation error:', error);
       alert(`Failed to generate image: ${error.message}`);
+      setImageGenResult(null);
     }
   };
 
@@ -1978,30 +2061,42 @@ const ReaderLocal = () => {
             </div>
             
             {/* Book Cover & Description */}
-            {(bookCover || bookDescription) && (
-              <div className="space-y-3 pt-4">
-                <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
-                  About This Book
-                </div>
-                {bookCover && (
-                  <div className="w-full aspect-2/3 bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/20 dark:border-white/20 overflow-hidden">
-                    <img 
-                      src={bookCover} 
-                      alt={bookTitle}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        e.target.style.display = 'none';
-                      }}
-                    />
+            <div className="space-y-3 pt-4 border-t border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                About This Book
+              </div>
+              <div className="w-full aspect-2/3 bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/20 dark:border-white/20 overflow-hidden flex items-center justify-center">
+                {bookCover ? (
+                  <img 
+                    src={bookCover} 
+                    alt={bookTitle}
+                    className="w-full h-full object-cover"
+                    style={{ display: 'block' }}
+                    onError={(e) => {
+                      console.error('❌ Sidebar cover failed to load. URL:', bookCover);
+                      e.target.style.display = 'none';
+                      const parent = e.target.parentElement;
+                      if (parent && !parent.querySelector('.fallback-icon')) {
+                        const fallback = document.createElement('div');
+                        fallback.className = 'fallback-icon text-6xl text-dark-gray/20 dark:text-white/20';
+                        fallback.textContent = '📖';
+                        parent.appendChild(fallback);
+                      }
+                    }}
+                    onLoad={() => console.log('✅ Sidebar cover loaded successfully from:', bookCover)}
+                  />
+                ) : (
+                  <div className="text-6xl text-dark-gray/20 dark:text-white/20">
+                    📖
                   </div>
                 )}
-                {bookDescription && (
-                  <p className="text-xs text-dark-gray/70 dark:text-white/70 leading-relaxed font-light line-clamp-4">
-                    {bookDescription}
-                  </p>
-                )}
               </div>
-            )}
+              {bookDescription && (
+                <p className="text-xs text-dark-gray/70 dark:text-white/70 leading-relaxed font-light line-clamp-4">
+                  {bookDescription}
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -2013,8 +2108,39 @@ const ReaderLocal = () => {
             <h3 className="text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white">AI Book Assistant</h3>
           </div>
           <div className="p-3 bg-dark-gray/5 dark:bg-white/5 border-b border-dark-gray/10 dark:border-white/10">
-            <div className="text-[10px] text-dark-gray/70 dark:text-white/70">
+            <div className="text-[10px] text-dark-gray/70 dark:text-white/70 mb-3">
               📖 {bookTitle} - Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
+            </div>
+            {/* Page Preview */}
+            <div className="bg-white dark:bg-black/20 border border-dark-gray/20 dark:border-white/20 rounded overflow-hidden">
+              <div className="text-[9px] text-dark-gray/50 dark:text-white/50 px-2 py-1 bg-dark-gray/5 dark:bg-white/5 border-b border-dark-gray/10 dark:border-white/10">
+                Current Page Preview
+              </div>
+              <div className="p-2 flex items-center justify-center bg-gray-50 dark:bg-gray-900" style={{ minHeight: '120px' }}>
+                {viewerRef.current && (
+                  <div 
+                    className="w-full h-full flex items-center justify-center"
+                    style={{ 
+                      maxHeight: '150px',
+                      overflow: 'hidden'
+                    }}
+                  >
+                    <canvas 
+                      id="chatbot-page-preview"
+                      className="max-w-full max-h-full object-contain shadow-sm"
+                      style={{ 
+                        border: '1px solid rgba(0,0,0,0.1)',
+                        backgroundColor: 'white'
+                      }}
+                    />
+                  </div>
+                )}
+                {!viewerRef.current && (
+                  <div className="text-[10px] text-dark-gray/40 dark:text-white/40">
+                    Loading page...
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -2088,7 +2214,11 @@ const ReaderLocal = () => {
                 <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
                   Image Size
                 </label>
-                <select className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors">
+                <select 
+                  value={imageSize}
+                  onChange={(e) => setImageSize(e.target.value)}
+                  className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                >
                   <option value="1024x1024">Square (1024x1024)</option>
                   <option value="1792x1024">Landscape (1792x1024)</option>
                   <option value="1024x1792">Portrait (1024x1792)</option>
@@ -2099,14 +2229,51 @@ const ReaderLocal = () => {
             <button 
               className="w-full bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-3 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
               onClick={handleGenerateImage}
-              disabled={!imagePrompt.trim() || !apiKey}
+              disabled={!imagePrompt.trim() || (imageGenResult && imageGenResult.loading)}
             >
-              Generate Image
+              {imageGenResult && imageGenResult.loading ? 'Generating...' : 'Generate Image'}
             </button>
             
-            {imageGenResult && (
+
+            
+            {imageGenResult && imageGenResult.loading && (
+              <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-dark-gray dark:border-white"></div>
+                <p className="text-xs text-dark-gray/60 dark:text-white/60 mt-3">Generating your image...</p>
+              </div>
+            )}
+            
+            {imageGenResult && imageGenResult.url && !imageGenResult.loading && (
               <div className="space-y-3 pt-3 border-t border-dark-gray/10 dark:border-white/10">
-                <img src={imageGenResult.url} alt="Generated" className="w-full rounded border border-dark-gray/30 dark:border-white/30" />
+                <div className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/20 dark:border-white/20 rounded overflow-hidden relative">
+                  {imageLoading && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-dark-gray/10 dark:bg-white/10 backdrop-blur-sm z-10">
+                      <div className="text-center">
+                        <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-dark-gray dark:border-white mb-2"></div>
+                        <p className="text-xs text-dark-gray/60 dark:text-white/60">Loading image...</p>
+                      </div>
+                    </div>
+                  )}
+                  <img 
+                    key={imageGenResult.timestamp}
+                    src={`${imageGenResult.url}&t=${imageGenResult.timestamp}`}
+                    alt="Generated" 
+                    className="w-full h-auto block"
+                    style={{ maxHeight: '400px', objectFit: 'contain', minHeight: '200px' }}
+                    crossOrigin="anonymous"
+                    onLoad={() => {
+                      console.log('✅ Image loaded');
+                      setImageLoading(false);
+                    }}
+                    onError={(e) => {
+                      console.error('❌ Image failed');
+                      setImageLoading(false);
+                    }}
+                  />
+                </div>
+                <div className="text-[9px] text-dark-gray/50 dark:text-white/50 italic break-words">
+                  {imageGenResult.prompt}
+                </div>
                 <div className="grid grid-cols-2 gap-2">
                   <button 
                     onClick={() => window.open(imageGenResult.url, '_blank')}
@@ -2123,6 +2290,10 @@ const ReaderLocal = () => {
                 </div>
               </div>
             )}
+            
+            <div className="text-[10px] text-dark-gray/60 dark:text-white/60 p-3 bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/20 dark:border-white/20 rounded">
+              <strong>✨ AI Image Generation:</strong> Powered by Pollinations.ai. Describe a scene, character, or concept from the book and watch it come to life!
+            </div>
           </div>
         </div>
       )}

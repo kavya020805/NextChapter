@@ -42,6 +42,16 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     response: str
 
+class ImageRequest(BaseModel):
+    prompt: str
+    book_title: str = ""
+    current_page: int = 1
+    size: str = "1024x1024"
+
+class ImageResponse(BaseModel):
+    image_url: str
+    prompt: str
+
 
 @app.post("/api/moderate", response_model=ModerationResult)
 async def moderate_comment(comment: CommentRequest):
@@ -139,6 +149,48 @@ Provide concise, relevant answers about the book's content, themes, characters, 
 
     except Exception as e:
         print(f"Error in chat endpoint: {type(e).__name__}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/generate-image")
+async def generate_image(request: ImageRequest):
+    """
+    Generate an image based on a text prompt using Pollinations.ai (free, no API key needed)
+    """
+    try:
+        print(f"Image generation request: {request.prompt[:50]}...")
+        
+        # Enhance the prompt with book context
+        enhanced_prompt = f"{request.prompt}. Book: {request.book_title}, Page: {request.current_page}. High quality, detailed, artistic visualization."
+        
+        # Parse size
+        width, height = 1024, 1024
+        if 'x' in request.size:
+            try:
+                w, h = request.size.split('x')
+                width, height = int(w), int(h)
+            except:
+                pass
+        
+        # Use Pollinations.ai - free image generation API
+        # URL format: https://image.pollinations.ai/prompt/{encoded_prompt}
+        import urllib.parse
+        encoded_prompt = urllib.parse.quote(enhanced_prompt)
+        
+        # Generate image URL with custom size
+        image_url = f"https://image.pollinations.ai/prompt/{encoded_prompt}?width={width}&height={height}&nologo=true&enhance=true"
+        
+        print(f"Generated image URL: {image_url[:100]}...")
+        
+        return {
+            "image_url": image_url,
+            "prompt": enhanced_prompt
+        }
+        
+    except Exception as e:
+        print(f"Error in image generation: {type(e).__name__}: {str(e)}")
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
