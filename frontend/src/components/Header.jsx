@@ -146,7 +146,7 @@ function FilterDropdown({ location, navigate }) {
 
   const filterOptions = [
     { label: 'Trending', value: 'trending', path: '/trending' },
-    { label: 'New Releases', value: 'new', path: '/books?filter=new' },
+    { label: 'New Releases', value: 'new-releases', path: '/new-releases' },
     { label: 'Highest Rated', value: 'rated', path: '/highest-rated' },
     { label: 'Recommendations', value: 'recommended', path: '/recommended' },
     { label: 'Explore', value: 'explore', path: '/explore' }
@@ -254,6 +254,12 @@ function FilterDropdown({ location, navigate }) {
                       ? location.pathname === '/recommended'
                       : option.value === 'explore'
                         ? location.pathname === '/explore'
+                      : option.value === 'trending'
+                        ? location.pathname === '/trending'
+                      : option.value === 'new-releases'
+                        ? location.pathname === '/new-releases'
+                      : option.value === 'rated'
+                        ? location.pathname === '/highest-rated'
                       : location.search.includes(option.value)
 
                   return (
