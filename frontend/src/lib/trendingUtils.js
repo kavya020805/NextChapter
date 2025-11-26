@@ -55,12 +55,13 @@ export async function getBookMetrics(bookId, days = 30) {
       console.warn(`Error fetching reads for book ${bookId}:`, readsError)
     }
 
-    // Get WishlistAdds (books added to wishlist in the last N days)
+    // Get WishlistAdds (books added to user_books with status='want_to_read' in the last N days)
     const { count: wishlistAdds, error: wishlistError } = await supabase
-      .from('book_wishlist')
+      .from('user_books')
       .select('*', { count: 'exact', head: true })
       .eq('book_id', bookId)
-      .gte('added_at', cutoffDateStr)
+      .eq('status', 'want_to_read')
+      .gte('created_at', cutoffDateStr)
 
     if (wishlistError && wishlistError.code !== 'PGRST116' && wishlistError.code !== 'PGRST205') {
       console.warn(`Error fetching wishlist for book ${bookId}:`, wishlistError)
@@ -137,14 +138,48 @@ export async function getBookMetrics(bookId, days = 30) {
 }
 
 /**
- * Get top N trending books from Supabase
+ * Get top N trending books from Supabase using optimized view
  * @param {number} limit - Number of books to return (default: 10)
  * @param {number} days - Number of recent days to consider (default: 30)
  * @returns {Promise<Array>} - Array of books with trending scores, sorted by score descending
  */
 export async function getTrendingBooks(limit = 10, days = 30) {
   try {
-    console.log('Fetching trending books...')
+    console.log('Fetching trending books from view...')
+    
+    // Try to use the optimized view first
+    const { data: trendingBooks, error: viewError } = await supabase
+      .from('v_trending_books')
+      .select('*')
+      .order('trending_score', { ascending: false })
+      .limit(limit)
+
+    if (!viewError && trendingBooks && trendingBooks.length > 0) {
+      console.log(`Found ${trendingBooks.length} trending books from view`)
+      
+      // Fetch full book details including genres from books table
+      const bookIds = trendingBooks.map(b => b.id)
+      const { data: fullBooks } = await supabase
+        .from('books')
+        .select('id, genres')
+        .in('id', bookIds)
+      
+      // Merge genres data with trending books
+      const booksWithGenres = trendingBooks.map(book => {
+        const fullBook = fullBooks?.find(fb => fb.id === book.id)
+        return {
+          ...book,
+          genres: fullBook?.genres || book.genres,
+          trendingScore: book.trending_score || 0
+        }
+      })
+      
+      const booksWithUrls = transformBookCoverUrls(booksWithGenres)
+      return booksWithUrls
+    }
+
+    // Fallback to manual calculation if view doesn't exist
+    console.log('View not available, falling back to manual calculation...')
     
     // Fetch all books
     const { data: books, error: booksError } = await supabase
@@ -198,7 +233,6 @@ export async function getTrendingBooks(limit = 10, days = 30) {
     )
 
     // Sort by trending score (descending) and return top N
-    // If all scores are 0, still return books (they'll be sorted by score but all equal)
     const sortedBooks = booksWithScores
       .sort((a, b) => {
         // First sort by trending score

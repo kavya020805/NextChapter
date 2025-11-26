@@ -19,6 +19,7 @@ import { supabase } from '../lib/supabaseClient';
 import { io } from 'socket.io-client';
 import { moderationService } from '../services/moderation/moderationService';
 import { transformBookCoverUrls } from '../lib/bookUtils';
+import logger from '../lib/logger';
 
 
 
@@ -172,14 +173,52 @@ const BookDetailPage = () => {
     }
   };
 
-  const syncReadingState = () => {
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    const read = JSON.parse(localStorage.getItem('read') || '[]');
-    setIsInReadingList(wishlist.includes(id));
-    setIsRead(read.includes(id));
+  const syncReadingState = async () => {
+    if (user && user.id) {
+      // Fetch from database
+      try {
+        const { data, error } = await supabase
+          .from('user_books')
+          .select('status, progress_percentage')
+          .eq('user_id', user.id)
+          .eq('book_id', id)
+          .single();
 
-    const savedProgress = localStorage.getItem(`book_progress_${id}`);
-    setProgress(savedProgress ? parseInt(savedProgress, 10) : 0);
+        if (!error && data) {
+          setIsInReadingList(data.status === 'want_to_read');
+          setIsRead(data.status === 'read');
+          setProgress(data.progress_percentage || 0);
+        } else {
+          // No database entry, check localStorage
+          const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+          const read = JSON.parse(localStorage.getItem('read') || '[]');
+          setIsInReadingList(wishlist.includes(id));
+          setIsRead(read.includes(id));
+          
+          const savedProgress = localStorage.getItem(`book_progress_${id}`);
+          setProgress(savedProgress ? parseInt(savedProgress, 10) : 0);
+        }
+      } catch (err) {
+        console.error('Error syncing reading state:', err);
+        // Fallback to localStorage
+        const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        const read = JSON.parse(localStorage.getItem('read') || '[]');
+        setIsInReadingList(wishlist.includes(id));
+        setIsRead(read.includes(id));
+        
+        const savedProgress = localStorage.getItem(`book_progress_${id}`);
+        setProgress(savedProgress ? parseInt(savedProgress, 10) : 0);
+      }
+    } else {
+      // Not logged in, use localStorage
+      const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+      const read = JSON.parse(localStorage.getItem('read') || '[]');
+      setIsInReadingList(wishlist.includes(id));
+      setIsRead(read.includes(id));
+      
+      const savedProgress = localStorage.getItem(`book_progress_${id}`);
+      setProgress(savedProgress ? parseInt(savedProgress, 10) : 0);
+    }
   };
 
   const formatReply = (reply) => ({
@@ -506,7 +545,7 @@ const BookDetailPage = () => {
 
       setComments(formatted);
 
-      if (user && bookId) {
+      if (user && bookId && commentIds.length > 0) {
         const [
           commentReactionsResult,
           replyReactionsResult,
@@ -519,7 +558,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('comment_id, reaction_type')
-                .eq('book_id', bookId)
+                .in('comment_id', commentIds)
                 .eq('user_id', user.id),
             { optional: true }
           ),
@@ -529,7 +568,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('reply_id, reaction_type')
-                .eq('book_id', bookId)
+                .in('reply_id', repliesData.map(r => r.id))
                 .eq('user_id', user.id),
             { optional: true }
           ),
@@ -539,7 +578,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('comment_id')
-                .eq('book_id', bookId)
+                .in('comment_id', commentIds)
                 .eq('user_id', user.id),
             { optional: true }
           ),
@@ -549,7 +588,7 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .select('reply_id')
-                .eq('book_id', bookId)
+                .in('reply_id', repliesData.map(r => r.id))
                 .eq('user_id', user.id),
             { optional: true }
           )
@@ -723,16 +762,56 @@ const BookDetailPage = () => {
     }
   };
 
-  const toggleReadingList = () => {
-    const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    if (isInReadingList) {
-      const updated = wishlist.filter(bid => bid !== id);
-      localStorage.setItem('wishlist', JSON.stringify(updated));
-      setIsInReadingList(false);
-    } else {
-      wishlist.push(id);
-      localStorage.setItem('wishlist', JSON.stringify(wishlist));
-      setIsInReadingList(true);
+  const toggleReadingList = async () => {
+    if (!user) {
+      alert('Please sign in to add books to your reading list.');
+      return;
+    }
+
+    try {
+      if (isInReadingList) {
+        // Remove from reading list
+        const { error } = await supabase
+          .from('user_books')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('book_id', id)
+          .eq('status', 'want_to_read');
+
+        if (error) throw error;
+        
+        setIsInReadingList(false);
+        
+        // Also update localStorage for backward compatibility
+        const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        const updated = wishlist.filter(bid => bid !== id);
+        localStorage.setItem('wishlist', JSON.stringify(updated));
+      } else {
+        // Add to reading list
+        const { error } = await supabase
+          .from('user_books')
+          .upsert({
+            user_id: user.id,
+            book_id: id,
+            status: 'want_to_read',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          }, { onConflict: 'user_id,book_id' });
+
+        if (error) throw error;
+        
+        setIsInReadingList(true);
+        
+        // Also update localStorage for backward compatibility
+        const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
+        if (!wishlist.includes(id)) {
+          wishlist.push(id);
+          localStorage.setItem('wishlist', JSON.stringify(wishlist));
+        }
+      }
+    } catch (error) {
+      console.error('Error toggling reading list:', error);
+      alert('Unable to update reading list. Please try again.');
     }
   };
 
@@ -744,15 +823,57 @@ const BookDetailPage = () => {
       setIsRead(false);
       setProgress(0);
       localStorage.removeItem(`book_progress_${id}`);
+      
+      // Remove from database
+      if (user && user.id) {
+        try {
+          // Remove from book_reads table
+          await supabase
+            .from('book_reads')
+            .delete()
+            .eq('user_id', user.id)
+            .eq('book_id', id);
+          
+          // Update user_books status
+          await supabase
+            .from('user_books')
+            .update({
+              status: 'reading',
+              progress_percentage: 0,
+              completed_at: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .eq('book_id', id);
+        } catch (error) {
+          logger.error('Error unmarking book as read:', error);
+        }
+      }
     } else {
       read.push(id);
       localStorage.setItem('read', JSON.stringify(read));
       setIsRead(true);
       setProgress(100);
       localStorage.setItem(`book_progress_${id}`, '100');
+      
+      // Add to database
       if (user && user.id) {
         try {
           const nowIso = new Date().toISOString();
+          
+          // Insert into book_reads table (for trending tracking)
+          await supabase
+            .from('book_reads')
+            .upsert(
+              {
+                user_id: user.id,
+                book_id: id,
+                read_at: nowIso
+              },
+              { onConflict: 'user_id,book_id' }
+            );
+          
+          // Update user_books table (for user's reading list)
           await supabase
             .from('user_books')
             .upsert(
@@ -768,7 +889,7 @@ const BookDetailPage = () => {
               { onConflict: 'user_id,book_id' }
             );
         } catch (error) {
-          console.error('Error marking book as read in database:', error);
+          logger.error('Error marking book as read in database:', error);
         }
       }
     }
@@ -893,7 +1014,6 @@ const BookDetailPage = () => {
               .from(table)
               .upsert(
                 {
-                  book_id: bookId,
                   comment_id: reportDialog.id,
                   user_id: user.id,
                   reason: finalReason
@@ -910,7 +1030,6 @@ const BookDetailPage = () => {
               .from(table)
               .upsert(
                 {
-                  book_id: bookId,
                   reply_id: reportDialog.id,
                   user_id: user.id,
                   reason: finalReason
@@ -975,13 +1094,12 @@ const BookDetailPage = () => {
           supabase
             .from(table)
             .insert({
-              book_id: bookId,
               comment_id: commentId,
               user_id: user?.id ?? null,
               author_name: displayName,
               text
             })
-            .select('id, comment_id, user_id, author_name, text, likes_count, upvotes_count, created_at')
+            .select('id, comment_id, user_id, author_name, text, upvotes_count, created_at')
             .limit(1)
       );
 
@@ -1087,7 +1205,6 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .insert({
-                  book_id: bookId,
                   comment_id: commentId,
                   user_id: user.id,
                   reaction_type: 'upvote'
@@ -1175,7 +1292,6 @@ const BookDetailPage = () => {
               supabase
                 .from(table)
                 .insert({
-                  book_id: bookId,
                   reply_id: replyId,
                   user_id: user.id,
                   reaction_type: 'upvote'

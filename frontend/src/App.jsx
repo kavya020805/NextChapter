@@ -15,6 +15,7 @@ import RecommendedBooksPage from './pages/RecommendedBooksPage'
 import TrendingBooksPage from './pages/TrendingBooksPage'
 import HighestRatedBooksPage from './pages/HighestRatedBooksPage'
 import ExploreBooksPage from './pages/ExploreBooksPage'
+import NewReleasesPage from './pages/NewReleasesPage'
 import OAuthCallbackPage from './pages/OAuthCallbackPage'
 import PrivacyPage from './pages/PrivacyPage'
 import TermsPage from './pages/TermsPage'
@@ -114,6 +115,14 @@ function App() {
           element={
             <ProtectedRoute blockAdmin>
               <TrendingBooksPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/new-releases" 
+          element={
+            <ProtectedRoute blockAdmin>
+              <NewReleasesPage />
             </ProtectedRoute>
           } 
         />

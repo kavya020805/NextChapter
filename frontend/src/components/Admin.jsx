@@ -5,6 +5,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { getUserProfile } from "../lib/personalizationUtils";
 import { getTrendingBooks } from "../lib/trendingUtils";
 import { transformBookCoverUrls } from "../lib/bookUtils";
+import { parseGenres } from "../lib/genreUtils";
 import {
   Plus,
   Edit2,
@@ -686,30 +687,44 @@ const Admin = () => {
 
   // Trending books (same ones shown in the Trending Books card)
   // Genre distribution based on trending books (for Trending Genres card)
-  const trendingGenresDistribution = trendingBooks.reduce((acc, book) => {
-    const rawGenres = Array.isArray(book.genres)
-      ? book.genres
-      : book.genre
-      ? [book.genre]
-      : [];
+  const trendingGenresDistribution = useMemo(() => {
+    console.log('🔍 Calculating trending genres from books:', trendingBooks.length);
+    
+    const distribution = trendingBooks.reduce((acc, book) => {
+      // Use the parseGenres utility function
+      const rawGenres = parseGenres(book);
+      
+      console.log(`📕 Book ${book.id}:`, {
+        title: book.title,
+        genres: book.genres,
+        parsedGenres: rawGenres
+      });
 
-    rawGenres.forEach((genre) => {
-      if (!genre) return;
-      const key = genre.toString().trim();
-      if (!key) return;
-      acc[key] = (acc[key] || 0) + 1;
-    });
+      rawGenres.forEach((genre) => {
+        if (genre) {
+          acc[genre] = (acc[genre] || 0) + 1;
+        }
+      });
 
-    return acc;
-  }, {});
+      return acc;
+    }, {});
+    
+    console.log('📊 Trending genres distribution:', distribution);
+    return distribution;
+  }, [trendingBooks]);
 
   // Convert distribution object into sorted list with percentages (top 5)
-  const trendingGenresList = (() => {
+  const trendingGenresList = useMemo(() => {
     const entries = Object.entries(trendingGenresDistribution);
-    if (entries.length === 0) return [];
+    console.log('📈 Genre entries:', entries);
+    
+    if (entries.length === 0) {
+      console.log('⚠️ No trending genres found');
+      return [];
+    }
 
     const total = entries.reduce((sum, [, count]) => sum + count, 0);
-    return entries
+    const list = entries
       .map(([genre, count]) => ({
         genre,
         count,
@@ -717,7 +732,10 @@ const Admin = () => {
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5);
-  })();
+    
+    console.log('✅ Trending genres list:', list);
+    return list;
+  }, [trendingGenresDistribution]);
 
   // Recent activity data is now managed via state (recentActivity) loaded in useEffect
 
@@ -1312,26 +1330,64 @@ const Admin = () => {
       let storageUsed = 0;
       try {
         const { data: buckets } = await supabase.storage.listBuckets();
-        if (buckets) {
-          // Estimate storage usage (this is approximate)
-          storageUsed = Math.min(95, Math.floor(buckets.length * 15 + Math.random() * 20));
+        console.log('Storage buckets:', buckets);
+        
+        if (buckets && buckets.length > 0) {
+          // Try to count files in the main buckets
+          let totalFiles = 0;
+          
+          for (const bucket of buckets) {
+            try {
+              const { data: files } = await supabase.storage
+                .from(bucket.name)
+                .list('', { limit: 1000 });
+              
+              if (files) {
+                totalFiles += files.length;
+              }
+            } catch (err) {
+              console.log(`Could not list files in bucket ${bucket.name}:`, err);
+            }
+          }
+          
+          // Estimate: assume 100 files = 50% usage (adjust as needed)
+          storageUsed = Math.min(95, Math.floor((totalFiles / 100) * 50));
+          console.log('Total files:', totalFiles, 'Estimated usage:', storageUsed + '%');
+        } else {
+          // No buckets or unable to list - show minimal usage
+          storageUsed = 5;
         }
       } catch (storageError) {
-        console.log('Storage check skipped:', storageError);
-        storageUsed = 35; // Default value
+        console.log('Storage check failed:', storageError);
+        storageUsed = 5; // Default to 5% if unable to check
       }
       
-      // Count recent errors from reported comments or failed operations
+      // Track system errors (failed queries, connection issues, etc.)
       let errorCount = 0;
+      
+      // Test multiple system components to detect errors
       try {
-        const { count: reportsCount } = await supabase
-          .from('book_comment_reports')
-          .select('*', { count: 'exact', head: true })
-          .gte('created_at', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString());
+        // Test 1: Check if we can query books table
+        const { error: booksError } = await supabase
+          .from('books')
+          .select('id', { count: 'exact', head: true })
+          .limit(1);
+        if (booksError) errorCount++;
         
-        errorCount = reportsCount || 0;
+        // Test 2: Check if we can query user_books table
+        const { error: userBooksError } = await supabase
+          .from('user_books')
+          .select('id', { count: 'exact', head: true })
+          .limit(1);
+        if (userBooksError) errorCount++;
+        
+        // Test 3: Check storage accessibility
+        const { error: storageError } = await supabase.storage.listBuckets();
+        if (storageError) errorCount++;
+        
       } catch (err) {
-        console.log('Error count check skipped:', err);
+        console.log('System health check encountered errors:', err);
+        errorCount++;
       }
       
       const health = {
@@ -2080,11 +2136,14 @@ const Admin = () => {
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs text-white/60 dark:text-dark-gray/60 uppercase tracking-wider">Errors</span>
                     <div className={`w-2 h-2 rounded-full ${
-                      systemHealth.errors.count === 0 ? 'bg-green-500' : 'bg-yellow-500'
+                      systemHealth.errors.count === 0 ? 'bg-green-500' : 'bg-red-500'
                     }`}></div>
                   </div>
                   <div className="text-lg font-bold text-white dark:text-dark-gray">
                     {systemHealth.errors.count}
+                  </div>
+                  <div className="text-xs text-white/50 dark:text-dark-gray/50 mt-1">
+                    {systemHealth.errors.count === 0 ? 'All systems OK' : 'Issues detected'}
                   </div>
                 </div>
               </div>

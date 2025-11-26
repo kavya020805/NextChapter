@@ -57,7 +57,7 @@ export async function fetchUserDashboardData(userId) {
 				.from("reading_sessions")
 				.select("*")
 				.eq("user_id", userId)
-				.order("date", { ascending: false }),
+				.order("session_date", { ascending: false }),
 
 			// Books read - user_books rows with status 'read'
 			supabase
@@ -121,9 +121,9 @@ export async function fetchUserDashboardData(userId) {
 		if (readingSessionsResult.data && readingSessionsResult.data.length > 0) {
 			// Normalize pages and date fields regardless of column naming
 			readingSessions = readingSessionsResult.data.map((session) => {
-				// Prefer explicit date field; fall back to session_date or created_at
+				// Prefer session_date field; fall back to date or created_at for backward compatibility
 				const rawDate =
-					session.date || session.session_date || session.created_at || null;
+					session.session_date || session.date || session.created_at || null;
 				let normalizedDate = null;
 				if (rawDate) {
 					const d = new Date(rawDate);
@@ -153,8 +153,8 @@ export async function fetchUserDashboardData(userId) {
 				if (localSessions) {
 					readingSessions = JSON.parse(localSessions).map((session) => {
 						const rawDate =
-							session.date ||
 							session.session_date ||
+							session.date ||
 							session.created_at ||
 							null;
 						let normalizedDate = null;

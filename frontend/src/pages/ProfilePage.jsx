@@ -786,9 +786,8 @@ function ProfilePage() {
 
                     {/* Genre Preferences and Monthly Progress Cards */}
                     <div className="mt-4 mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <GenrePreferencesCard 
-                        genreDistribution={dashboardData?.genreDistribution || {}}
-                      />
+                      {/* No prop passed - component will fetch fresh data from database */}
+                      <GenrePreferencesCard />
                       <MonthlyProgressCard 
                         monthlyData={dashboardData?.monthlyProgress || []}
                         readingStats={dashboardData?.readingStats}

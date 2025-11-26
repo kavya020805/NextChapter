@@ -5,8 +5,10 @@ import Footer from '../components/Footer'
 import { Search } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { transformBookCoverUrls } from '../lib/bookUtils'
+import { useAuth } from '../contexts/AuthContext'
 
 function ReadingListPage() {
+  const { user } = useAuth()
   const [allBooks, setAllBooks] = useState([])
   const [filteredBooks, setFilteredBooks] = useState([])
   const [loading, setLoading] = useState(true)
@@ -14,10 +16,28 @@ function ReadingListPage() {
 
   useEffect(() => {
     loadBooks()
-  }, [])
+  }, [user])
 
-  // Get user's reading list from localStorage
-  const getReadingList = () => {
+  // Get user's reading list from database or localStorage
+  const getReadingList = async () => {
+    if (user && user.id) {
+      try {
+        // Get from database
+        const { data, error } = await supabase
+          .from('user_books')
+          .select('book_id')
+          .eq('user_id', user.id)
+          .eq('status', 'want_to_read')
+
+        if (!error && data) {
+          return data.map(item => item.book_id)
+        }
+      } catch (err) {
+        console.error('Error fetching reading list from database:', err)
+      }
+    }
+    
+    // Fallback to localStorage
     try {
       const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]')
       return wishlist
@@ -27,21 +47,25 @@ function ReadingListPage() {
   }
 
   useEffect(() => {
-    const readingList = getReadingList()
-    
-    let filtered = allBooks.filter(book => readingList.includes(book.id))
+    const filterBooks = async () => {
+      const readingList = await getReadingList()
+      
+      let filtered = allBooks.filter(book => readingList.includes(book.id))
 
-    // Apply search filter
-    if (searchTerm) {
-      filtered = filtered.filter(book => 
-        book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        book.subjects?.some(subject => subject.toLowerCase().includes(searchTerm.toLowerCase()))
-      )
+      // Apply search filter
+      if (searchTerm) {
+        filtered = filtered.filter(book => 
+          book.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          book.author?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          book.subjects?.some(subject => subject.toLowerCase().includes(searchTerm.toLowerCase()))
+        )
+      }
+
+      setFilteredBooks(filtered)
     }
 
-    setFilteredBooks(filtered)
-  }, [searchTerm, allBooks])
+    filterBooks()
+  }, [searchTerm, allBooks, user])
 
   const loadBooks = async () => {
     setLoading(true)

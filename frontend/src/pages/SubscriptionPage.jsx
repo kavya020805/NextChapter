@@ -1,17 +1,24 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { Check } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
+import { useRazorpay } from '../hooks/useRazorpay'
+import { useAuth } from '../contexts/AuthContext'
+import { toast, ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
 
 function SubscriptionPage() {
   const [billingCycle, setBillingCycle] = useState('monthly')
+  const { initiatePayment, loading: paymentLoading } = useRazorpay()
+  const { user } = useAuth()
+  const navigate = useNavigate()
 
   const plans = [
     {
-      name: 'Basic',
-      monthlyPrice: 299,
-      yearlyPrice: 2999,
+      name: 'Free',
+      monthlyPrice: 0,
+      yearlyPrice: 0,
       description: 'Perfect for casual readers',
       features: [
         'Access to 5,000+ books',
@@ -20,12 +27,13 @@ function SubscriptionPage() {
         'Personal library',
         'Bookmarking and highlighting'
       ],
-      popular: false
+      popular: false,
+      isFree: true
     },
     {
       name: 'Pro',
-      monthlyPrice: 599,
-      yearlyPrice: 5999,
+      monthlyPrice: 59,
+      yearlyPrice: 599,
       description: 'For avid readers and book lovers',
       features: [
         'Access to 10,000+ books',
@@ -41,8 +49,8 @@ function SubscriptionPage() {
     },
     {
       name: 'Premium',
-      monthlyPrice: 999,
-      yearlyPrice: 9999,
+      monthlyPrice: 99,
+      yearlyPrice: 999,
       description: 'The ultimate reading experience',
       features: [
         'Access to all books',
@@ -64,6 +72,37 @@ function SubscriptionPage() {
     const savings = monthlyTotal - yearlyPrice
     const percentage = Math.round((savings / monthlyTotal) * 100)
     return { savings, percentage }
+  }
+
+  const handleSubscribe = async (plan, price) => {
+    // Check if user is logged in
+    if (!user) {
+      toast.error('Please sign in to subscribe')
+      navigate('/sign-in')
+      return
+    }
+
+    // Prepare payment details
+    const paymentDetails = {
+      planName: plan.name,
+      amount: price,
+      billingCycle: billingCycle,
+      description: plan.description,
+    }
+
+    // Initiate payment
+    const result = await initiatePayment(paymentDetails)
+
+    if (result.success) {
+      toast.success('Payment successful! Your subscription is now active.')
+      // TODO: Update user subscription in database
+      // TODO: Redirect to books page or profile
+      setTimeout(() => {
+        navigate('/books')
+      }, 2000)
+    } else {
+      toast.error(result.error || 'Payment failed. Please try again.')
+    }
   }
 
   return (
@@ -169,26 +208,36 @@ function SubscriptionPage() {
                   </p>
 
                   <div className="mb-8">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-5xl md:text-6xl leading-none">
-                        ₹{price.toFixed(0)}
-                      </span>
-                      <span className={`text-sm uppercase tracking-widest ${
-                        plan.popular
-                          ? 'text-white/60 dark:text-dark-gray/60'
-                          : 'text-dark-gray/60 dark:text-white/60'
-                      }`}>
-                        /{billingCycle === 'monthly' ? 'mo' : 'yr'}
-                      </span>
-                    </div>
-                    {savings && (
-                      <p className={`text-xs mt-2 uppercase tracking-widest ${
-                        plan.popular
-                          ? 'text-white/60 dark:text-dark-gray/60'
-                          : 'text-dark-gray/60 dark:text-white/60'
-                      }`}>
-                        Save ₹{savings.savings.toFixed(0)} ({savings.percentage}% off)
-                      </p>
+                    {plan.isFree ? (
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-5xl md:text-6xl leading-none">
+                          Free
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex items-baseline gap-2">
+                          <span className="text-5xl md:text-6xl leading-none">
+                            ₹{price.toFixed(0)}
+                          </span>
+                          <span className={`text-sm uppercase tracking-widest ${
+                            plan.popular
+                              ? 'text-white/60 dark:text-dark-gray/60'
+                              : 'text-dark-gray/60 dark:text-white/60'
+                          }`}>
+                            /{billingCycle === 'monthly' ? 'mo' : 'yr'}
+                          </span>
+                        </div>
+                        {savings && (
+                          <p className={`text-xs mt-2 uppercase tracking-widest ${
+                            plan.popular
+                              ? 'text-white/60 dark:text-dark-gray/60'
+                              : 'text-dark-gray/60 dark:text-white/60'
+                          }`}>
+                            Save ₹{savings.savings.toFixed(0)} ({savings.percentage}% off)
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -211,16 +260,36 @@ function SubscriptionPage() {
                     ))}
                   </ul>
 
-                  <Link
-                    to="#"
-                    className={`inline-flex items-center justify-center w-full border-2 px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 ${
+                  {!plan.isFree && (
+                    <button
+                      onClick={() => handleSubscribe(plan, price)}
+                      disabled={paymentLoading}
+                      className={`inline-flex items-center justify-center w-full border-2 px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                        plan.popular
+                          ? 'bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray'
+                          : 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-dark-gray dark:border-white hover:bg-white dark:hover:bg-dark-gray hover:text-dark-gray dark:hover:text-white'
+                      }`}
+                    >
+                      {paymentLoading ? (
+                        <>
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        'Get Started'
+                      )}
+                    </button>
+                  )}
+                  
+                  {plan.isFree && (
+                    <div className={`text-center py-4 text-sm font-medium uppercase tracking-widest ${
                       plan.popular
-                        ? 'bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray'
-                        : 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-dark-gray dark:border-white hover:bg-white dark:hover:bg-dark-gray hover:text-dark-gray dark:hover:text-white'
-                    }`}
-                  >
-                    Get Started
-                  </Link>
+                        ? 'text-white/70 dark:text-dark-gray/70'
+                        : 'text-dark-gray/70 dark:text-white/70'
+                    }`}>
+                      Current Plan
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -281,6 +350,18 @@ function SubscriptionPage() {
         </div>
       </section>
       <Footer />
+      
+      <ToastContainer
+        position="top-right"
+        autoClose={3000}
+        hideProgressBar={false}
+        newestOnTop={false}
+        closeOnClick
+        pauseOnFocusLoss
+        draggable
+        pauseOnHover
+        theme="light"
+      />
     </div>
   )
 }
