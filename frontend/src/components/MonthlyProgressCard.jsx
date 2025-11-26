@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
 
@@ -10,38 +10,7 @@ function MonthlyProgressCard({ monthlyData: propMonthlyData = null, readingStats
   const [loading, setLoading] = useState(true)
   const [hoveredMonth, setHoveredMonth] = useState(null)
 
-  useEffect(() => {
-    if (propMonthlyData && propMonthlyData.length > 0) {
-      // Use provided data
-      setMonthlyData(propMonthlyData)
-      if (propReadingStats) {
-        setTotalBooks(propReadingStats.totalBooks || 0)
-        setTotalPages(propReadingStats.totalPages || 0)
-      } else {
-        setTotalBooks(propMonthlyData.reduce((sum, m) => sum + m.books, 0))
-        setTotalPages(propMonthlyData.reduce((sum, m) => sum + m.pages, 0))
-      }
-    } else {
-      // Fallback to loading from database/localStorage
-      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-      const emptyData = months.map(month => ({
-        month,
-        books: 0,
-        pages: 0
-      }))
-      setMonthlyData(emptyData)
-      if (propReadingStats) {
-        setTotalBooks(propReadingStats.totalBooks || 0)
-        setTotalPages(propReadingStats.totalPages || 0)
-      } else {
-        setTotalBooks(0)
-        setTotalPages(0)
-      }
-    }
-    setLoading(false)
-  }, [propMonthlyData, propReadingStats])
-
-  const loadMonthlyData = async () => {
+  const loadMonthlyData = useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser()
       
@@ -132,6 +101,32 @@ function MonthlyProgressCard({ monthlyData: propMonthlyData = null, readingStats
         })
       }
 
+      // Get currently reading books from user_books
+      const { data: readingBooks, error: readingError } = await supabase
+        .from('user_books')
+        .select('book_id, updated_at, status')
+        .eq('user_id', user.id)
+        .eq('status', 'reading')
+        .gte('updated_at', yearStart)
+
+      if (readingError) {
+        console.error('Error fetching reading books:', readingError)
+      }
+
+      // Count currently reading books by month (based on when they started/last updated)
+      if (readingBooks && readingBooks.length > 0) {
+        readingBooks.forEach(book => {
+          if (book.updated_at) {
+            const updateDate = new Date(book.updated_at)
+            const monthIndex = updateDate.getMonth()
+            const monthName = months[monthIndex]
+            if (monthlyCounts[monthName] !== undefined) {
+              monthlyCounts[monthName]++
+            }
+          }
+        })
+      }
+
       const dataArray = months.map(month => ({
         month,
         books: monthlyCounts[month] || 0,
@@ -139,7 +134,9 @@ function MonthlyProgressCard({ monthlyData: propMonthlyData = null, readingStats
       }))
 
       setMonthlyData(dataArray)
-      setTotalBooks(completedBooks?.length || 0)
+      // Total includes both completed and currently reading books
+      const totalBooksCount = (completedBooks?.length || 0) + (readingBooks?.length || 0)
+      setTotalBooks(totalBooksCount)
       setTotalPages(Object.values(monthlyPages).reduce((sum, pages) => sum + pages, 0))
     } catch (error) {
       console.error('Error loading monthly data:', error)
@@ -164,7 +161,25 @@ function MonthlyProgressCard({ monthlyData: propMonthlyData = null, readingStats
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
+
+  useEffect(() => {
+    if (propMonthlyData && propMonthlyData.length > 0) {
+      // Use provided data
+      setMonthlyData(propMonthlyData)
+      if (propReadingStats) {
+        setTotalBooks(propReadingStats.totalBooks || 0)
+        setTotalPages(propReadingStats.totalPages || 0)
+      } else {
+        setTotalBooks(propMonthlyData.reduce((sum, m) => sum + m.books, 0))
+        setTotalPages(propMonthlyData.reduce((sum, m) => sum + m.pages, 0))
+      }
+      setLoading(false)
+    } else {
+      // Load data from database
+      loadMonthlyData()
+    }
+  }, [propMonthlyData, propReadingStats, loadMonthlyData])
 
   // Generate line chart with improved design
   const generateLineChart = (data) => {
@@ -226,7 +241,7 @@ function MonthlyProgressCard({ monthlyData: propMonthlyData = null, readingStats
           Monthly Reading Progress
         </h3>
         <p className="text-xs text-white/60 dark:text-dark-gray/60">
-          Books completed each month
+          Books you're reading & have completed each month
         </p>
       </div>
 

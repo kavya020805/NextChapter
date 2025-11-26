@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { parseGenres } from '../lib/genreUtils'
 
 function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} }) {
   const [genreData, setGenreData] = useState([])
@@ -54,34 +55,56 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
 
   const loadGenreData = async () => {
     try {
-      // Get read books from localStorage
-      let read = []
-      try {
-        const readData = localStorage.getItem('read')
-        if (readData) {
-          read = JSON.parse(readData)
-        }
-      } catch (e) {
-        console.error('Error parsing read books:', e)
-        read = []
-      }
-
-      if (!Array.isArray(read) || read.length === 0) {
-        console.log('No books in localStorage - showing empty state');
-        // No books read - show empty state
+      // Get current user
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      if (!user) {
+        console.log('No user logged in - showing empty state');
         setGenreData([])
         setTotalBooks(0)
         setLoading(false)
         return
       }
 
-      setTotalBooks(read.length)
+      // Fetch books that are marked as 'read' OR 'reading' from user_books table
+      console.log('🔍 Fetching user books for user:', user.id);
+      const { data: userBooks, error: userBooksError } = await supabase
+        .from('user_books')
+        .select('book_id, status')
+        .eq('user_id', user.id)
+        .in('status', ['read', 'reading']) // Get both read and currently reading books
 
-      // Fetch book details from Supabase using new schema
+      if (userBooksError) {
+        console.error('❌ Error fetching user books:', userBooksError)
+        throw userBooksError
+      }
+
+      console.log('📚 User books fetched:', userBooks);
+      console.log('📊 Books by status:', {
+        reading: userBooks?.filter(b => b.status === 'reading').length || 0,
+        read: userBooks?.filter(b => b.status === 'read').length || 0,
+        total: userBooks?.length || 0
+      });
+
+      const bookIds = (userBooks || []).map(ub => ub.book_id)
+
+      if (bookIds.length === 0) {
+        console.log('⚠️ No books read or reading - showing empty state');
+        setGenreData([])
+        setTotalBooks(0)
+        setLoading(false)
+        return
+      }
+
+      console.log('📖 Book IDs to fetch:', bookIds);
+      setTotalBooks(bookIds.length)
+
+      // Fetch book details from Supabase
+      // Note: 'genres' is an array/vector column in PostgreSQL
       const { data, error } = await supabase
         .from('books')
-        .select('id, genres, genre, subjects')
-        .in('id', read)
+        .select('id, genres')
+        .in('id', bookIds)
 
       if (error) {
         console.error('Supabase error:', error)
@@ -90,17 +113,17 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
 
       console.log('=== GenrePreferencesCard Fetch Debug ===');
       console.log('Fetched books count:', data?.length || 0);
-      console.log('Read book IDs from localStorage:', read);
+      console.log('Book IDs (read + reading) from database:', bookIds);
       
       if (data && data.length > 0) {
-        console.log('Sample book structure:', {
+        console.log('✅ Sample book structure:', {
           id: data[0].id,
           genres: data[0].genres,
-          genre: data[0].genre,
-          subjects: data[0].subjects,
-          hasGenres: Array.isArray(data[0].genres),
+          isArray: Array.isArray(data[0].genres),
           genresLength: Array.isArray(data[0].genres) ? data[0].genres.length : 0
         });
+      } else {
+        console.log('⚠️ No book data returned from query');
       }
 
       // Count genres
@@ -108,28 +131,19 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
       const total = (data || []).length
 
       ;(data || []).forEach(book => {
-        // Prefer genres[] from new schema, fall back to genre or subjects[] if needed
-        const rawGenres = Array.isArray(book.genres)
-          ? book.genres
-          : book.genre
-          ? [book.genre]
-          : Array.isArray(book.subjects)
-          ? book.subjects
-          : []
+        // Use utility function to parse genres (handles all formats)
+        const rawGenres = parseGenres(book);
 
-        console.log(`Book ${book.id}:`, {
-          title: book.title,
+        console.log(`📕 Book ${book.id}:`, {
           genres: book.genres,
-          genre: book.genre,
-          subjects: book.subjects,
-          rawGenres: rawGenres
+          type: typeof book.genres,
+          isArray: Array.isArray(book.genres),
+          parsedGenres: rawGenres
         });
 
         rawGenres.forEach(genre => {
           if (genre) {
-            const genreKey = genre.toString().trim()
-            if (!genreKey) return
-            genreCounts[genreKey] = (genreCounts[genreKey] || 0) + 1
+            genreCounts[genre] = (genreCounts[genre] || 0) + 1
           }
         })
       })
@@ -235,7 +249,7 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
             Genre Preferences
           </h3>
           <p className="text-xs text-white/60 dark:text-dark-gray/60">
-            Your reading habits by genre this year
+            Genres you're reading and have read
           </p>
         </div>
 
@@ -257,7 +271,7 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
             </svg>
           </div>
           <p className="text-sm text-white/60 dark:text-dark-gray/60 mb-1">
-            No books read yet
+            No books yet
           </p>
           <p className="text-xs text-white/40 dark:text-dark-gray/40">
             Start reading to see your genre preferences
@@ -275,7 +289,7 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
           Genre Preferences
         </h3>
         <p className="text-xs text-white/60 dark:text-dark-gray/60">
-          Based on {totalBooks} book{totalBooks !== 1 ? 's' : ''} you've read
+          Based on {totalBooks} book{totalBooks !== 1 ? 's' : ''} you're reading & have read
         </p>
       </div>
 

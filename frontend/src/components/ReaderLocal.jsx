@@ -548,13 +548,17 @@ const ReaderLocal = () => {
     const safePage = Math.max(1, Math.min(pageNumber, total));
     const zoomToUse = zoomOverride ?? zoomLevel;
 
-    // Cancel any in-flight render
-    if (renderTaskRef.current && typeof renderTaskRef.current.cancel === 'function') {
+    // Cancel any in-flight render and wait for it to complete
+    if (renderTaskRef.current) {
       try {
-        renderTaskRef.current.cancel();
+        await renderTaskRef.current.cancel();
+        renderTaskRef.current = null;
       } catch (e) {
-        // ignore
+        // Cancellation may throw, but we can ignore it
+        console.log('Render task cancelled');
       }
+      // Add a small delay to ensure the previous render is fully cancelled
+      await new Promise(resolve => setTimeout(resolve, 10));
     }
 
     const container = viewerRef.current;
@@ -684,7 +688,18 @@ const ReaderLocal = () => {
 
       const renderTask = page.render({ canvasContext: context, viewport });
       renderTaskRef.current = renderTask;
-      await renderTask.promise;
+      
+      try {
+        await renderTask.promise;
+        renderTaskRef.current = null; // Clear after successful render
+      } catch (err) {
+        // Check if error is due to cancellation
+        if (err.name === 'RenderingCancelledException') {
+          console.log('Rendering was cancelled');
+          return; // Exit early if cancelled
+        }
+        throw err; // Re-throw other errors
+      }
 
       // Apply invert filter in reader mode after rendering
       canvas.style.filter = readerTheme === 'reader' ? 'invert(1)' : 'none';
@@ -747,49 +762,83 @@ const ReaderLocal = () => {
   }, [readerTheme, renderPage]);
 
   // Save reading progress to database and localStorage
+  // Track HIGHEST page reached, not current page
   useEffect(() => {
     if (!bookId || !totalPages || totalPages <= 0) return;
     if (!currentPage || currentPage <= 0) return;
 
     const normalizedCurrentPage = Math.min(currentPage, totalPages);
-    let progress = 0;
-
-    if (totalPages > 0) {
-      if (normalizedCurrentPage <= 1) {
-        // Page 1 is treated as 0% progress
-        progress = 0;
-      } else {
-        // Reading progress = (current page / total pages) * 100 for pages > 1
-        const rawProgress = (normalizedCurrentPage / totalPages) * 100;
-        progress = Math.max(0, Math.min(100, Math.round(rawProgress)));
-      }
-    }
     
-    // Save to localStorage for backward compatibility
-    localStorage.setItem(`book_progress_${bookId}`, progress.toString());
-
     // Save to database if user is logged in
-    // Always save current_page when progress > 0 (user has started reading)
-    // For progress = 0, we only save if it's not a new book (to handle edge cases)
     if (user && user.id) {
       const saveProgress = async () => {
         try {
-          const status = progress >= 100 ? 'read' : 'reading';
+          // First, get existing progress to compare
+          const { data: existing } = await supabase
+            .from('user_books')
+            .select('current_page, progress_percentage, status')
+            .eq('user_id', user.id)
+            .eq('book_id', bookId)
+            .single();
+
+          // Determine highest page reached
+          let highestPage = normalizedCurrentPage;
+          let shouldUpdate = true;
+
+          if (existing) {
+            // Check if book was completed and is being reset
+            if (existing.status === 'read' || existing.progress_percentage >= 100) {
+              // Book was completed - treat as fresh start
+              highestPage = normalizedCurrentPage;
+              shouldUpdate = true;
+            } else if (existing.current_page && existing.current_page > normalizedCurrentPage) {
+              // User went backward - keep the highest page reached
+              highestPage = existing.current_page;
+              shouldUpdate = false; // Don't update if going backward
+            }
+          }
+
+          // Calculate progress based on highest page
+          let progress = 0;
+          if (totalPages > 0) {
+            if (highestPage <= 1) {
+              progress = 0;
+            } else if (highestPage >= totalPages) {
+              // Reached the end - mark as 100%
+              progress = 100;
+            } else {
+              const rawProgress = (highestPage / totalPages) * 100;
+              progress = Math.max(0, Math.min(100, Math.round(rawProgress)));
+            }
+          }
+
+          // Determine status
+          let status = 'reading';
+          if (progress >= 100) {
+            status = 'read';
+          } else if (progress > 0) {
+            status = 'reading';
+          } else {
+            status = existing?.status || 'reading';
+          }
+
+          // Update if:
+          // 1. We've reached a new highest page (shouldUpdate = true)
+          // 2. Progress changed (different from existing)
+          // 3. Status changed (e.g., completed the book)
+          const progressChanged = !existing || existing.progress_percentage !== progress;
+          const statusChanged = !existing || existing.status !== status;
           
-          // Always save current_page when progress > 0
-          // This ensures we can resume from the exact page the user left off
-          if (progress > 0) {
-            // Upsert reading progress in user_books table
+          if (shouldUpdate || progressChanged || statusChanged) {
             const nowIso = new Date().toISOString();
             const { error: upsertError } = await supabase
               .from('user_books')
               .upsert({
                 user_id: user.id,
                 book_id: bookId,
-                current_page: normalizedCurrentPage, // Always save the current page
+                current_page: highestPage, // Save highest page reached
                 progress_percentage: progress,
                 status: status,
-                // When a book is finished, record a completion timestamp
                 completed_at: progress >= 100 ? nowIso : null,
                 updated_at: nowIso
               }, {
@@ -799,7 +848,44 @@ const ReaderLocal = () => {
             if (upsertError) {
               console.error('Error saving reading progress:', upsertError);
             } else {
-              console.log('Reading progress saved:', { currentPage: normalizedCurrentPage, progress });
+              console.log('✅ Reading progress saved:', { 
+                currentPage: normalizedCurrentPage, 
+                highestPage, 
+                progress: `${progress}%`,
+                status,
+                totalPages,
+                isComplete: progress >= 100
+              });
+
+              // Save to localStorage for backward compatibility
+              localStorage.setItem(`book_progress_${bookId}`, progress.toString());
+
+              // Update localStorage read list
+              const readList = JSON.parse(localStorage.getItem('read') || '[]');
+              if (progress >= 100) {
+                // Mark as read
+                if (!readList.includes(bookId)) {
+                  readList.push(bookId);
+                  localStorage.setItem('read', JSON.stringify(readList));
+                }
+
+                // Also insert into book_reads table for trending
+                try {
+                  await supabase
+                    .from('book_reads')
+                    .upsert({
+                      user_id: user.id,
+                      book_id: bookId,
+                      read_at: nowIso
+                    }, { onConflict: 'user_id,book_id' });
+                } catch (err) {
+                  console.error('Error updating book_reads:', err);
+                }
+              } else if (readList.includes(bookId) && progress < 100) {
+                // Remove from read list if progress dropped below 100%
+                const updated = readList.filter(id => id !== bookId);
+                localStorage.setItem('read', JSON.stringify(updated));
+              }
 
               // Log reading session for activity dashboard
               try {
@@ -846,10 +932,6 @@ const ReaderLocal = () => {
                 console.error('Unexpected error logging reading session:', sessionErr);
               }
             }
-          } else {
-            // Progress is 0 - don't save to database for new books
-            // This keeps the database clean
-            console.log('Progress is 0%, not saving to database (new book)');
           }
         } catch (err) {
           console.error('Error saving progress to database:', err);
@@ -859,46 +941,30 @@ const ReaderLocal = () => {
       // Debounce database saves to avoid too many writes
       const timeoutId = setTimeout(saveProgress, 1000);
       return () => clearTimeout(timeoutId);
-    } else if (user && user.id && progress === 0 && normalizedCurrentPage === 1) {
-      // For new books (page 1, 0% progress), ensure we don't have stale data
-      // Delete any existing record with 0% progress to keep database clean
-      const cleanupProgress = async () => {
-        try {
-          const { data: existing } = await supabase
-            .from('user_books')
-            .select('progress_percentage')
-            .eq('user_id', user.id)
-            .eq('book_id', bookId)
-            .single();
-          
-          // Only delete if there's a record with 0% progress (stale data)
-          if (existing && existing.progress_percentage === 0) {
-            await supabase
-              .from('user_books')
-              .delete()
-              .eq('user_id', user.id)
-              .eq('book_id', bookId);
-          }
-        } catch (err) {
-          // Ignore errors - this is just cleanup
+    } else {
+      // Not logged in - save to localStorage only
+      let progress = 0;
+      if (totalPages > 0) {
+        if (normalizedCurrentPage <= 1) {
+          progress = 0;
+        } else if (normalizedCurrentPage >= totalPages) {
+          progress = 100;
+        } else {
+          const rawProgress = (normalizedCurrentPage / totalPages) * 100;
+          progress = Math.max(0, Math.min(100, Math.round(rawProgress)));
         }
-      };
+      }
+      localStorage.setItem(`book_progress_${bookId}`, progress.toString());
       
-      // Run cleanup after a delay to avoid race conditions
-      const cleanupTimeout = setTimeout(cleanupProgress, 2000);
-      return () => clearTimeout(cleanupTimeout);
-    }
-
-    // Update localStorage read list for backward compatibility
-    const readList = JSON.parse(localStorage.getItem('read') || '[]');
-    if (progress >= 100) {
-      if (!readList.includes(bookId)) {
-        const updated = [...readList, bookId];
+      // Update read list
+      const readList = JSON.parse(localStorage.getItem('read') || '[]');
+      if (progress >= 100 && !readList.includes(bookId)) {
+        readList.push(bookId);
+        localStorage.setItem('read', JSON.stringify(readList));
+      } else if (progress < 100 && readList.includes(bookId)) {
+        const updated = readList.filter(id => id !== bookId);
         localStorage.setItem('read', JSON.stringify(updated));
       }
-    } else if (readList.includes(bookId)) {
-      const updated = readList.filter((existingId) => existingId !== bookId);
-      localStorage.setItem('read', JSON.stringify(updated));
     }
   }, [bookId, currentPage, totalPages, user]);
 
@@ -955,17 +1021,50 @@ const ReaderLocal = () => {
           try {
             const { data: userBook, error: progressError } = await supabase
               .from('user_books')
-              .select('current_page, progress_percentage')
+              .select('current_page, progress_percentage, status')
               .eq('user_id', user.id)
               .eq('book_id', bookId)
               .single();
 
-            // Load saved progress if it exists and progress > 0
+            // Check if book was completed (100%)
             if (!progressError && userBook) {
               const progress = userBook.progress_percentage || 0;
               const page = userBook.current_page || 1;
+              const status = userBook.status;
               
-              if (progress > 0 && page >= 1) {
+              if (progress >= 100 || status === 'read') {
+                // Book was completed - keep status as 'read' but reset page and progress for re-reading
+                console.log('📖 Book was completed. Keeping as read but resetting to page 1 for re-reading.');
+                
+                // Reset page and progress in database but keep status as 'read'
+                await supabase
+                  .from('user_books')
+                  .update({
+                    current_page: 1,
+                    progress_percentage: 0,
+                    status: 'read', // Keep as 'read' to maintain completion record
+                    updated_at: new Date().toISOString()
+                    // Note: completed_at is preserved to track when they first finished
+                  })
+                  .eq('user_id', user.id)
+                  .eq('book_id', bookId);
+                
+                // Start from page 1
+                savedPage = 1;
+                savedProgress = 0;
+                
+                // Reset localStorage progress
+                localStorage.setItem(`book_progress_${bookId}`, '0');
+                
+                // Keep in read list (don't remove)
+                const readList = JSON.parse(localStorage.getItem('read') || '[]');
+                if (!readList.includes(bookId)) {
+                  readList.push(bookId);
+                  localStorage.setItem('read', JSON.stringify(readList));
+                }
+                
+                console.log('Book remains marked as read, starting fresh from page 1');
+              } else if (progress > 0 && page >= 1) {
                 // User has reading progress - resume from saved page
                 savedPage = Math.max(1, page);
                 savedProgress = progress;
@@ -1016,6 +1115,13 @@ const ReaderLocal = () => {
         setCurrentPage(savedPage);
         
         const initializePdfViewer = async () => {
+          // Wait for viewer ref to be available
+          let attempts = 0;
+          while (!viewerRef.current && attempts < 10) {
+            await new Promise(resolve => setTimeout(resolve, 100));
+            attempts++;
+          }
+
           if (!viewerRef.current) {
             throw new Error('Viewer container not available');
           }
@@ -1047,6 +1153,17 @@ const ReaderLocal = () => {
             // Load PDF document via pdf.js
             const loadingTask = pdfjsLib.getDocument(fullPdfUrl);
             const pdf = await loadingTask.promise;
+            
+            // Clear any existing render tasks before setting new PDF
+            if (renderTaskRef.current) {
+              try {
+                await renderTaskRef.current.cancel();
+                renderTaskRef.current = null;
+              } catch (e) {
+                console.log('Cleared previous render task');
+              }
+            }
+            
             pdfDocRef.current = pdf;
             setTotalPages(pdf.numPages || 0);
 
@@ -1054,6 +1171,9 @@ const ReaderLocal = () => {
             setCurrentPage(initialPage);
             lastScrollPageRef.current = initialPage;
 
+            // Wait a bit before rendering to ensure state is updated
+            await new Promise(resolve => setTimeout(resolve, 50));
+            
             // Render the initial page
             await renderPage(initialPage, zoomLevel);
           } catch (viewerError) {
@@ -1139,12 +1259,18 @@ const ReaderLocal = () => {
   const handleZoom = (delta) => {
     const next = Math.max(50, Math.min(150, zoomLevel + delta));
     setZoomLevel(next);
-    updateZoomInPDF(next);
+    // Re-render current page with new zoom level
+    if (pdfDocRef.current && currentPage > 0) {
+      renderPage(currentPage, next);
+    }
   };
 
   const resetZoom = () => {
     setZoomLevel(100);
-    updateZoomInPDF(100);
+    // Re-render current page with default zoom level
+    if (pdfDocRef.current && currentPage > 0) {
+      renderPage(currentPage, 100);
+    }
   };
 
   useEffect(() => {

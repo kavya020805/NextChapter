@@ -156,11 +156,26 @@ export async function getTrendingBooks(limit = 10, days = 30) {
 
     if (!viewError && trendingBooks && trendingBooks.length > 0) {
       console.log(`Found ${trendingBooks.length} trending books from view`)
-      const booksWithUrls = transformBookCoverUrls(trendingBooks)
-      return booksWithUrls.map(book => ({
-        ...book,
-        trendingScore: book.trending_score || 0
-      }))
+      
+      // Fetch full book details including genres from books table
+      const bookIds = trendingBooks.map(b => b.id)
+      const { data: fullBooks } = await supabase
+        .from('books')
+        .select('id, genres')
+        .in('id', bookIds)
+      
+      // Merge genres data with trending books
+      const booksWithGenres = trendingBooks.map(book => {
+        const fullBook = fullBooks?.find(fb => fb.id === book.id)
+        return {
+          ...book,
+          genres: fullBook?.genres || book.genres,
+          trendingScore: book.trending_score || 0
+        }
+      })
+      
+      const booksWithUrls = transformBookCoverUrls(booksWithGenres)
+      return booksWithUrls
     }
 
     // Fallback to manual calculation if view doesn't exist
