@@ -1,6 +1,6 @@
 export const moderationService = async (comment) => {
   try {
-    const moderationUrl = "https://comment-moderation-api.onrender.com" || import.meta.env.VITE_MODERATION_API_URL || "http://localhost:8000"; 
+    const moderationUrl = "https://nextchapter-backend.vercel.app/" || import.meta.env.VITE_MODERATION_API_URL || "http://localhost:8000"; 
     const response = await fetch(`${moderationUrl}/api/moderate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
