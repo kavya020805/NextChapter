@@ -1,10 +1,17 @@
 export const moderationService = async (comment) => {
   try {
-    const moderationUrl = "https://nextchapter-backend.vercel.app/" || import.meta.env.VITE_MODERATION_API_URL || "http://localhost:8000"; 
+    const rawUrl = 
+      import.meta.env.VITE_MODERATION_API_URL ||
+      "https://nextchapter-backend.vercel.app" ||
+      "http://localhost:8000";
+
+    // Remove trailing slash
+    const moderationUrl = rawUrl.replace(/\/+$/, "");
+
     const response = await fetch(`${moderationUrl}/api/moderate`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: comment }),  
+      body: JSON.stringify({ text: comment }),
     });
 
     if (!response.ok) {
@@ -12,16 +19,13 @@ export const moderationService = async (comment) => {
       throw new Error(error.detail || "Failed to moderate comment");
     }
 
-    // <-- This returns EXACT fields from backend:
-    // is_appropriate, message, reasons
     return await response.json();
 
   } catch (error) {
     console.error("Moderation service error:", error.message);
 
-    // Keep spelling consistent with backend return structure
     return {
-      is_appropriate: true,   // must be snake_case
+      is_appropriate: true,
       message: "Moderation unavailable",
       reasons: [],
     };
