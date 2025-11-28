@@ -149,7 +149,8 @@ function FilterDropdown({ location, navigate }) {
     { label: 'New Releases', value: 'new-releases', path: '/new-releases' },
     { label: 'Highest Rated', value: 'rated', path: '/highest-rated' },
     { label: 'Recommendations', value: 'recommended', path: '/recommended' },
-    { label: 'Explore', value: 'explore', path: '/explore' }
+    { label: 'Explore', value: 'explore', path: '/explore' },
+    { label: 'Offline Library', value: 'offline', path: '/offline' }
   ]
 
   const handleMouseEnter = () => {
