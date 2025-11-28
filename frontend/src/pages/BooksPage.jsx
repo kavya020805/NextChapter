@@ -100,40 +100,55 @@ function BooksPage() {
 
   const loadBooks = async () => {
     setLoading(true)
+    console.log('📚 Starting to load books from Supabase...')
+    
     try {
-      // Fetch books from Supabase
-      const { data, error } = await supabase
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase query timeout after 10 seconds')), 10000)
+      )
+      
+      const supabasePromise = supabase
         .from('books')
         .select('*')
         .order('title', { ascending: true })
       
+      // Race between query and timeout
+      const { data, error } = await Promise.race([supabasePromise, timeoutPromise])
+      
       if (error) {
-        console.error('Supabase error:', error)
+        console.error('❌ Supabase error:', error)
         throw error
       }
+      
+      console.log('✅ Fetched books from Supabase:', data?.length || 0)
       
       // Transform cover_image paths to full URLs
       const booksWithUrls = transformBookCoverUrls(data || [])
       
-      console.log('Fetched books from Supabase:', booksWithUrls?.length || 0)
       setAllBooks(booksWithUrls)
       setFilteredBooks(booksWithUrls)
     } catch (e) {
-      console.error('Failed to load books from Supabase:', e)
-      // Optionally fallback to local JSON
+      console.error('❌ Failed to load books from Supabase:', e)
+      console.log('🔄 Trying local JSON fallback...')
+      
+      // Fallback to local JSON
       try {
         const response = await fetch('/books-data.json')
         if (response.ok) {
           const booksData = await response.json()
           setAllBooks(booksData)
           setFilteredBooks(booksData)
-          console.log('Loaded books from local JSON fallback')
+          console.log('✅ Loaded books from local JSON fallback:', booksData.length)
+        } else {
+          console.error('❌ Local JSON not found or invalid')
         }
       } catch (fallbackError) {
-        console.error('Fallback also failed:', fallbackError)
+        console.error('❌ Fallback also failed:', fallbackError)
       }
     } finally {
       setLoading(false)
+      console.log('📚 Books loading complete')
     }
   }
 

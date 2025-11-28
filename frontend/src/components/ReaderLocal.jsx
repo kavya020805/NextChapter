@@ -5,6 +5,8 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, ArrowRight, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, MessageSquare, Image as ImageIcon, X, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { transformBookCoverUrls } from '../lib/bookUtils';
+import { getCachedPdfUrl } from '../lib/pdfCache';
+import PdfCacheManager from './PdfCacheManager';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
 
@@ -52,6 +54,8 @@ const ReaderLocal = () => {
   const [audioTime, setAudioTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [showControls, setShowControls] = useState(true);
+  const [showCacheManager, setShowCacheManager] = useState(false);
+  const [cacheStatus, setCacheStatus] = useState(null); // 'cached', 'caching', 'direct', null
   
   const viewerRef = useRef(null);
   const controlsTimeoutRef = useRef(null);
@@ -1038,11 +1042,20 @@ const ReaderLocal = () => {
         // Prefer full URL in pdf_file, then explicit path/filename fields
         const pdfFileName = book.pdf_file || book.pdf_path || book.pdf_filename;
         
+        console.log('Book data:', {
+          id: book.id,
+          title: book.title,
+          pdf_file: book.pdf_file,
+          pdf_path: book.pdf_path,
+          pdf_filename: book.pdf_filename,
+          resolved: pdfFileName
+        });
+        
         if (!pdfFileName) {
-          throw new Error('No PDF file found for this book');
+          throw new Error('No PDF file found for this book. Please check the database.');
         }
         
-        console.log('Loading PDF file:', pdfFileName);
+        console.log('✅ PDF filename resolved:', pdfFileName);
 
         // Load saved reading progress from database
         let savedPage = 1;
@@ -1180,9 +1193,34 @@ const ReaderLocal = () => {
               throw new Error('Could not resolve PDF URL');
             }
 
+            console.log('📄 PDF URL from Supabase:', fullPdfUrl);
+
+            // Get cached PDF URL (will fetch and cache if not already cached)
+            console.log('🔄 Checking cache for PDF...');
+            let pdfUrlToUse = fullPdfUrl;
+            
+            try {
+              pdfUrlToUse = await getCachedPdfUrl(fullPdfUrl);
+              const isFromCache = pdfUrlToUse !== fullPdfUrl && pdfUrlToUse.startsWith('blob:');
+              
+              if (isFromCache) {
+                console.log('✅ Using PDF URL: from cache (instant load)');
+                setCacheStatus('cached');
+              } else {
+                console.log('✅ Using PDF URL: direct from Supabase (caching in background)');
+                setCacheStatus('caching');
+              }
+            } catch (cacheError) {
+              console.warn('⚠️ Cache check failed, using direct URL:', cacheError);
+              pdfUrlToUse = fullPdfUrl;
+              setCacheStatus('direct');
+            }
+
             // Load PDF document via pdf.js
-            const loadingTask = pdfjsLib.getDocument(fullPdfUrl);
+            console.log('📖 Loading PDF with pdf.js from:', pdfUrlToUse);
+            const loadingTask = pdfjsLib.getDocument(pdfUrlToUse);
             const pdf = await loadingTask.promise;
+            console.log('✅ PDF loaded successfully, pages:', pdf.numPages);
             
             // Clear any existing render tasks before setting new PDF
             if (renderTaskRef.current) {
@@ -1207,8 +1245,13 @@ const ReaderLocal = () => {
             // Render the initial page
             await renderPage(initialPage, zoomLevel);
           } catch (viewerError) {
-            console.error('Error initializing PDF.js viewer:', viewerError);
-            setError('Error loading PDF. Please check if the file exists.');
+            console.error('❌ Error initializing PDF.js viewer:', viewerError);
+            console.error('Error details:', {
+              message: viewerError.message,
+              name: viewerError.name,
+              stack: viewerError.stack
+            });
+            setError(`Error loading PDF: ${viewerError.message || 'Unknown error'}. Please check if the file exists in Supabase storage.`);
           } finally {
             setLoading(false);
           }
@@ -1990,6 +2033,19 @@ const ReaderLocal = () => {
                 </button>
               </div>
             </div>
+
+            {/* PDF Cache Manager */}
+            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                Storage
+              </div>
+              <button
+                className="w-full px-3 py-2 text-[10px] uppercase tracking-widest border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                onClick={() => setShowCacheManager(true)}
+              >
+                Manage PDF Cache
+              </button>
+            </div>
             
             {/* AI Features */}
             <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
@@ -2350,6 +2406,11 @@ const ReaderLocal = () => {
         </div>
       )}
 
+      {/* PDF Cache Manager Modal */}
+      <PdfCacheManager 
+        isOpen={showCacheManager} 
+        onClose={() => setShowCacheManager(false)} 
+      />
 
     </div>
     </div>
