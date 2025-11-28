@@ -27,16 +27,26 @@ export function useOfflineRedirect(enabled = true) {
       // Optionally redirect back or show a notification
     };
 
-    // Check initial status
-    if (!navigator.onLine) {
-      handleOffline();
-    }
+    // Check initial status immediately on mount
+    const checkInitialStatus = () => {
+      if (!navigator.onLine) {
+        console.log('📴 Starting offline, redirecting to offline library...');
+        handleOffline();
+      }
+    };
+
+    // Check status immediately
+    checkInitialStatus();
+
+    // Also check after a short delay to catch slow network detection
+    const timeoutId = setTimeout(checkInitialStatus, 100);
 
     // Listen for status changes
     window.addEventListener('offline', handleOffline);
     window.addEventListener('online', handleOnline);
 
     return () => {
+      clearTimeout(timeoutId);
       window.removeEventListener('offline', handleOffline);
       window.removeEventListener('online', handleOnline);
     };
