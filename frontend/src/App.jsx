@@ -22,6 +22,7 @@ import TermsPage from './pages/TermsPage'
 import RefundsPage from './pages/RefundsPage'
 import ContactPage from './pages/ContactPage'
 import ShippingPage from './pages/ShippingPage'
+import OfflinePage from './pages/OfflinePage'
 import Gallery from './components/Gallery'
 import GalleryLocal from './components/GalleryLocal'
 import Reader from './components/Reader'
@@ -79,6 +80,9 @@ function App() {
         <Route path="/refunds" element={<RefundsPage />} />
         <Route path="/contact" element={<ContactPage />} />
         <Route path="/shipping" element={<ShippingPage />} />
+        
+        {/* Offline page - accessible to everyone */}
+        <Route path="/offline" element={<OfflinePage />} />
         
         {/* OAuth callback route - handles OAuth redirects for both old and new users */}
         <Route path="/auth/callback" element={<OAuthCallbackPage />} />

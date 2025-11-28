@@ -7,6 +7,7 @@ import { supabase } from '../lib/supabaseClient'
 import { useAuth } from '../contexts/AuthContext'
 import { hasCompletedPersonalization } from '../lib/personalizationUtils'
 import { transformBookCoverUrls } from '../lib/bookUtils'
+import { useOfflineRedirect } from '../hooks/useOfflineRedirect'
 
 function BooksPage() {
   const { user } = useAuth()
@@ -17,6 +18,9 @@ function BooksPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [searchParams, setSearchParams] = useSearchParams()
   const selectedGenre = searchParams.get('genre')
+  
+  // Auto-redirect to offline library when offline
+  useOfflineRedirect()
 
   // Check personalization on mount
   useEffect(() => {

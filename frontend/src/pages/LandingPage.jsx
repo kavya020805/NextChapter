@@ -5,6 +5,7 @@ import HeroSection from '../components/HeroSection'
 import Footer from '../components/Footer'
 import CountUp from '../components/CountUp'
 import { BookOpen, Sparkles, Brain, Search, BookMarked, Globe, ArrowRight, TrendingUp, MessageCircle, Download, Trophy } from 'lucide-react'
+import { useOfflineRedirect } from '../hooks/useOfflineRedirect'
 
 // Counter Stat Component
 function CounterStat({ target, suffix, label, duration = 2 }) {
@@ -29,6 +30,9 @@ function CounterStat({ target, suffix, label, duration = 2 }) {
 }
 
 function LandingPage() {
+  // Auto-redirect to offline library when offline
+  useOfflineRedirect()
+  
   const features = [
     {
       icon: <Sparkles className="w-8 h-8 md:w-10 md:h-10" />,

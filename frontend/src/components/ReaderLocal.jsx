@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ArrowLeft, ArrowRight, Moon, Sun, ZoomIn, ZoomOut, RotateCcw, MessageSquare, Image as ImageIcon, X, Menu } from 'lucide-react';
 import { supabase } from '../lib/supabaseClient';
 import { transformBookCoverUrls } from '../lib/bookUtils';
-import { getCachedPdfUrl } from '../lib/pdfCache';
+import { getCachedPdfUrl, cacheBookMetadata } from '../lib/pdfCache';
 import PdfCacheManager from './PdfCacheManager';
 import * as pdfjsLib from 'pdfjs-dist/build/pdf';
 import pdfjsWorker from 'pdfjs-dist/build/pdf.worker?url';
@@ -994,6 +994,9 @@ const ReaderLocal = () => {
     }
   }, [bookId, currentPage, totalPages, user]);
 
+  const loadingRef = useRef(false);
+  const loadedBookIdRef = useRef(null);
+
   useEffect(() => {
     if (!bookId) {
       setBookTitle('No book selected');
@@ -1002,7 +1005,20 @@ const ReaderLocal = () => {
       return;
     }
     
+    // Prevent multiple simultaneous loads of the SAME book
+    if (loadingRef.current && loadedBookIdRef.current === bookId) {
+      console.log('⚠️ Book already loaded, skipping...');
+      return;
+    }
+    
+    // If it's a different book, allow loading
+    if (loadedBookIdRef.current !== bookId) {
+      loadedBookIdRef.current = bookId;
+      loadingRef.current = false;
+    }
+    
     const loadBook = async () => {
+      loadingRef.current = true;
       setLoading(true);
       setError('');
       
@@ -1037,6 +1053,8 @@ const ReaderLocal = () => {
         setBookCover(bookWithUrl.cover_image || '');
         
         console.log('Final cover URL set to:', bookWithUrl.cover_image);
+        
+        // Metadata will be cached after PDF is successfully loaded
         
         // Get PDF file from Supabase Storage
         // Prefer full URL in pdf_file, then explicit path/filename fields
@@ -1218,9 +1236,37 @@ const ReaderLocal = () => {
 
             // Load PDF document via pdf.js
             console.log('📖 Loading PDF with pdf.js from:', pdfUrlToUse);
-            const loadingTask = pdfjsLib.getDocument(pdfUrlToUse);
-            const pdf = await loadingTask.promise;
+            console.log('Creating pdf.js loading task...');
+            
+            const loadingTask = pdfjsLib.getDocument({
+              url: pdfUrlToUse,
+              verbosity: 0 // Reduce pdf.js console spam
+            });
+            
+            console.log('Waiting for PDF to load...');
+            
+            // Add timeout to prevent infinite loading (60 seconds for large PDFs)
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => {
+                console.error('❌ PDF loading timeout!');
+                reject(new Error('PDF loading timeout after 60 seconds. The PDF file might be too large or corrupted.'));
+              }, 60000)
+            );
+            
+            const pdf = await Promise.race([loadingTask.promise, timeoutPromise]);
             console.log('✅ PDF loaded successfully, pages:', pdf.numPages);
+            
+            // Cache book metadata for offline access (after PDF is successfully loaded)
+            setTimeout(() => {
+              cacheBookMetadata(bookId, {
+                title: bookWithUrl.title,
+                author: bookWithUrl.author,
+                description: bookWithUrl.description,
+                cover_image: bookWithUrl.cover_image,
+                genres: bookWithUrl.genres || bookWithUrl.genre,
+                pdf_url: fullPdfUrl // Store the PDF URL for verification
+              }).catch(err => console.warn('Failed to cache metadata:', err));
+            }, 1000);
             
             // Clear any existing render tasks before setting new PDF
             if (renderTaskRef.current) {
@@ -1305,6 +1351,7 @@ const ReaderLocal = () => {
         }
       } finally {
         setLoading(false);
+        loadingRef.current = false;
       }
     };
     

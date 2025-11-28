@@ -1,8 +1,10 @@
 // pdfCache.js
 // Service for caching PDF files in the browser's Cache API
 // Stores entire PDF files locally for faster subsequent loads from Supabase storage
+// Also stores book metadata for offline reading
 
 const CACHE_NAME = 'nextchapter-pdf-cache-v1';
+const METADATA_CACHE_NAME = 'nextchapter-metadata-cache-v1';
 const CACHE_EXPIRY_DAYS = 30; // PDFs expire after 30 days
 
 /**
@@ -244,5 +246,157 @@ export async function preloadPdf(pdfUrl) {
   } catch (error) {
     console.error('Error preloading PDF:', error);
     throw error;
+  }
+}
+
+/**
+ * Store book metadata for offline access
+ * @param {string} bookId - Book ID
+ * @param {Object} metadata - Book metadata (title, author, description, cover_image)
+ * @returns {Promise<void>}
+ */
+export async function cacheBookMetadata(bookId, metadata) {
+  try {
+    const cache = await caches.open(METADATA_CACHE_NAME);
+    
+    // Create a unique URL for this book's metadata
+    // Use HTTPS URL for better browser compatibility
+    const metadataUrl = `https://nextchapter.app/metadata/book/${bookId}`;
+    
+    // Store metadata as JSON
+    const response = new Response(JSON.stringify({
+      ...metadata,
+      bookId,
+      cachedAt: Date.now()
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        'x-cached-date': Date.now().toString()
+      }
+    });
+    
+    await cache.put(metadataUrl, response);
+    console.log('✅ Book metadata cached:', bookId, metadata.title);
+  } catch (error) {
+    console.error('❌ Failed to cache book metadata:', error.message);
+    // Don't throw - metadata caching failure shouldn't break PDF loading
+  }
+}
+
+/**
+ * Get all cached books with metadata (only returns books that have BOTH PDF and metadata cached)
+ * @returns {Promise<Array>} - Array of cached books with metadata
+ */
+export async function getCachedBooks() {
+  try {
+    console.log('📚 Getting cached books...');
+    const metadataCache = await caches.open(METADATA_CACHE_NAME);
+    const pdfCache = await caches.open(CACHE_NAME);
+    
+    const metadataKeys = await metadataCache.keys();
+    const pdfKeys = await pdfCache.keys();
+    
+    console.log('Found', metadataKeys.length, 'metadata items and', pdfKeys.length, 'PDF items');
+    
+    // Get all PDF URLs for quick lookup
+    const pdfUrls = new Set(pdfKeys.map(key => key.url));
+    
+    const books = [];
+    
+    for (const request of metadataKeys) {
+      // Check for both old and new URL formats
+      if (request.url.startsWith('metadata://book/') || request.url.includes('/metadata/book/')) {
+        const response = await metadataCache.match(request);
+        if (response) {
+          const metadata = await response.json();
+          
+          // Check if this book has a cached PDF
+          // We need to find if ANY PDF URL contains this book's identifier
+          const bookId = metadata.bookId;
+          const hasPdf = Array.from(pdfUrls).some(url => {
+            // Check if the PDF URL is related to this book
+            // This is a simple check - you might need to adjust based on your URL structure
+            return url.includes(encodeURIComponent(metadata.title)) || 
+                   url.includes(bookId) ||
+                   // Check if metadata has pdf_url stored
+                   (metadata.pdf_url && url === metadata.pdf_url);
+          });
+          
+          if (hasPdf) {
+            console.log('✅ Book has both PDF and metadata:', metadata.title);
+            books.push(metadata);
+          } else {
+            console.log('⚠️ Book has metadata but no PDF:', metadata.title);
+          }
+        }
+      }
+    }
+    
+    console.log('✅ Loaded', books.length, 'complete cached books (with PDFs)');
+    
+    // Sort by most recently cached
+    books.sort((a, b) => (b.cachedAt || 0) - (a.cachedAt || 0));
+    
+    return books;
+  } catch (error) {
+    console.error('❌ Error getting cached books:', error);
+    return [];
+  }
+}
+
+/**
+ * Check if a book is cached (both PDF and metadata)
+ * @param {string} bookId - Book ID
+ * @param {string} pdfUrl - PDF URL
+ * @returns {Promise<boolean>}
+ */
+export async function isBookCached(bookId, pdfUrl) {
+  try {
+    const pdfCache = await caches.open(CACHE_NAME);
+    const metadataCache = await caches.open(METADATA_CACHE_NAME);
+    
+    const hasPdf = await pdfCache.match(pdfUrl);
+    const hasMetadata = await metadataCache.match(`metadata://book/${bookId}`);
+    
+    return !!(hasPdf && hasMetadata);
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
+ * Remove a book from cache (both PDF and metadata)
+ * @param {string} bookId - Book ID
+ * @param {string} pdfUrl - PDF URL
+ * @returns {Promise<boolean>}
+ */
+export async function removeCachedBook(bookId, pdfUrl) {
+  try {
+    const pdfCache = await caches.open(CACHE_NAME);
+    const metadataCache = await caches.open(METADATA_CACHE_NAME);
+    
+    await pdfCache.delete(pdfUrl);
+    await metadataCache.delete(`metadata://book/${bookId}`);
+    
+    console.log('Book removed from cache:', bookId);
+    return true;
+  } catch (error) {
+    console.error('Error removing cached book:', error);
+    return false;
+  }
+}
+
+/**
+ * Clear all cached metadata
+ * @returns {Promise<boolean>}
+ */
+export async function clearMetadataCache() {
+  try {
+    const deleted = await caches.delete(METADATA_CACHE_NAME);
+    console.log('Metadata cache cleared:', deleted);
+    return deleted;
+  } catch (error) {
+    console.error('Error clearing metadata cache:', error);
+    return false;
   }
 }
