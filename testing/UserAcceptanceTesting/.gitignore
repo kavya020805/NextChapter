@@ -1,0 +1,55 @@
+# Node modules
+node_modules/
+
+# Playwright test artifacts
+test-results/
+playwright-report/
+blob-report/
+report/        
+*.zip
+*.webm
+*.mp4
+
+# Screenshots & videos
+*.png
+*.jpeg
+*.jpg
+*.mp4
+*.webm
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Temporary files
+*.tmp
+*.temp
+
+# IDE files
+.vscode/
+.idea/
+
+# Cache
+.cache/
+npm-cache/
+yarn-cache/
+
+# Python cache (if any accidentally created)
+__pycache__/
+*.pyc
+
+# Playwright
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
