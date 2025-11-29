@@ -4,10 +4,13 @@ import { supabase } from './supabaseClient'
  * Create a new subscription for a user
  */
 export async function createSubscription(userId, subscriptionData) {
+  console.log('🔵 createSubscription called with:', { userId, subscriptionData })
+  
   const { planName, billingCycle, amount, paymentDetails } = subscriptionData
 
   // Map plan name to plan_id (lowercase)
   const planId = planName.toLowerCase()
+  console.log('📝 Plan ID:', planId)
 
   // Calculate expiration date based on billing cycle
   const startDate = new Date()
@@ -18,6 +21,8 @@ export async function createSubscription(userId, subscriptionData) {
   } else if (billingCycle === 'yearly') {
     expiresAt.setFullYear(expiresAt.getFullYear() + 1)
   }
+
+  console.log('📅 Dates:', { startDate: startDate.toISOString(), expiresAt: expiresAt.toISOString() })
 
   // First, create payment record
   const paymentData = {
@@ -33,6 +38,8 @@ export async function createSubscription(userId, subscriptionData) {
     payment_method: paymentDetails?.payment_method || 'razorpay'
   }
 
+  console.log('💳 Creating payment record:', paymentData)
+
   const { data: payment, error: paymentError } = await supabase
     .from('payments')
     .insert(paymentData)
@@ -40,33 +47,45 @@ export async function createSubscription(userId, subscriptionData) {
     .single()
 
   if (paymentError) {
-    console.error('Error creating payment:', paymentError)
+    console.error('❌ Error creating payment:', paymentError)
+    console.error('Payment error details:', JSON.stringify(paymentError, null, 2))
     return { data: null, error: paymentError }
   }
 
+  console.log('✅ Payment created:', payment)
+
   // Then create subscription
+  const subscriptionData2 = {
+    user_id: userId,
+    plan_id: planId,
+    billing_cycle: billingCycle,
+    status: 'active',
+    started_at: startDate.toISOString(),
+    expires_at: planName === 'Free' ? null : expiresAt.toISOString(),
+    razorpay_subscription_id: paymentDetails?.razorpay_subscription_id || null
+  }
+
+  console.log('📦 Creating subscription:', subscriptionData2)
+
   const { data, error } = await supabase
     .from('user_subscriptions')
-    .insert({
-      user_id: userId,
-      plan_id: planId,
-      billing_cycle: billingCycle,
-      status: 'active',
-      started_at: startDate.toISOString(),
-      expires_at: planName === 'Free' ? null : expiresAt.toISOString(),
-      razorpay_subscription_id: paymentDetails?.razorpay_subscription_id || null
-    })
+    .insert(subscriptionData2)
     .select()
     .single()
 
   if (error) {
-    console.error('Error creating subscription:', error)
+    console.error('❌ Error creating subscription:', error)
+    console.error('Subscription error details:', JSON.stringify(error, null, 2))
     return { data: null, error }
   }
 
+  console.log('✅ Subscription created:', data)
+
   // Update user profile with subscription info
+  console.log('👤 Updating user profile...')
   await updateUserProfileSubscription(userId, planName, 'active', startDate.toISOString(), expiresAt.toISOString())
 
+  console.log('✅ Subscription process complete!')
   return { data, error: null }
 }
 
@@ -74,7 +93,9 @@ export async function createSubscription(userId, subscriptionData) {
  * Update user profile with subscription info
  */
 async function updateUserProfileSubscription(userId, planName, status, startDate, expiresAt) {
-  const { error } = await supabase
+  console.log('👤 Updating user profile with:', { userId, planName, status, startDate, expiresAt })
+  
+  const { data, error } = await supabase
     .from('user_profiles')
     .update({
       subscription_plan: planName,
@@ -84,9 +105,13 @@ async function updateUserProfileSubscription(userId, planName, status, startDate
       updated_at: new Date().toISOString()
     })
     .eq('user_id', userId)
+    .select()
 
   if (error) {
-    console.error('Error updating user profile subscription:', error)
+    console.error('❌ Error updating user profile subscription:', error)
+    console.error('Profile update error details:', JSON.stringify(error, null, 2))
+  } else {
+    console.log('✅ User profile updated:', data)
   }
 }
 
