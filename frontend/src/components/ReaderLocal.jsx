@@ -22,6 +22,7 @@ const ReaderLocal = () => {
   const { user } = useAuth();
   
   const [bookTitle, setBookTitle] = useState('');
+  const [bookAuthor, setBookAuthor] = useState('');
   const [bookDescription, setBookDescription] = useState('');
   const [bookCover, setBookCover] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -1080,6 +1081,7 @@ const ReaderLocal = () => {
         console.log('Book cover_image field (after transform):', bookWithUrl.cover_image);
         
         setBookTitle(bookWithUrl.title || 'Untitled');
+        setBookAuthor(bookWithUrl.author || 'Unknown Author');
         setBookDescription(bookWithUrl.description || '');
         setBookCover(bookWithUrl.cover_image || '');
         
@@ -1586,10 +1588,11 @@ const ReaderLocal = () => {
         }));
       
       // Enhanced prompt with better context
-      const systemContext = `You are an intelligent book reading assistant. You're helping a reader with "${bookTitle}".
+      const systemContext = `You are an intelligent book reading assistant. You're helping a reader with "${bookTitle}" by ${bookAuthor}.
 
 Current Context:
 - Book: ${bookTitle}
+- Author: ${bookAuthor}
 - Current Page: ${currentPage}${totalPages > 0 ? ` of ${totalPages}` : ''}
 
 Your Role:
@@ -2409,39 +2412,8 @@ Guidelines:
             <h3 className="text-xs font-medium uppercase tracking-widest text-dark-gray dark:text-white">AI Book Assistant</h3>
           </div>
           <div className="p-3 bg-dark-gray/5 dark:bg-white/5 border-b border-dark-gray/10 dark:border-white/10">
-            <div className="text-[10px] text-dark-gray/70 dark:text-white/70 mb-3">
+            <div className="text-[10px] text-dark-gray/70 dark:text-white/70">
               {bookTitle} - Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
-            </div>
-            {/* Page Preview */}
-            <div className="bg-white dark:bg-black/20 border border-dark-gray/20 dark:border-white/20 rounded overflow-hidden">
-              <div className="text-[9px] text-dark-gray/50 dark:text-white/50 px-2 py-1 bg-dark-gray/5 dark:bg-white/5 border-b border-dark-gray/10 dark:border-white/10">
-                Current Page Preview
-              </div>
-              <div className="p-2 flex items-center justify-center bg-gray-50 dark:bg-gray-900" style={{ minHeight: '120px' }}>
-                {viewerRef.current && (
-                  <div 
-                    className="w-full h-full flex items-center justify-center"
-                    style={{ 
-                      maxHeight: '150px',
-                      overflow: 'hidden'
-                    }}
-                  >
-                    <canvas 
-                      id="chatbot-page-preview"
-                      className="max-w-full max-h-full object-contain shadow-sm"
-                      style={{ 
-                        border: '1px solid rgba(0,0,0,0.1)',
-                        backgroundColor: 'white'
-                      }}
-                    />
-                  </div>
-                )}
-                {!viewerRef.current && (
-                  <div className="text-[10px] text-dark-gray/40 dark:text-white/40">
-                    Loading page...
-                  </div>
-                )}
-              </div>
             </div>
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">

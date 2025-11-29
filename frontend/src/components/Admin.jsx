@@ -6,6 +6,7 @@ import { getUserProfile } from "../lib/personalizationUtils";
 import { getTrendingBooks } from "../lib/trendingUtils";
 import { transformBookCoverUrls } from "../lib/bookUtils";
 import { parseGenres } from "../lib/genreUtils";
+import BulkBookUpload from "./BulkBookUpload";
 import {
   Plus,
   Edit2,
@@ -508,6 +509,7 @@ const Admin = () => {
   const [trendingBooks, setTrendingBooks] = useState([]);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [contactSubmissions, setContactSubmissions] = useState([]);
+  const [showBulkUpload, setShowBulkUpload] = useState(false);
   const [systemHealth, setSystemHealth] = useState({
     storage: { used: 0, total: 100, status: 'good' },
     api: { status: 'good', lastCheck: new Date() },
@@ -550,6 +552,7 @@ const Admin = () => {
     language: 'English',
     cover_image: DEFAULT_COVER_IMAGE,
     pdf_file: null,
+    audio_file: null,
     cover_file: null
   });
 
@@ -773,6 +776,7 @@ const Admin = () => {
         language: editingBook.language || 'English',
         cover_image: editingBook.cover_image || DEFAULT_COVER_IMAGE,
         pdf_file: editingBook.pdf_file || null,
+        audio_file: editingBook.audio_file || null,
         cover_file: null
       });
       setShowForm(true);
@@ -846,11 +850,17 @@ const Admin = () => {
 
     try {
       let pdfUrl = formData.pdf_file;
+      let audioUrl = formData.audio_file;
       let coverImageUrl = formData.cover_image;
 
       // Upload PDF if a new file is selected
       if (formData.pdf_file instanceof File) {
         pdfUrl = await uploadFile(formData.pdf_file, STORAGE_BUCKET);
+      }
+
+      // Upload audio file if a new file is selected
+      if (formData.audio_file instanceof File) {
+        audioUrl = await uploadFile(formData.audio_file, STORAGE_BUCKET);
       }
 
       // Upload cover image if a new file is selected
@@ -873,7 +883,8 @@ const Admin = () => {
         genres: genresArray,
         language: formData.language || 'English',
         cover_image: coverImageUrl,
-        pdf_file: pdfUrl
+        pdf_file: pdfUrl,
+        audio_file: audioUrl
       };
 
       if (editingBook) {
@@ -2054,7 +2065,7 @@ const Admin = () => {
               <h3 className="text-lg sm:text-xl font-bold text-white dark:text-dark-gray mb-3 sm:mb-4 uppercase tracking-widest">
                 Quick Actions
               </h3>
-              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div className="grid grid-cols-3 gap-2 sm:gap-3">
                 <button
                   onClick={() => {
                     setEditingBook(null);
@@ -2064,6 +2075,14 @@ const Admin = () => {
                 >
                   <Plus className="w-5 h-5 text-white dark:text-dark-gray" />
                   <span className="text-xs text-white dark:text-dark-gray uppercase tracking-wider">Add Book</span>
+                </button>
+                
+                <button
+                  onClick={() => setShowBulkUpload(true)}
+                  className="flex flex-col items-center gap-2 p-3 sm:p-4 bg-white/10 dark:bg-dark-gray/10 hover:bg-white/20 dark:hover:bg-dark-gray/20 transition-colors"
+                >
+                  <Upload className="w-5 h-5 text-white dark:text-dark-gray" />
+                  <span className="text-xs text-white dark:text-dark-gray uppercase tracking-wider">Bulk Upload</span>
                 </button>
                 
                 <button
@@ -2773,6 +2792,24 @@ const Admin = () => {
                       </p>
                     )}
                   </div>
+
+                  <div>
+                    <label className="block text-xs uppercase tracking-wider text-dark-gray/60 dark:text-white/60 mb-2 font-medium">
+                      Audio File (Audiobook)
+                    </label>
+                    <input
+                      type="file"
+                      name="audio_file"
+                      onChange={handleFileChange}
+                      accept=".mp3,.m4a,.wav,.ogg"
+                      className="w-full text-xs text-dark-gray dark:text-white file:mr-2 file:py-1.5 file:px-3 file:border file:border-dark-gray/20 dark:file:border-white/20 file:text-xs file:uppercase file:tracking-wider file:bg-transparent file:text-dark-gray dark:file:text-white file:cursor-pointer hover:file:bg-dark-gray/5 dark:hover:file:bg-white/5 file:transition-colors"
+                    />
+                    {formData.audio_file && !(formData.audio_file instanceof File) && (
+                      <p className="mt-1.5 text-xs text-dark-gray/40 dark:text-white/40 truncate">
+                        Current: {formData.audio_file}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 {/* Action Buttons */}
@@ -2803,6 +2840,45 @@ const Admin = () => {
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        )}
+
+        {/* Bulk Upload Modal */}
+        {showBulkUpload && (
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-2 sm:p-4"
+            onClick={(e) => {
+              if (e.target === e.currentTarget) setShowBulkUpload(false);
+            }}
+            role="dialog"
+            aria-modal="true"
+          >
+            <div className="w-full max-w-3xl bg-white dark:bg-dark-gray border border-dark-gray/20 dark:border-white/20 shadow-2xl max-h-[95vh] sm:max-h-[90vh] overflow-y-auto">
+              {/* Header */}
+              <div className="sticky top-0 bg-white dark:bg-dark-gray border-b border-dark-gray/10 dark:border-white/10 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between z-10">
+                <h2 className="text-base sm:text-lg text-dark-gray dark:text-white font-medium uppercase tracking-wider">
+                  Bulk Book Upload
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => setShowBulkUpload(false)}
+                  className="p-1.5 text-dark-gray/50 dark:text-white/50 hover:text-dark-gray dark:hover:text-white transition-colors touch-manipulation"
+                  aria-label="Close"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Bulk Upload Component */}
+              <div className="p-4 sm:p-6">
+                <BulkBookUpload 
+                  onSuccess={() => {
+                    refreshBooks();
+                    setShowBulkUpload(false);
+                  }} 
+                />
+              </div>
             </div>
           </div>
         )}

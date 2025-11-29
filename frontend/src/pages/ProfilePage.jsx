@@ -15,6 +15,7 @@ import PinnedBooksCard from '../components/PinnedBooksCard'
 import CurrentlyReadingCard from '../components/CurrentlyReadingCard'
 import GenrePreferencesCard from '../components/GenrePreferencesCard'
 import MonthlyProgressCard from '../components/MonthlyProgressCard'
+import BadgesCard from '../components/BadgesCard'
 
 function ProfilePage() {
   const { user, signOut } = useAuth()
@@ -752,6 +753,13 @@ function ProfilePage() {
                         </div>
                       </div>
                     </div>
+
+                    {/* Badges Card */}
+                    <BadgesCard 
+                      userId={user?.id} 
+                      readingStats={dashboardData?.readingStats}
+                      genreDistribution={dashboardData?.genreDistribution}
+                    />
 
                     {/* Reading Activity Card */}
                     <ReadingActivityCard 
