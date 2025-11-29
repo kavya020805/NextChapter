@@ -1,147 +1,493 @@
-import { useState, useEffect } from "react"
+#Author - Kirtan Chhatbar - 202301098
+import os
+import time
+from typing import Any, Dict, List, Optional
 
-const API_BASE_URL = import.meta?.env?.VITE_AI_SUGGESTION_URL ?? "http://127.0.0.1:8000"
+from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from supabase import Client, create_client
+import uvicorn
+from postgrest.exceptions import APIError
 
-export default function ExploreBooks({ userId }) {
-  const [books, setBooks] = useState([])
-  const [status, setStatus] = useState("idle")
-  const [error, setError] = useState(null)
 
-  useEffect(() => {
-    let isActive = true
+# --- 1. Load Environment & Initialize Clients ---
+load_dotenv() 
 
-    const fetchExploreBooks = async () => {
-      if (!userId) {
-        setError("Missing user id")
-        setStatus("error")
-        return
-      }
+SUPABASE_URL = os.environ.get("SUPABASE_URL")
+SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
 
-      setStatus("loading")
-      setError(null)
+# Check if all required environment variables are set
+if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY]):
+    raise RuntimeError("Missing one or more required environment variables for recommendation service.")
 
-      const requestQueue = [
-        {
-          url: `${API_BASE_URL}/explore/${encodeURIComponent(userId)}`,
-          options: { method: "GET" }
-        },
-        {
-          url: `${API_BASE_URL}/explore`,
-          options: {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ user_id: userId })
-          }
+# Initialize the FastAPI app
+app = FastAPI(title="NextChapter AI Suggestions API")
+
+# Initialize Supabase client (using service_role key to bypass RLS)
+supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+
+print("Supabase client initialized - Lightweight mode (no ML models)")
+
+# --- 2. CORS Middleware ---
+# Configure Cross-Origin Resource Sharing (CORS)
+# This allows your frontend (running on localhost:3000 or 5173) to call this API
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# --- 3. Request / Response Models ---
+# Pydantic models define the shape of API requests and responses
+
+class RecommendationRequest(BaseModel):
+    """Defines the expected JSON body for a POST request."""
+    user_id: str
+
+class RecommendedBook(BaseModel):
+    """Defines the shape of a single book in the response."""
+    book_id: Any
+    title: Optional[str] = None
+    author: Optional[str] = None
+    cover_url: Optional[str] = None
+
+class RecommendationResponse(BaseModel):
+    """Defines the final JSON response sent to the frontend."""
+    user_id: str
+    books: List[RecommendedBook]
+    strategy: Optional[str] = None
+    is_fallback: bool = False
+
+# --- 4. Helper Functions ---
+
+def get_similar_books_by_metadata(top_book_details: Dict[str, Any], read_book_ids: set, limit: int = 5) -> List[Dict[str, Any]]:
+    """
+    Lightweight metadata-based recommendation without ML models.
+    Finds books with matching genres, authors, or language.
+    """
+    try:
+        # Extract preferences from top book
+        top_genres = top_book_details.get("genres", [])
+        top_author = top_book_details.get("author")
+        top_language = top_book_details.get("language")
+        
+        # Build query for similar books
+        query = supabase.table("books").select("id, title, author, cover_image, genres, language")
+        
+        # Filter out already read books
+        if read_book_ids:
+            query = query.not_.in_("id", list(read_book_ids))
+        
+        # Get a larger pool to filter from
+        response = query.limit(100).execute()
+        all_books = response.data or []
+        
+        # Score books based on similarity
+        scored_books = []
+        for book in all_books:
+            score = 0
+            book_genres = book.get("genres", [])
+            
+            # Genre matching (highest weight)
+            if top_genres and book_genres:
+                matching_genres = set(top_genres) & set(book_genres)
+                score += len(matching_genres) * 3
+            
+            # Same author (medium weight)
+            if top_author and book.get("author") == top_author:
+                score += 2
+            
+            # Same language (low weight)
+            if top_language and book.get("language") == top_language:
+                score += 1
+            
+            if score > 0:
+                scored_books.append((score, book))
+        
+        # Sort by score and return top results
+        scored_books.sort(key=lambda x: x[0], reverse=True)
+        return [book for _, book in scored_books[:limit]]
+        
+    except Exception as e:
+        print(f"Error in metadata-based recommendation: {e}")
+        return []
+
+def calculate_love_score(history_item: Dict[str, Any]) -> float:
+    """
+    Calculates a "Love Score" (from 0 to 1) based on user's interaction
+    with a book. This score weighs scroll depth, rating, and watchlist status.
+    
+    This function now works with the data from our new SQL function.
+    """
+    raw_scroll = history_item.get("scroll_depth", 0) or 0
+    raw_rating = history_item.get("rating", 0) or 0
+    raw_watchlist = history_item.get("was_in_watchlist", False)
+    
+    # Weighted average: scroll (50%), watchlist (30%), rating (20%)
+    scroll_norm = (raw_scroll / 100) * 0.5
+    watchlist_norm = (1 if raw_watchlist else 0) * 0.3
+    rating_norm = (raw_rating / 5) * 0.2
+    return scroll_norm + watchlist_norm + rating_norm
+
+def format_books(raw_books: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Takes a list of book objects from Supabase and formats them
+    into the simple structure required by the `RecommendedBook` model.
+    """
+    formatted = []
+    for book in raw_books[:5]: # Return only the top 5
+        formatted.append(
+            {
+                "book_id": book.get("id"),
+                "title": book.get("title"),
+                "author": book.get("author"),
+                "cover_url": book.get("cover_image"),
+            }
+        )
+    return formatted
+
+async def get_popular_books_from_supabase() -> List[Dict[str, Any]]:
+    """
+    The final fallback. Tries to get popular books by calling a
+    PostgreSQL RPC function 'get_popular_books'. If that fails,
+    it runs a manual query to get books ordered by 'number_of_downloads'.
+    """
+    try:
+        # First, try calling the database function
+        response = supabase.rpc("get_popular_books", {}).execute()
+        if response.data:
+            return response.data
+        print("RPC 'get_popular_books' returned no data. Using fallback query.")
+    except APIError as e:
+        # This catches errors if the RPC function doesn't exist or fails
+        if e.code == "PGRST202" or e.code == "42883" or e.code == "42703":
+            print(f"RPC 'get_popular_books' failed or not found ({e.code}). Using fallback query.")
+        else:
+            print(f"Error calling get_popular_books RPC: {e}")
+    except Exception as e:
+        print(f"A general error occurred in get_popular_books: {e}")
+    
+    # Manual fallback query if the RPC fails
+    try:
+        fallback_response = (
+            supabase.table("books")
+            .select("id, title, author, cover_image")
+            .order("number_of_downloads", desc=True, nullsfirst=False)
+            .limit(10)
+            .execute()
+        )
+        return fallback_response.data or []
+    except Exception as e:
+        print(f"Error fetching popular books via fallback: {e}")
+        return []
+
+async def get_recs_from_preferences(user_id: str) -> Optional[List[Dict[str, Any]]]:
+    """
+    This is Plan B (for Cold Starts or Warm Start fallbacks).
+    It fetches the user's saved 'genres' from their 'user_profiles'
+    table and finds books that match.
+    """
+    try:
+        profile_res = (
+            supabase.table("user_profiles")
+            .select("genres")
+            .eq("user_id", user_id)
+            .maybe_single()
+            .execute()
+        )
+        
+        if not profile_res or not profile_res.data or not profile_res.data.get("genres"):
+            print(f"User {user_id} has no preferences saved.")
+            return None
+            
+        preferred_genres = profile_res.data["genres"]
+        if not preferred_genres:
+            return None
+            
+        print(f"User {user_id} has preferred genres: {preferred_genres}")
+        
+        # --- FIX: Convert Python list to PostgreSQL array string ---
+        # e.g., ['Fiction', 'History'] becomes '{"Fiction","History"}'
+        postgres_array_string = "{" + ",".join(f'"{g}"' for g in preferred_genres) + "}"
+        
+        book_res = (
+            supabase.table("books")
+            .select("id, title, author, cover_image")
+            # Use the correctly formatted string
+            .filter("genres", "cs", postgres_array_string) # 'cs' = "contains"
+            .limit(10)
+            .execute()
+        )
+        return book_res.data if book_res.data else None
+    except APIError as e:
+        if e.code == "PGRST116":
+             print(f"No profile found for user {user_id}. Cannot get preferences.")
+             return None
+        print(f"Error fetching preference-based recommendations: {e}")
+        return None
+    except Exception as e:
+        print(f"A general error occurred in get_recs_from_preferences: {e}")
+        return None
+
+# --- 5. Main Logic (REPLACED WITH NEW RPC CALL) ---
+
+async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
+    """
+    This is the main function that builds the recommendation response.
+    It handles both "Cold Start" (new users) and "Warm Start" (returning users).
+    
+    This version uses the 'get_full_user_history' RPC call to join data
+    from user_books, book_ratings, and book_wishlist.
+    """
+    start_total_time = time.time()
+    print(f"Generating recommendations for {user_id}")
+    top_book_details = None
+    
+    try:
+        # --- Step 1: Get ALL history data in ONE call ---
+        # This one RPC call replaces all our old, broken queries
+        start_step_time = time.time()
+        history_res = (
+            supabase.rpc("get_full_user_history", {"p_user_id": user_id})
+            .execute()
+        )
+        
+        all_history_data = history_res.data or []
+        
+        # --- Step 2: Get ALL "read" book IDs for accurate filtering ---
+        read_book_ids = set(item['book_id'] for item in all_history_data) if all_history_data else set()
+
+        # --- Step 3: Get RECENT 5 "read" books for "Love Score" logic ---
+        # We just slice the list we already have, since it's pre-sorted by the SQL function
+        recent_history_data = all_history_data[:5]
+        print(f"   [TIMING] Fetched and processed history: {time.time() - start_step_time:.2f}s")
+
+
+        # --- Step 4: COLD START Logic ---
+        # If the user has no recent reading history, they are a "Cold Start".
+        if not recent_history_data:
+            print(f"Cold start detected for user: {user_id}")
+            
+            # Plan A: Try to get recommendations from their saved preferences
+            preferred = await get_recs_from_preferences(user_id)
+            strategy = "preferences" if preferred else "popular"
+            
+            # Plan B: If no preferences, get popular books
+            candidate_books_raw = preferred or await get_popular_books_from_supabase()
+            
+            # Filter out any books they *may* have read (from all_history_res)
+            candidate_books = [b for b in candidate_books_raw if b.get('id') not in read_book_ids]
+
+            formatted = format_books(candidate_books)
+            if not formatted:
+                raise HTTPException(status_code=404, detail="No recommendations available for this user.")
+
+            print(f"--- [TIMING] Total request time: {time.time() - start_total_time:.2f}s ---")
+            # Return the response without justification
+            return RecommendationResponse(
+                user_id=user_id,
+                books=[RecommendedBook(**book) for book in formatted],
+                strategy=strategy,
+                is_fallback=True,
+            )
+
+        # --- Step 5: WARM START Logic ---
+        # If we are here, the user has reading history.
+        print(f"Warm start for user: {user_id}. Using 'Love Score' logic.")
+        (top_book, top_genre, top_author, top_book_details) = (None, None, None, None)
+
+        # --- Step 5a: Calculate "Love Score" and find top preferences ---
+        # We can use the *exact same* calculate_love_score function as before,
+        # because our SQL function provides the columns it needs.
+        start_step_time = time.time()
+        scored_books_history = []
+        for item in recent_history_data: # Use the recent 5
+            score = calculate_love_score(item) # This function still works!
+            scored_books_history.append({"book_id": item["book_id"], "score": score})
+        
+        recent_book_ids = [b["book_id"] for b in scored_books_history]
+        books_response = (
+            supabase.table("books")
+            .select("id, title, author, genres, language")
+            .in_("id", recent_book_ids)
+            .execute()
+        )
+        books_response_data = books_response.data or []
+        print(f"   [TIMING] Scored & fetched history book details: {time.time() - start_step_time:.2f}s")
+
+        # Calculate weighted scores for genres, authors, and languages
+        start_step_time = time.time()
+        genre_scores: Dict[str, float] = {}
+        author_scores: Dict[str, float] = {}
+        language_scores: Dict[str, float] = {}
+        for history_item in scored_books_history:
+            for book_detail in books_response_data:
+                if history_item["book_id"] == book_detail["id"]:
+                    score = history_item["score"]
+                    if genre_list := book_detail.get("genres"):
+                        if isinstance(genre_list, list):
+                            for g in genre_list:
+                                if g: genre_scores[g] = genre_scores.get(g, 0) + score
+                    if a := book_detail.get("author"):
+                        author_scores[a] = author_scores.get(a, 0) + score
+                    if l := book_detail.get("language"):
+                        language_scores[l] = language_scores.get(l, 0) + score
+                    history_item["details"] = book_detail
+                    break
+        
+        # Find the single book with the highest Love Score
+        top_book = max(scored_books_history, key=lambda x: x["score"])
+        top_genre = max(genre_scores, key=genre_scores.get) if genre_scores else None
+        top_author = max(author_scores, key=author_scores.get) if author_scores else None
+        top_book_details = top_book.get("details", {})
+        print(f"   [TIMING] Calculated user preferences: {time.time() - start_step_time:.2f}s")
+
+        # --- Step 5b: Metadata-based Recommendation (Lightweight) ---
+        start_step_time = time.time()
+        candidate_books = get_similar_books_by_metadata(top_book_details, read_book_ids, limit=5)
+        print(f"   [TIMING] Found similar books by metadata: {time.time() - start_step_time:.2f}s")
+
+        # --- Step 5c: Handle Fallback Logic ---
+        strategy = "metadata_matching"
+        
+        if not candidate_books:
+            print("Metadata matching produced no results. Falling back to preferences/popular.")
+            prefs = await get_recs_from_preferences(user_id)
+            strategy = "preferences" if prefs else "popular"
+            candidate_books_raw = prefs or await get_popular_books_from_supabase()
+            candidate_books = [b for b in candidate_books_raw if b.get('id') not in read_book_ids]
+
+        # --- Step 6: Format and Return ---
+        formatted = format_books(candidate_books)
+        if not formatted:
+            raise HTTPException(status_code=404, detail="No recommendations available for this user.")
+        
+        print(f"--- [TIMING] Total request time: {time.time() - start_total_time:.2f}s ---")
+        return RecommendationResponse(
+            user_id=user_id,
+            books=[RecommendedBook(**book) for book in formatted],
+            strategy=strategy,
+            is_fallback=strategy != "metadata_matching",
+        )
+
+    except HTTPException:
+        raise 
+    except Exception as e:
+        print(f"An error occurred in recommendation generation: {e}")
+        raise HTTPException(status_code=500, detail="An internal server error occurred.")
+
+
+async def build_explore_payload(user_id: str, limit: int = 5) -> RecommendationResponse:
+    """Return curated books the user has not read yet."""
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id.")
+
+    try:
+        read_response = (
+            supabase.table("user_books")
+            .select("book_id")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        read_ids = {
+            row.get("book_id")
+            for row in (read_response.data or [])
+            if row.get("book_id") is not None
         }
-      ]
 
-      let lastError = null
+        try:
+            books_response = (
+                supabase.table("books")
+                .select("id, title, author, cover_image")
+                .order("number_of_downloads", desc=True, nullsfirst=False)
+                .limit(60)
+                .execute()
+            )
+        except APIError as e:
+            if e.code != "42703":
+                raise
+            # Fallback to created_at if number_of_downloads column does not exist
+            books_response = (
+                supabase.table("books")
+                .select("id, title, author, cover_image")
+                .order("created_at", desc=True, nullsfirst=False)
+                .limit(60)
+                .execute()
+            )
 
-      for (const request of requestQueue) {
-        try {
-          const response = await fetch(request.url, request.options)
+        candidate_books: List[Dict[str, Any]] = []
+        for book in books_response.data or []:
+            if book.get("id") in read_ids:
+                continue
+            candidate_books.append(book)
+            if len(candidate_books) >= limit:
+                break
 
-          if (response.status === 404) {
-            if (!isActive) return
-            setBooks([])
-            setStatus("loaded")
-            setError(null)
-            return
-          }
+        if not candidate_books:
+            raise HTTPException(status_code=404, detail="No explore titles available. Try again later.")
 
-          if (!response.ok) {
-            const message = await response.text()
-            throw new Error(message || "Unable to load explore picks")
-          }
+        formatted = format_books(candidate_books)
+        if not formatted:
+            raise HTTPException(status_code=404, detail="No explore titles available. Try again later.")
 
-          const data = await response.json()
-          if (!isActive) return
-          setBooks(data?.books ?? [])
-          setStatus("loaded")
-          return
-        } catch (err) {
-          lastError = err
-        }
-      }
+        return RecommendationResponse(
+            user_id=user_id,
+            books=[RecommendedBook(**book) for book in formatted],
+            strategy="explore",
+            is_fallback=False,
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error building explore payload: {e}")
+        raise HTTPException(status_code=500, detail="Unable to fetch explore recommendations.")
 
-      if (!isActive) return
-      setStatus("error")
-      setError(lastError?.message || "Unable to load explore picks")
-    }
 
-    fetchExploreBooks()
+# --- 6. Main Recommendation Endpoints ---
 
-    return () => {
-      isActive = false
-    }
-  }, [userId])
+@app.get("/recommendations/{user_id}", response_model=RecommendationResponse)
+async def get_smart_suggestions(user_id: str):
+    """
+    GET endpoint to fetch recommendations.
+    Called directly from the browser or other services.
+    """
+    return await build_recommendations_payload(user_id)
 
-  const hasBooks = books.length > 0
+@app.post("/recommendations", response_model=RecommendationResponse)
+async def post_smart_suggestions(payload: RecommendationRequest):
+    """
+    POST endpoint to fetch recommendations.
+    Accepts a JSON body: {"user_id": "..."}
+    """
+    if not payload.user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id in request body.")
+    return await build_recommendations_payload(payload.user_id)
 
-  return (
-    <section className="mt-6 space-y-4">
-      <header className="flex flex-col gap-3">
-        <div>
-          <h2 className="text-lg md:text-xl font-semibold text-white dark:text-dark-gray">
-            Explore Something New
-          </h2>
-          
-        </div>
-      </header>
+@app.get("/explore/{user_id}", response_model=RecommendationResponse)
+async def get_explore(user_id: str):
+    return await build_explore_payload(user_id)
 
-      {error && (
-        <p className="text-sm text-red-400 dark:text-red-500">
-          {error || "Something went wrong. Please try again."}
-        </p>
-      )}
+@app.post("/explore", response_model=RecommendationResponse)
+async def post_explore(payload: RecommendationRequest):
+    if not payload.user_id:
+        raise HTTPException(status_code=400, detail="Missing user_id in request body.")
+    return await build_explore_payload(payload.user_id)
 
-      {status === "idle" && !error && (
-        <p className="text-sm text-white/60 dark:text-dark-gray/60">
-          Gathering fresh titles for you...
-        </p>
-      )}
 
-      {status === "loaded" && books.length === 0 && !error && (
-        <p className="text-sm text-white/70 dark:text-dark-gray/70">
-          Nothing to explore right now. Check back after you complete a few more books.
-        </p>
-      )}
-
-      {hasBooks && (
-        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-          {books.map((book) => (
-            <article
-              key={book.book_id}
-              className="flex flex-col gap-3 rounded-xl border border-white/10 dark:border-dark-gray/15 bg-white/5 dark:bg-dark-gray/5 backdrop-blur-sm p-4 md:p-5 shadow-sm shadow-black/20 dark:shadow-black/10 hover:border-white/25 dark:hover:border-dark-gray/25 transition-colors"
-            >
-              {book.cover_url ? (
-                <div className="overflow-hidden rounded-lg border border-white/10 dark:border-dark-gray/20 shadow-md shadow-black/30">
-                  <img
-                    src={book.cover_url}
-                    alt={book.title ?? "Book cover"}
-                    className="w-full aspect-3/4 object-cover"
-                    loading="lazy"
-                  />
-                </div>
-              ) : (
-                <div className="w-full aspect-3/4 rounded-lg border border-white/10 dark:border-dark-gray/20 bg-white/5 dark:bg-dark-gray/20 flex items-center justify-center text-xs font-semibold uppercase tracking-[0.25em] text-white/70 dark:text-dark-gray/70">
-                  No Cover
-                </div>
-              )}
-              <div>
-                <h3 className="text-sm md:text-base font-semibold text-white dark:text-dark-gray line-clamp-2">
-                  {book.title ?? "Untitled"}
-                </h3>
-                {book.author && (
-                  <p className="mt-1 text-xs md:text-sm text-white/70 dark:text-dark-gray/70 line-clamp-1">
-                    {book.author}
-                  </p>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-      )}
-    </section>
-  )
-}
+# --- 7. Run the App ---
+if __name__ == "__main__":
+    """
+    This block allows you to run the app directly with `python main.py`
+    """
+    print("Starting FastAPI server at http://127.0.0.1:8000")
+    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
