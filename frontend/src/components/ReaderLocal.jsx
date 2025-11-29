@@ -22,6 +22,7 @@ const ReaderLocal = () => {
   const { user } = useAuth();
   
   const [bookTitle, setBookTitle] = useState('');
+  const [bookAuthor, setBookAuthor] = useState('');
   const [bookDescription, setBookDescription] = useState('');
   const [bookCover, setBookCover] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
@@ -1080,6 +1081,7 @@ const ReaderLocal = () => {
         console.log('Book cover_image field (after transform):', bookWithUrl.cover_image);
         
         setBookTitle(bookWithUrl.title || 'Untitled');
+        setBookAuthor(bookWithUrl.author || 'Unknown Author');
         setBookDescription(bookWithUrl.description || '');
         setBookCover(bookWithUrl.cover_image || '');
         
@@ -1586,10 +1588,11 @@ const ReaderLocal = () => {
         }));
       
       // Enhanced prompt with better context
-      const systemContext = `You are an intelligent book reading assistant. You're helping a reader with "${bookTitle}".
+      const systemContext = `You are an intelligent book reading assistant. You're helping a reader with "${bookTitle}" by ${bookAuthor}.
 
 Current Context:
 - Book: ${bookTitle}
+- Author: ${bookAuthor}
 - Current Page: ${currentPage}${totalPages > 0 ? ` of ${totalPages}` : ''}
 
 Your Role:
