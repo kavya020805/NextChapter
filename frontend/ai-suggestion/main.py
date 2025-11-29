@@ -1,239 +1,147 @@
-import os
-import time
-from typing import Any, Dict, List, Optional
+import { useState, useEffect } from "react"
 
-from dotenv import load_dotenv
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pinecone import Pinecone
-from pydantic import BaseModel
-from supabase import Client, create_client
-from postgrest.exceptions import APIError
-from groq import Groq  # NEW: Groq Embeddings
+const API_BASE_URL = import.meta?.env?.VITE_AI_SUGGESTION_URL ?? "http://127.0.0.1:8000"
 
-load_dotenv()
+export default function ExploreBooks({ userId }) {
+  const [books, setBooks] = useState([])
+  const [status, setStatus] = useState("idle")
+  const [error, setError] = useState(null)
 
-# --- Environment Variables ---
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+  useEffect(() => {
+    let isActive = true
 
-if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY, PINECONE_API_KEY, GROQ_API_KEY]):
-    raise RuntimeError("❌ Missing one or more env variables")
+    const fetchExploreBooks = async () => {
+      if (!userId) {
+        setError("Missing user id")
+        setStatus("error")
+        return
+      }
 
-# --- Initialize Clients ---
-app = FastAPI(title="NextChapter AI Suggestions API")
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-pc = Pinecone(api_key=PINECONE_API_KEY)
-groq_client = Groq(api_key=GROQ_API_KEY)
+      setStatus("loading")
+      setError(null)
 
-index = pc.Index("nextchapter-books")
+      const requestQueue = [
+        {
+          url: `${API_BASE_URL}/explore/${encodeURIComponent(userId)}`,
+          options: { method: "GET" }
+        },
+        {
+          url: `${API_BASE_URL}/explore`,
+          options: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: userId })
+          }
+        }
+      ]
 
-# --- CORS ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+      let lastError = null
 
-# --- Pydantic Models ---
-class RecommendationRequest(BaseModel):
-    user_id: str
+      for (const request of requestQueue) {
+        try {
+          const response = await fetch(request.url, request.options)
 
-class RecommendedBook(BaseModel):
-    book_id: Any
-    title: Optional[str] = None
-    author: Optional[str] = None
-    cover_url: Optional[str] = None
+          if (response.status === 404) {
+            if (!isActive) return
+            setBooks([])
+            setStatus("loaded")
+            setError(null)
+            return
+          }
 
-class RecommendationResponse(BaseModel):
-    user_id: str
-    books: List[RecommendedBook]
-    strategy: Optional[str] = None
-    is_fallback: bool = False
+          if (!response.ok) {
+            const message = await response.text()
+            throw new Error(message || "Unable to load explore picks")
+          }
 
+          const data = await response.json()
+          if (!isActive) return
+          setBooks(data?.books ?? [])
+          setStatus("loaded")
+          return
+        } catch (err) {
+          lastError = err
+        }
+      }
 
-# ==========================
-# 🔥 NEW: GROQ EMBEDDING FUNCTION
-# ==========================
-def embed_text(text: str) -> List[float]:
-    """Use Groq embedding API instead of local ML model."""
-    try:
-        resp = groq_client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
-        )
-        return resp.data[0].embedding
-    except Exception as e:
-        print("Embedding error:", e)
-        raise HTTPException(status_code=500, detail="Embedding failed")
+      if (!isActive) return
+      setStatus("error")
+      setError(lastError?.message || "Unable to load explore picks")
+    }
 
+    fetchExploreBooks()
 
-# ==========================
-# 🔧 Helper Functions
-# ==========================
+    return () => {
+      isActive = false
+    }
+  }, [userId])
 
-def get_text_to_embed(book: Dict[str, Any]) -> str:
-    genres_list = book.get("genres", [])
-    genres_str = ", ".join(genres_list) if genres_list else ""
-    return (
-        f"Title: {book.get('title', '')}. "
-        f"Author: {book.get('author', '')}. "
-        f"Genre: {book.get('genre', '')}. "
-        f"Tags: {genres_str}."
-    )
+  const hasBooks = books.length > 0
 
-def calculate_love_score(history_item: Dict[str, Any]) -> float:
-    raw_scroll = history_item.get("scroll_depth", 0) or 0
-    raw_rating = history_item.get("rating", 0) or 0
-    raw_watchlist = history_item.get("was_in_watchlist", False)
+  return (
+    <section className="mt-6 space-y-4">
+      <header className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-lg md:text-xl font-semibold text-white dark:text-dark-gray">
+            Explore Something New
+          </h2>
+          
+        </div>
+      </header>
 
-    scroll_norm = (raw_scroll / 100) * 0.5
-    watchlist_norm = (1 if raw_watchlist else 0) * 0.3
-    rating_norm = (raw_rating / 5) * 0.2
+      {error && (
+        <p className="text-sm text-red-400 dark:text-red-500">
+          {error || "Something went wrong. Please try again."}
+        </p>
+      )}
 
-    return scroll_norm + watchlist_norm + rating_norm
+      {status === "idle" && !error && (
+        <p className="text-sm text-white/60 dark:text-dark-gray/60">
+          Gathering fresh titles for you...
+        </p>
+      )}
 
-def format_books(book_list: List[Dict[str, Any]]):
-    out = []
-    for b in book_list[:5]:
-        out.append({
-            "book_id": b.get("id"),
-            "title": b.get("title"),
-            "author": b.get("author"),
-            "cover_url": b.get("cover_image")
-        })
-    return out
+      {status === "loaded" && books.length === 0 && !error && (
+        <p className="text-sm text-white/70 dark:text-dark-gray/70">
+          Nothing to explore right now. Check back after you complete a few more books.
+        </p>
+      )}
 
-
-# ==========================
-# 🔥 MAIN RECOMMENDATION LOGIC (no ML model load!)
-# ==========================
-
-async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
-    print(f"Generating recommendations for {user_id}")
-
-    # --- Step 1: Fetch user history ---
-    history_res = supabase.rpc("get_full_user_history", {"p_user_id": user_id}).execute()
-    history = history_res.data or []
-
-    read_ids = {h["book_id"] for h in history}
-    recent_history = history[:5]
-
-    # === COLD START ===
-    if not recent_history:
-        print("Cold start")
-
-        prefs = await get_recs_from_preferences(user_id)
-        fallback = prefs or await get_popular_books()
-
-        fallback = [b for b in fallback if b.get("id") not in read_ids]
-
-        formatted = format_books(fallback)
-        return RecommendationResponse(
-            user_id=user_id,
-            books=[RecommendedBook(**b) for b in formatted],
-            strategy="cold_start",
-            is_fallback=True
-        )
-
-    # === WARM START ===
-    print("Warm start — calculating scores")
-    scored = [
-        {"book_id": item["book_id"], "score": calculate_love_score(item)}
-        for item in recent_history
-    ]
-
-    recent_ids = [s["book_id"] for s in scored]
-
-    books_info = supabase.table("books").select("id,title,author,genres").in_("id", recent_ids).execute().data
-
-    # highest score book
-    scored.sort(key=lambda x: x["score"], reverse=True)
-    top_book_id = scored[0]["book_id"]
-    top_book_details = next(b for b in books_info if b["id"] == top_book_id)
-
-    # === VECTOR SEARCH ===
-    query_text = get_text_to_embed(top_book_details)
-    vector = embed_text(query_text)
-
-    result = index.query(
-        vector=vector,
-        top_k=8,
-        include_metadata=True
-    )
-
-    similar_ids = [m["id"] for m in result["matches"] if m["id"] not in read_ids][:5]
-
-    if not similar_ids:
-        fallback = await get_popular_books()
-        formatted = format_books(fallback)
-
-        return RecommendationResponse(
-            user_id=user_id,
-            books=[RecommendedBook(**b) for b in formatted],
-            strategy="fallback",
-            is_fallback=True
-        )
-
-    final_books = supabase.table("books").select("id,title,author,cover_image").in_("id", similar_ids).execute().data
-
-    formatted = format_books(final_books)
-
-    return RecommendationResponse(
-        user_id=user_id,
-        books=[RecommendedBook(**b) for b in formatted],
-        strategy="vector_search",
-        is_fallback=False
-    )
-
-
-# ============== EXPLORE PAYLOAD ==============
-
-async def build_explore_payload(user_id: str, limit: int = 5):
-    read = supabase.table("user_books").select("book_id").eq("user_id", user_id).execute().data
-    read_ids = {r["book_id"] for r in read}
-
-    books = supabase.table("books").select("id,title,author,cover_image").order("number_of_downloads", desc=True).limit(60).execute().data
-
-    out = []
-    for b in books:
-        if b["id"] not in read_ids:
-            out.append(b)
-        if len(out) >= limit:
-            break
-
-    formatted = format_books(out)
-    return RecommendationResponse(
-        user_id=user_id,
-        books=[RecommendedBook(**b) for b in formatted],
-        strategy="explore"
-    )
-
-
-# ============== ENDPOINTS ==============
-
-@app.post("/recommendations", response_model=RecommendationResponse)
-async def post_suggestions(payload: RecommendationRequest):
-    return await build_recommendations_payload(payload.user_id)
-
-@app.get("/recommendations/{user_id}", response_model=RecommendationResponse)
-async def get_suggestions(user_id: str):
-    return await build_recommendations_payload(user_id)
-
-@app.post("/explore", response_model=RecommendationResponse)
-async def post_explore(payload: RecommendationRequest):
-    return await build_explore_payload(payload.user_id)
-
-@app.get("/explore/{user_id}", response_model=RecommendationResponse)
-async def get_explore(user_id: str):
-    return await build_explore_payload(user_id)
-
-
-# Local run
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+      {hasBooks && (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {books.map((book) => (
+            <article
+              key={book.book_id}
+              className="flex flex-col gap-3 rounded-xl border border-white/10 dark:border-dark-gray/15 bg-white/5 dark:bg-dark-gray/5 backdrop-blur-sm p-4 md:p-5 shadow-sm shadow-black/20 dark:shadow-black/10 hover:border-white/25 dark:hover:border-dark-gray/25 transition-colors"
+            >
+              {book.cover_url ? (
+                <div className="overflow-hidden rounded-lg border border-white/10 dark:border-dark-gray/20 shadow-md shadow-black/30">
+                  <img
+                    src={book.cover_url}
+                    alt={book.title ?? "Book cover"}
+                    className="w-full aspect-3/4 object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ) : (
+                <div className="w-full aspect-3/4 rounded-lg border border-white/10 dark:border-dark-gray/20 bg-white/5 dark:bg-dark-gray/20 flex items-center justify-center text-xs font-semibold uppercase tracking-[0.25em] text-white/70 dark:text-dark-gray/70">
+                  No Cover
+                </div>
+              )}
+              <div>
+                <h3 className="text-sm md:text-base font-semibold text-white dark:text-dark-gray line-clamp-2">
+                  {book.title ?? "Untitled"}
+                </h3>
+                {book.author && (
+                  <p className="mt-1 text-xs md:text-sm text-white/70 dark:text-dark-gray/70 line-clamp-1">
+                    {book.author}
+                  </p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
