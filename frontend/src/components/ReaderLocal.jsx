@@ -39,6 +39,7 @@ const ReaderLocal = () => {
   const [imagePrompt, setImagePrompt] = useState('');
   const [imageGenResult, setImageGenResult] = useState(null);
   const [imageSize, setImageSize] = useState('1024x1024');
+  const [imageStyle, setImageStyle] = useState('default');
   const [imageLoading, setImageLoading] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [readerTheme, setReaderTheme] = useState('light');
@@ -94,6 +95,9 @@ const ReaderLocal = () => {
   const [bookmarks, setBookmarks] = useState([]);
   const [showBookmarksDropdown, setShowBookmarksDropdown] = useState(false);
   const [isCurrentPageBookmarked, setIsCurrentPageBookmarked] = useState(false);
+  
+  // Highlights dropdown state
+  const [showHighlightsDropdown, setShowHighlightsDropdown] = useState(false);
 
   // Initialize API key from environment or localStorage
   useEffect(() => {
@@ -486,6 +490,33 @@ const ReaderLocal = () => {
     setCurrentPage(pageNumber);
     navigateToPage(pageNumber);
     setShowBookmarksDropdown(false);
+  };
+
+  const deleteBookmark = async (bookmarkId, pageNumber, e) => {
+    e.stopPropagation(); // Prevent triggering goToBookmark
+    
+    if (!user || !bookId) return;
+
+    try {
+      const { error } = await supabase
+        .from('bookmarks')
+        .delete()
+        .eq('bookmark_id', bookmarkId)
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      setBookmarks(prev => prev.filter(b => b.bookmark_id !== bookmarkId));
+      console.log('Bookmark deleted from page', pageNumber);
+    } catch (err) {
+      console.error('Error deleting bookmark:', err);
+    }
+  };
+
+  const goToHighlight = (pageNumber) => {
+    setCurrentPage(pageNumber);
+    navigateToPage(pageNumber);
+    setShowHighlightsDropdown(false);
   };
 
   const applyHighlightToSelection = (color, highlightId = null) => {
@@ -1428,6 +1459,20 @@ const ReaderLocal = () => {
     setAudioTime(v);
   };
 
+  const skipBackward = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = Math.max(0, el.currentTime - 10);
+    setAudioTime(el.currentTime);
+  };
+
+  const skipForward = () => {
+    const el = audioRef.current;
+    if (!el) return;
+    el.currentTime = Math.min(audioDuration || 0, el.currentTime + 10);
+    setAudioTime(el.currentTime);
+  };
+
   // Dictionary: fetch meaning for a word
   const fetchMeaning = async (w) => {
     const query = (w || '').trim();
@@ -1515,15 +1560,7 @@ const ReaderLocal = () => {
   }, [imageGenResult]);
 
   const handleChatSend = async () => {
-    console.log('handleChatSend called', { 
-      hasInput: !!chatbotInput.trim(), 
-      hasApiKey: !!apiKey,
-      apiKeyLength: apiKey?.length,
-      apiProvider: apiProvider,
-      isSending: isSendingMessage 
-    });
-    
-    if (!chatbotInput.trim() || !apiKey || isSendingMessage) return;
+    if (!chatbotInput.trim() || isSendingMessage) return;
     
     const userMessage = chatbotInput.trim();
     setChatbotInput('');
@@ -1533,21 +1570,68 @@ const ReaderLocal = () => {
     setMessages(prev => [...prev, { role: 'loading', text: 'Thinking...' }]);
     
     try {
-      // Use local backend proxy to avoid CORS issues
-      const apiUrl = 'http://localhost:8001/api/chat';
+      // Use Gemini API directly (no backend needed!)
+      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
       
-      console.log('Making API call to backend:', apiUrl);
+      console.log('Calling Gemini API...');
       
+      // Build conversation history for context
+      const conversationHistory = messages
+        .filter(m => m.role !== 'loading')
+        .slice(-6) // Last 3 exchanges
+        .map(m => ({
+          role: m.role === 'user' ? 'user' : 'model',
+          parts: [{ text: m.text }]
+        }));
+      
+      // Enhanced prompt with better context
+      const systemContext = `You are an intelligent book reading assistant. You're helping a reader with "${bookTitle}".
+
+Current Context:
+- Book: ${bookTitle}
+- Current Page: ${currentPage}${totalPages > 0 ? ` of ${totalPages}` : ''}
+
+Your Role:
+- Answer questions about the book's plot, characters, themes, and literary elements
+- Provide insights and analysis when asked
+- Help with understanding difficult passages
+- Discuss the book's context and background
+- Keep responses concise (2-3 sentences) unless more detail is requested
+
+Guidelines:
+- Be conversational and friendly
+- Avoid spoilers unless specifically asked
+- If you don't know something about this specific book, say so
+- Focus on being helpful and educational`;
+
       const response = await fetch(apiUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          message: userMessage,
-          book_title: bookTitle,
-          current_page: currentPage,
-          total_pages: totalPages
+          contents: [
+            {
+              role: 'user',
+              parts: [{ text: systemContext }]
+            },
+            {
+              role: 'model',
+              parts: [{ text: 'I understand. I\'m ready to help you with your reading of this book. What would you like to know?' }]
+            },
+            ...conversationHistory,
+            {
+              role: 'user',
+              parts: [{ text: userMessage }]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.7,
+            maxOutputTokens: 500,
+            topP: 0.8,
+            topK: 40
+          }
         })
       });
       
@@ -1556,12 +1640,11 @@ const ReaderLocal = () => {
       
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.detail || `API Error: ${response.status}`;
-        throw new Error(errorMessage);
+        throw new Error(errorData.error?.message || `API Error: ${response.status}`);
       }
       
       const data = await response.json();
-      const aiResponse = data.response || 'Sorry, I could not generate a response.';
+      const aiResponse = data.candidates?.[0]?.content?.parts?.[0]?.text || 'Sorry, I could not generate a response.';
       setMessages(prev => [...prev, { role: 'ai', text: aiResponse }]);
     } catch (error) {
       // Remove loading message
@@ -1600,43 +1683,62 @@ const ReaderLocal = () => {
     try {
       console.log('Generating image with prompt:', prompt, 'size:', imageSize);
       
-      // Use backend API
-      const response = await fetch('http://localhost:8001/api/generate-image', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          prompt: prompt,
-          book_title: bookTitle,
-          current_page: currentPage,
-          size: imageSize
-        })
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.detail || `API Error: ${response.status}`);
+      // Parse size
+      let width = 1024, height = 1024;
+      if (imageSize && imageSize.includes('x')) {
+        const [w, h] = imageSize.split('x').map(Number);
+        width = w || 1024;
+        height = h || 1024;
       }
       
-      const data = await response.json();
-      console.log('Response data:', data);
-      
-      if (data.image_url) {
-        console.log('✅ Image URL received:', data.image_url);
-        const result = {
-          url: data.image_url,
-          prompt: data.prompt,
-          loading: false,
-          timestamp: Date.now() // Add timestamp for cache busting
-        };
-        console.log('Setting imageGenResult with timestamp:', result.timestamp);
-        setImageLoading(true); // Start image loading state
-        setImageGenResult(result);
-      } else {
-        console.error('❌ No image_url in response:', data);
-        throw new Error('No image URL received');
+      // Add style suffix based on selection
+      let styleModifier = '';
+      switch(imageStyle) {
+        case 'realistic':
+          styleModifier = 'Photorealistic, highly detailed, professional photography';
+          break;
+        case 'artistic':
+          styleModifier = 'Oil painting, artistic, impressionist style';
+          break;
+        case 'anime':
+          styleModifier = 'Anime style, manga art, vibrant colors';
+          break;
+        case 'sketch':
+          styleModifier = 'Pencil sketch, hand-drawn, artistic illustration';
+          break;
+        case 'watercolor':
+          styleModifier = 'Watercolor painting, soft colors, artistic';
+          break;
+        case 'digital':
+          styleModifier = 'Digital art, concept art, detailed illustration';
+          break;
+        case 'cinematic':
+          styleModifier = 'Cinematic lighting, movie scene, dramatic';
+          break;
+        default:
+          styleModifier = 'High quality, detailed, artistic visualization';
       }
+      
+      // Enhance prompt with book context and style
+      const enhancedPrompt = `${prompt}. Book: ${bookTitle}, Page: ${currentPage}. ${styleModifier}.`;
+      
+      // Generate image URL directly using Pollinations.ai (no backend needed!)
+      const encodedPrompt = encodeURIComponent(enhancedPrompt);
+      const imageUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?width=${width}&height=${height}&nologo=true&enhance=true`;
+      
+      console.log('✅ Image URL generated:', imageUrl);
+      
+      const result = {
+        url: imageUrl,
+        prompt: enhancedPrompt,
+        loading: false,
+        timestamp: Date.now()
+      };
+      
+      console.log('Setting imageGenResult with timestamp:', result.timestamp);
+      setImageLoading(true); // Start image loading state
+      setImageGenResult(result);
+      
     } catch (error) {
       console.error('Image generation error:', error);
       alert(`Failed to generate image: ${error.message}`);
@@ -1838,8 +1940,8 @@ const ReaderLocal = () => {
         </div>
         
         {/* Sidebar */}
-        <div className={`fixed right-0 w-80 bg-white dark:bg-dark-gray border-l-2 border-dark-gray dark:border-white overflow-y-auto transform transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} ${readerTheme === 'reader' ? 'bg-black border-gray-800 text-white' : ''}`} style={{ top: 'var(--header-height, 73px)', height: 'calc(100vh - var(--header-height, 73px))' }}>
-          <div className="p-4 space-y-4">
+        <div className={`fixed right-0 w-80 min-w-[320px] max-w-[320px] bg-white dark:bg-dark-gray border-l-2 border-dark-gray dark:border-white overflow-y-auto overflow-x-hidden transform transition-transform duration-300 z-50 ${sidebarOpen ? 'translate-x-0' : 'translate-x-full'} ${readerTheme === 'reader' ? 'bg-black border-gray-800 text-white' : ''}`} style={{ top: 'var(--header-height, 73px)', height: 'calc(100vh - var(--header-height, 73px))' }}>
+          <div className="p-4 space-y-4 w-full">
             {/* Page Counter */}
             <div className="space-y-2 pb-4 border-b border-dark-gray/10 dark:border-white/10">
               <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
@@ -1879,13 +1981,13 @@ const ReaderLocal = () => {
                   <ArrowRight className="w-3 h-3" />
                 </button>
               </div>
-              <div className="flex items-center gap-2 mt-3">
+              <div className="flex items-center gap-2 mt-3 w-full">
                 <input 
                   type="number"
                   min="1"
                   max={totalPages > 0 ? totalPages : undefined}
                   placeholder="Go to page..."
-                  className="flex-1 bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1.5 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                  className="flex-1 min-w-0 bg-transparent border border-dark-gray/30 dark:border-white/30 px-2 py-1.5 text-xs text-dark-gray dark:text-white placeholder-dark-gray/40 dark:placeholder-white/40 focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
                       const pageNum = parseInt(e.target.value);
@@ -1912,9 +2014,38 @@ const ReaderLocal = () => {
               </div>
             </div>
             
-            {/* Audiobook */}
+            {/* AI Features */}
             <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
               <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
+                AI Features
+              </div>
+              <div className="flex gap-2 w-full">
+                <button 
+                  className="flex-1 min-w-0 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-2 py-2 flex items-center justify-center gap-1.5 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setChatbotOpen(!chatbotOpen);
+                    setSidebarOpen(false);
+                  }}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="text-[10px] font-medium uppercase tracking-widest whitespace-nowrap">Chat</span>
+                </button>
+                <button 
+                  className="flex-1 min-w-0 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-2 py-2 flex items-center justify-center gap-1.5 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                  onClick={() => {
+                    setImageGenOpen(!imageGenOpen);
+                    setSidebarOpen(false);
+                  }}
+                >
+                  <ImageIcon className="w-3.5 h-3.5 flex-shrink-0" />
+                  <span className="text-[10px] font-medium uppercase tracking-widest whitespace-nowrap">Image</span>
+                </button>
+              </div>
+            </div>
+            
+            {/* Audiobook */}
+            <div className="space-y-1.5 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
+              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
                 Audiobook
               </div>
               {audioLoading && (
@@ -1924,16 +2055,34 @@ const ReaderLocal = () => {
                 <div className="text-xs text-red-500">{audioError}</div>
               )}
               {!audioLoading && !audioError && audioUrl && (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   <audio ref={audioRef} src={audioUrl} preload="metadata" />
-                  <div className="flex items-center gap-2">
+                  {/* Play/Pause and Skip Controls */}
+                  <div className="flex items-center justify-center gap-2">
                     <button 
-                      className="px-3 py-1.5 bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
+                      className="w-8 h-8 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                      onClick={skipBackward}
+                      title="Skip back 10s"
+                    >
+                      <span className="text-xs">-10</span>
+                    </button>
+                    <button 
+                      className="px-4 py-1.5 bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity"
                       onClick={togglePlay}
                     >
                       {isPlaying ? 'Pause' : 'Play'}
                     </button>
-                    <div className="text-[10px] text-dark-gray/60 dark:text-white/60 min-w-[70px] text-right">
+                    <button 
+                      className="w-8 h-8 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white flex items-center justify-center hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
+                      onClick={skipForward}
+                      title="Skip forward 10s"
+                    >
+                      <span className="text-xs">+10</span>
+                    </button>
+                  </div>
+                  {/* Progress Bar */}
+                  <div className="flex items-center gap-2">
+                    <div className="text-[10px] text-dark-gray/60 dark:text-white/60 min-w-[45px] text-right">
                       {Math.floor(audioTime / 60)}:{String(Math.floor(audioTime % 60)).padStart(2, '0')}
                     </div>
                     <input
@@ -1943,9 +2092,9 @@ const ReaderLocal = () => {
                       step="1"
                       value={Math.min(audioTime, audioDuration || 0)}
                       onChange={onSeek}
-                      className="flex-1"
+                      className="flex-1 min-w-0"
                     />
-                    <div className="text-[10px] text-dark-gray/60 dark:text-white/60 min-w-[70px]">
+                    <div className="text-[10px] text-dark-gray/60 dark:text-white/60 min-w-[45px]">
                       {Math.floor(audioDuration / 60)}:{String(Math.floor((audioDuration % 60) || 0)).padStart(2, '0')}
                     </div>
                   </div>
@@ -2000,8 +2149,64 @@ const ReaderLocal = () => {
                 {highlightsVisible ? 'Hide Highlights' : 'Show Highlights'}
               </button>
               {highlights.length > 0 && (
-                <div className="text-[9px] text-dark-gray/60 dark:text-white/60 text-center">
-                  {highlights.length} highlight{highlights.length !== 1 ? 's' : ''} saved
+                <div className="relative">
+                  <button
+                    className="w-full px-3 py-2 text-[10px] uppercase tracking-widest border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors flex items-center justify-between"
+                    onClick={() => setShowHighlightsDropdown(!showHighlightsDropdown)}
+                  >
+                    <span>Manage Highlights ({highlights.length})</span>
+                    <span>{showHighlightsDropdown ? '▲' : '▼'}</span>
+                  </button>
+                  {showHighlightsDropdown && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white max-h-48 overflow-y-auto overflow-x-hidden z-[60] shadow-lg">
+                      {highlights.map((highlight) => {
+                        const pageNum = highlight.page_number || highlight.location?.page;
+                        return (
+                          <div
+                            key={highlight.id}
+                            className={`w-full px-2 py-2 text-[10px] border-b border-dark-gray/10 dark:border-white/10 ${
+                              pageNum === currentPage ? 'bg-dark-gray/5 dark:bg-white/5' : ''
+                            }`}
+                          >
+                            <div className="flex items-start gap-2 w-full">
+                              <button
+                                className="flex-1 min-w-0 text-left hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors py-1 px-2 rounded"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  goToHighlight(pageNum);
+                                }}
+                              >
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-dark-gray dark:text-white font-medium">
+                                    Page {pageNum}
+                                  </span>
+                                  {pageNum === currentPage && (
+                                    <span className="text-dark-gray dark:text-white">●</span>
+                                  )}
+                                </div>
+                                <div className="text-dark-gray/70 dark:text-white/70 text-[9px] break-words line-clamp-2">
+                                  {(highlight.content || highlight.highlighted_text || '').substring(0, 60)}...
+                                </div>
+                              </button>
+                              <button
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  console.log('Deleting highlight:', highlight.id);
+                                  deleteHighlight(highlight.id);
+                                }}
+                                className="px-2 py-1 text-[9px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-300 dark:border-red-700 transition-colors flex-shrink-0 rounded"
+                                title="Delete highlight"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -2031,22 +2236,44 @@ const ReaderLocal = () => {
                     <span>{showBookmarksDropdown ? '▲' : '▼'}</span>
                   </button>
                   {showBookmarksDropdown && (
-                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white max-h-48 overflow-y-auto z-50">
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-dark-gray border-2 border-dark-gray dark:border-white max-h-48 overflow-y-auto overflow-x-hidden z-[60] shadow-lg">
                       {bookmarks.map((bookmark) => (
-                        <button
+                        <div
                           key={bookmark.bookmark_id}
-                          className={`w-full px-3 py-2 text-left text-[10px] border-b border-dark-gray/10 dark:border-white/10 hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors ${
+                          className={`w-full px-2 py-2 text-[10px] border-b border-dark-gray/10 dark:border-white/10 ${
                             bookmark.page_number === currentPage ? 'bg-dark-gray/5 dark:bg-white/5' : ''
                           }`}
-                          onClick={() => goToBookmark(bookmark.page_number)}
                         >
-                          <div className="flex items-center justify-between">
-                            <span className="text-dark-gray dark:text-white">Page {bookmark.page_number}</span>
-                            {bookmark.page_number === currentPage && (
-                              <span className="text-dark-gray dark:text-white">●</span>
-                            )}
+                          <div className="flex items-center gap-2 w-full">
+                            <button
+                              className="flex-1 text-left hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors py-1 px-2 rounded"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                goToBookmark(bookmark.page_number);
+                              }}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="text-dark-gray dark:text-white">Page {bookmark.page_number}</span>
+                                {bookmark.page_number === currentPage && (
+                                  <span className="text-dark-gray dark:text-white">●</span>
+                                )}
+                              </div>
+                            </button>
+                            <button
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                console.log('Deleting bookmark:', bookmark.bookmark_id);
+                                deleteBookmark(bookmark.bookmark_id, bookmark.page_number, e);
+                              }}
+                              className="px-2 py-1 text-[9px] text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 border border-red-300 dark:border-red-700 transition-colors flex-shrink-0 rounded"
+                              title="Delete bookmark"
+                            >
+                              ✕
+                            </button>
                           </div>
-                        </button>
+                        </div>
                       ))}
                     </div>
                   )}
@@ -2092,35 +2319,6 @@ const ReaderLocal = () => {
               >
                 Manage PDF Cache
               </button>
-            </div>
-            
-            {/* AI Features */}
-            <div className="space-y-2 pt-4 pb-4 border-b border-dark-gray/10 dark:border-white/10">
-              <div className="text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60">
-                AI Features
-              </div>
-              <div className="flex gap-2">
-                <button 
-                  className="flex-1 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 flex items-center justify-center gap-2 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
-                  onClick={() => {
-                    setChatbotOpen(!chatbotOpen);
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <MessageSquare className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">Chat</span>
-                </button>
-                <button 
-                  className="flex-1 bg-transparent border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 flex items-center justify-center gap-2 hover:bg-dark-gray/5 dark:hover:bg-white/5 transition-colors"
-                  onClick={() => {
-                    setImageGenOpen(!imageGenOpen);
-                    setSidebarOpen(false);
-                  }}
-                >
-                  <ImageIcon className="w-3.5 h-3.5" />
-                  <span className="text-[10px] font-medium uppercase tracking-widest">Image</span>
-                </button>
-              </div>
             </div>
 
             {/* Dictionary */}
@@ -2212,7 +2410,7 @@ const ReaderLocal = () => {
           </div>
           <div className="p-3 bg-dark-gray/5 dark:bg-white/5 border-b border-dark-gray/10 dark:border-white/10">
             <div className="text-[10px] text-dark-gray/70 dark:text-white/70 mb-3">
-              📖 {bookTitle} - Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
+              {bookTitle} - Page {currentPage}{totalPages > 0 ? ` of ${totalPages}` : ''}
             </div>
             {/* Page Preview */}
             <div className="bg-white dark:bg-black/20 border border-dark-gray/20 dark:border-white/20 rounded overflow-hidden">
@@ -2248,8 +2446,49 @@ const ReaderLocal = () => {
           </div>
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {messages.length === 0 && (
-              <div className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 p-3 rounded text-sm text-dark-gray dark:text-white">
-                Hey there! I'm here to chat about "{bookTitle}" with you. Ask me anything about the book, characters, plot, or just share your thoughts!
+              <div className="space-y-3">
+                <div className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 p-4 rounded text-dark-gray dark:text-white">
+                  <div className="text-sm font-medium mb-2">Welcome to your AI Reading Assistant!</div>
+                  <p className="text-xs leading-relaxed mb-3">
+                    I'm here to enhance your reading experience of <strong>"{bookTitle}"</strong>. I can help you with:
+                  </p>
+                  <ul className="text-xs space-y-1.5 ml-4 list-disc">
+                    <li>Understanding complex passages or themes</li>
+                    <li>Character analysis and motivations</li>
+                    <li>Plot summaries and connections</li>
+                    <li>Historical or cultural context</li>
+                    <li>Literary devices and symbolism</li>
+                  </ul>
+                  <p className="text-xs mt-3 text-dark-gray/70 dark:text-white/70">
+                    I'm aware you're on <strong>page {currentPage}</strong>, so feel free to ask about what you're currently reading!
+                  </p>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <button 
+                    onClick={() => setChatbotInput("What's happening on this page?")}
+                    className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 text-[10px] hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors rounded"
+                  >
+                    This page
+                  </button>
+                  <button 
+                    onClick={() => setChatbotInput("Who are the main characters?")}
+                    className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 text-[10px] hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors rounded"
+                  >
+                    Characters
+                  </button>
+                  <button 
+                    onClick={() => setChatbotInput("Summarize the plot so far")}
+                    className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 text-[10px] hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors rounded"
+                  >
+                    Summary
+                  </button>
+                  <button 
+                    onClick={() => setChatbotInput("What are the main themes?")}
+                    className="bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/30 dark:border-white/30 text-dark-gray dark:text-white px-3 py-2 text-[10px] hover:bg-dark-gray/10 dark:hover:bg-white/10 transition-colors rounded"
+                  >
+                    Themes
+                  </button>
+                </div>
               </div>
             )}
             {messages.map((msg, idx) => (
@@ -2313,19 +2552,41 @@ const ReaderLocal = () => {
                 />
               </div>
               
-              <div>
-                <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
-                  Image Size
-                </label>
-                <select 
-                  value={imageSize}
-                  onChange={(e) => setImageSize(e.target.value)}
-                  className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
-                >
-                  <option value="1024x1024">Square (1024x1024)</option>
-                  <option value="1792x1024">Landscape (1792x1024)</option>
-                  <option value="1024x1792">Portrait (1024x1792)</option>
-                </select>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                    Size
+                  </label>
+                  <select 
+                    value={imageSize}
+                    onChange={(e) => setImageSize(e.target.value)}
+                    className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                  >
+                    <option value="1024x1024">Square</option>
+                    <option value="1792x1024">Landscape</option>
+                    <option value="1024x1792">Portrait</option>
+                  </select>
+                </div>
+                
+                <div>
+                  <label className="block text-[10px] font-medium uppercase tracking-widest text-dark-gray/60 dark:text-white/60 mb-2">
+                    Style
+                  </label>
+                  <select 
+                    value={imageStyle}
+                    onChange={(e) => setImageStyle(e.target.value)}
+                    className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                  >
+                    <option value="default">Default</option>
+                    <option value="realistic">Realistic</option>
+                    <option value="artistic">Artistic</option>
+                    <option value="anime">Anime</option>
+                    <option value="sketch">Sketch</option>
+                    <option value="watercolor">Watercolor</option>
+                    <option value="digital">Digital Art</option>
+                    <option value="cinematic">Cinematic</option>
+                  </select>
+                </div>
               </div>
             </div>
             
@@ -2395,7 +2656,7 @@ const ReaderLocal = () => {
             )}
             
             <div className="text-[10px] text-dark-gray/60 dark:text-white/60 p-3 bg-dark-gray/5 dark:bg-white/5 border border-dark-gray/20 dark:border-white/20 rounded">
-              <strong>✨ AI Image Generation:</strong> Powered by Pollinations.ai. Describe a scene, character, or concept from the book and watch it come to life!
+              <strong>AI Image Generation:</strong> Powered by Pollinations.ai. Describe a scene, character, or concept from the book and watch it come to life!
             </div>
           </div>
         </div>

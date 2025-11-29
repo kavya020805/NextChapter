@@ -1,0 +1,796 @@
+{
+	"id": "d0977a9f-b8c2-4859-a7e6-9d94d88b6030",
+	"name": "NextChapter Complete API Testing",
+	"timestamp": "2025-11-28T23:26:43.366Z",
+	"collection_id": "50177492-46f7ba78-3b28-4af9-ac96-962ee74a864b",
+	"folder_id": 0,
+	"environment_id": "0",
+	"totalPass": 0,
+	"delay": 0,
+	"persist": true,
+	"status": "error",
+	"startedAt": "2025-11-28T23:26:25.166Z",
+	"totalFail": 0,
+	"results": [
+		{
+			"id": "f21408e3-26d0-4fb7-b1d5-ede56d57a674",
+			"name": "TC-MOD-001: Appropriate Content",
+			"url": "https://comment-moderation-api.onrender.com/api/moderate",
+			"time": 939,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				939
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "4f340292-c15d-4a38-af1e-b2ec1a703e6c",
+			"name": "TC-MOD-002: Inappropriate Content",
+			"url": "https://comment-moderation-api.onrender.com/api/moderate",
+			"time": 423,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				423
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "612d5470-f8b7-4d82-a570-4cf3716bbc35",
+			"name": "TC-MOD-003: Empty Text",
+			"url": "https://comment-moderation-api.onrender.com/api/moderate",
+			"time": 330,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				330
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "6512f619-9101-4b27-87f0-bb724f527070",
+			"name": "TC-MOD-004: XSS Attempt",
+			"url": "https://comment-moderation-api.onrender.com/api/moderate",
+			"time": 340,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				340
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "6e83ef61-8909-4b2e-b3fc-92a7eeb750fe",
+			"name": "TC-MOD-005: SQL Injection",
+			"url": "https://comment-moderation-api.onrender.com/api/moderate",
+			"time": 171,
+			"responseCode": {
+				"code": 403,
+				"name": "Forbidden"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				171
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "76d3100b-ee83-477e-a303-afedf8b79b3c",
+			"name": "TC-MOD-006: Unicode Content",
+			"url": "https://comment-moderation-api.onrender.com/api/moderate",
+			"time": 373,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				373
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "b8798284-70db-4213-baa1-dddeba36f6fc",
+			"name": "TC-MOD-007: Long Text",
+			"url": "https://comment-moderation-api.onrender.com/api/moderate",
+			"time": 326,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				326
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "8a54503e-125b-41ab-b3b8-5e4db8b10c67",
+			"name": "TC-CHAT-001: Basic Query",
+			"url": "https://comment-moderation-api.onrender.com/api/chat",
+			"time": 520,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				520
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "d87ae7f7-545a-4a40-bff9-199921b9eddc",
+			"name": "TC-CHAT-002: Empty Message",
+			"url": "https://comment-moderation-api.onrender.com/api/chat",
+			"time": 557,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				557
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "e60361a1-bce6-42fa-b0bf-b80a579c93c2",
+			"name": "TC-CHAT-003: Character Analysis",
+			"url": "https://comment-moderation-api.onrender.com/api/chat",
+			"time": 649,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				649
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "142a8df4-589d-4b2c-af64-3d6f6d3336c4",
+			"name": "TC-CHAT-004: Plot Summary",
+			"url": "https://comment-moderation-api.onrender.com/api/chat",
+			"time": 755,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				755
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "24adfb63-3db8-4c7c-8888-361651acb94e",
+			"name": "TC-CHAT-005: Invalid Page Numbers",
+			"url": "https://comment-moderation-api.onrender.com/api/chat",
+			"time": 419,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				419
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "e105228c-a689-446f-8eb4-669f44fe1601",
+			"name": "TC-IMG-001: Basic Image Generation",
+			"url": "https://comment-moderation-api.onrender.com/api/generate-image",
+			"time": 224,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				224
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "0608b643-8c7d-4b2d-a02a-a585436da721",
+			"name": "TC-IMG-002: Empty Prompt",
+			"url": "https://comment-moderation-api.onrender.com/api/generate-image",
+			"time": 218,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				218
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "5020eeab-cadd-4551-a034-061442137c3b",
+			"name": "TC-IMG-003: Different Size",
+			"url": "https://comment-moderation-api.onrender.com/api/generate-image",
+			"time": 144,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				144
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "87ddca91-748c-4ac3-a246-25ab3ecd18a8",
+			"name": "TC-IMG-004: Complex Scene",
+			"url": "https://comment-moderation-api.onrender.com/api/generate-image",
+			"time": 201,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				201
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "02459b05-9983-4a4c-905e-5ce3ab4650ee",
+			"name": "TC-IMG-005: Invalid Size",
+			"url": "https://comment-moderation-api.onrender.com/api/generate-image",
+			"time": 230,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				230
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "70e0f483-d34f-4eba-9afd-f78ed2aba28b",
+			"name": "TC-DICT-001: Valid Word",
+			"url": "https://api.dictionaryapi.dev/api/v2/entries/en/hello",
+			"time": 252,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				252
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "f74912d1-ad07-4ecd-b161-85d9dd86cbad",
+			"name": "TC-DICT-002: Invalid Word",
+			"url": "https://api.dictionaryapi.dev/api/v2/entries/en/asdfghjkl",
+			"time": 142,
+			"responseCode": {
+				"code": 404,
+				"name": "Not Found"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				142
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "576457bc-1aad-48b0-b296-bea8bf407e72",
+			"name": "TC-DICT-003: Common Word",
+			"url": "https://api.dictionaryapi.dev/api/v2/entries/en/book",
+			"time": 119,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				119
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "97a905b2-07af-4872-b84a-d61da52cdb91",
+			"name": "TC-DICT-004: Complex Word",
+			"url": "https://api.dictionaryapi.dev/api/v2/entries/en/serendipity",
+			"time": 94,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				94
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "e3b6d55e-82ed-40c7-93ec-44974760b8a9",
+			"name": "TC-DICT-005: Special Characters",
+			"url": "https://api.dictionaryapi.dev/api/v2/entries/en/hello@world",
+			"time": 52,
+			"responseCode": {
+				"code": 404,
+				"name": "Not Found"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				52
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "447695f1-514e-49c7-8474-8f91a3000995",
+			"name": "TC-GUT-001: Get Book by ID",
+			"url": "https://gutendex.com/books/1342",
+			"time": 222,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				222
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "ac38300f-f0ea-4ff0-8efc-ebea4bdf8eb3",
+			"name": "TC-GUT-002: Search Books",
+			"url": "https://gutendex.com/books?search=pride%20prejudice",
+			"time": 1434,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				1434
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "70f515f8-8417-4172-9415-fb15d81ed6fe",
+			"name": "TC-GUT-003: Invalid Book ID",
+			"url": "https://gutendex.com/books/999999",
+			"time": 212,
+			"responseCode": {
+				"code": 404,
+				"name": "Not Found"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				212
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "9fa56a24-9059-4317-9379-a825100a1795",
+			"name": "TC-LIB-001: Search Authors",
+			"url": "https://openlibrary.org/search/authors.json?q=shakespeare&limit=5",
+			"time": 1175,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				1175
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "a0cb7a25-089e-4d89-abd5-c5452b50b829",
+			"name": "TC-LIB-002: Search Books",
+			"url": "https://openlibrary.org/search.json?title=pride+and+prejudice&limit=3",
+			"time": 627,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				627
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "2a938fbd-718f-45f2-934f-d37e16298841",
+			"name": "TC-LIB-003: Invalid Search",
+			"url": "https://openlibrary.org/search/authors.json?q=asdfghjklzxcvbnm&limit=1",
+			"time": 326,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				326
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "89f0b253-f4a3-4eca-9441-cb535a8e61a1",
+			"name": "TC-LIB-004: Search by Author",
+			"url": "https://openlibrary.org/search.json?author=jane+austen&limit=5",
+			"time": 542,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				542
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "51d95d23-eb0a-4f51-94f4-10f005cc69ed",
+			"name": "TC-LIB-005: Search Empty Query",
+			"url": "https://openlibrary.org/search/authors.json?q=&limit=1",
+			"time": 543,
+			"responseCode": {
+				"code": 200,
+				"name": "OK"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				543
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "18c80b25-8336-4706-9bee-259f313f3fbc",
+			"name": "TC-GEM-001: Basic Chat",
+			"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{gemini_api_key}}",
+			"time": 200,
+			"responseCode": {
+				"code": 400,
+				"name": "Bad Request"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				200
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "a6066872-1705-4b2b-b7a4-42c33c00405a",
+			"name": "TC-GEM-002: Empty Message",
+			"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{gemini_api_key}}",
+			"time": 247,
+			"responseCode": {
+				"code": 400,
+				"name": "Bad Request"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				247
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "cda89d69-1de9-45db-a9a1-14ad7766fad4",
+			"name": "TC-GEM-003: Long Query",
+			"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{gemini_api_key}}",
+			"time": 127,
+			"responseCode": {
+				"code": 400,
+				"name": "Bad Request"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				127
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "58e853b4-0358-49a5-94ba-1c7b954a746d",
+			"name": "TC-RAZ-001: Create Order",
+			"url": "https://api.razorpay.com/v1/orders",
+			"time": 174,
+			"responseCode": {
+				"code": 401,
+				"name": "Unauthorized"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				174
+			],
+			"allTests": [
+				{}
+			]
+		},
+		{
+			"id": "1a6a5f99-da91-4e2b-8ff0-07508ac1ce03",
+			"name": "TC-RAZ-002: Get Payment Methods",
+			"url": "https://api.razorpay.com/v1/methods",
+			"time": 46,
+			"responseCode": {
+				"code": 401,
+				"name": "Unauthorized"
+			},
+			"tests": {},
+			"testPassFailCounts": {},
+			"times": [
+				46
+			],
+			"allTests": [
+				{}
+			]
+		}
+	],
+	"count": 1,
+	"totalTime": 13353,
+	"collection": {
+		"requests": [
+			{
+				"id": "f21408e3-26d0-4fb7-b1d5-ede56d57a674",
+				"method": "POST"
+			},
+			{
+				"id": "4f340292-c15d-4a38-af1e-b2ec1a703e6c",
+				"method": "POST"
+			},
+			{
+				"id": "612d5470-f8b7-4d82-a570-4cf3716bbc35",
+				"method": "POST"
+			},
+			{
+				"id": "6512f619-9101-4b27-87f0-bb724f527070",
+				"method": "POST"
+			},
+			{
+				"id": "6e83ef61-8909-4b2e-b3fc-92a7eeb750fe",
+				"method": "POST"
+			},
+			{
+				"id": "76d3100b-ee83-477e-a303-afedf8b79b3c",
+				"method": "POST"
+			},
+			{
+				"id": "b8798284-70db-4213-baa1-dddeba36f6fc",
+				"method": "POST"
+			},
+			{
+				"id": "8a54503e-125b-41ab-b3b8-5e4db8b10c67",
+				"method": "POST"
+			},
+			{
+				"id": "d87ae7f7-545a-4a40-bff9-199921b9eddc",
+				"method": "POST"
+			},
+			{
+				"id": "e60361a1-bce6-42fa-b0bf-b80a579c93c2",
+				"method": "POST"
+			},
+			{
+				"id": "142a8df4-589d-4b2c-af64-3d6f6d3336c4",
+				"method": "POST"
+			},
+			{
+				"id": "24adfb63-3db8-4c7c-8888-361651acb94e",
+				"method": "POST"
+			},
+			{
+				"id": "e105228c-a689-446f-8eb4-669f44fe1601",
+				"method": "POST"
+			},
+			{
+				"id": "0608b643-8c7d-4b2d-a02a-a585436da721",
+				"method": "POST"
+			},
+			{
+				"id": "5020eeab-cadd-4551-a034-061442137c3b",
+				"method": "POST"
+			},
+			{
+				"id": "87ddca91-748c-4ac3-a246-25ab3ecd18a8",
+				"method": "POST"
+			},
+			{
+				"id": "02459b05-9983-4a4c-905e-5ce3ab4650ee",
+				"method": "POST"
+			},
+			{
+				"id": "70e0f483-d34f-4eba-9afd-f78ed2aba28b",
+				"method": "GET"
+			},
+			{
+				"id": "f74912d1-ad07-4ecd-b161-85d9dd86cbad",
+				"method": "GET"
+			},
+			{
+				"id": "576457bc-1aad-48b0-b296-bea8bf407e72",
+				"method": "GET"
+			},
+			{
+				"id": "97a905b2-07af-4872-b84a-d61da52cdb91",
+				"method": "GET"
+			},
+			{
+				"id": "e3b6d55e-82ed-40c7-93ec-44974760b8a9",
+				"method": "GET"
+			},
+			{
+				"id": "447695f1-514e-49c7-8474-8f91a3000995",
+				"method": "GET"
+			},
+			{
+				"id": "ac38300f-f0ea-4ff0-8efc-ebea4bdf8eb3",
+				"method": "GET"
+			},
+			{
+				"id": "70f515f8-8417-4172-9415-fb15d81ed6fe",
+				"method": "GET"
+			},
+			{
+				"id": "9fa56a24-9059-4317-9379-a825100a1795",
+				"method": "GET"
+			},
+			{
+				"id": "a0cb7a25-089e-4d89-abd5-c5452b50b829",
+				"method": "GET"
+			},
+			{
+				"id": "2a938fbd-718f-45f2-934f-d37e16298841",
+				"method": "GET"
+			},
+			{
+				"id": "89f0b253-f4a3-4eca-9441-cb535a8e61a1",
+				"method": "GET"
+			},
+			{
+				"id": "51d95d23-eb0a-4f51-94f4-10f005cc69ed",
+				"method": "GET"
+			},
+			{
+				"id": "18c80b25-8336-4706-9bee-259f313f3fbc",
+				"method": "POST"
+			},
+			{
+				"id": "a6066872-1705-4b2b-b7a4-42c33c00405a",
+				"method": "POST"
+			},
+			{
+				"id": "cda89d69-1de9-45db-a9a1-14ad7766fad4",
+				"method": "POST"
+			},
+			{
+				"id": "58e853b4-0358-49a5-94ba-1c7b954a746d",
+				"method": "POST"
+			},
+			{
+				"id": "1a6a5f99-da91-4e2b-8ff0-07508ac1ce03",
+				"method": "GET"
+			},
+			{
+				"id": "480b3e9d-63bf-4eed-8e0e-fa95da1a3c36",
+				"method": "GET"
+			}
+		]
+	}
+}

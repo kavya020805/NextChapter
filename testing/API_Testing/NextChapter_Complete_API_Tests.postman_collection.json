@@ -1,0 +1,359 @@
+{
+	"info": {
+		"name": "NextChapter Complete API Testing",
+		"description": "Complete API testing for all NextChapter APIs",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Content Moderation API",
+			"item": [
+				{
+					"name": "TC-MOD-001: Appropriate Content",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"text\": \"This is a great book! I really enjoyed reading it.\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/moderate"
+					}
+				},
+				{
+					"name": "TC-MOD-002: Inappropriate Content",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"text\": \"This book is stupid and the author is an idiot\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/moderate"
+					}
+				},
+				{
+					"name": "TC-MOD-003: Empty Text",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"text\": \"\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/moderate"
+					}
+				},
+				{
+					"name": "TC-MOD-004: XSS Attempt",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"text\": \"<script>alert('xss')</script>\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/moderate"
+					}
+				},
+				{
+					"name": "TC-MOD-005: SQL Injection",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"text\": \"'; DROP TABLE users; --\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/moderate"
+					}
+				},
+				{
+					"name": "TC-MOD-006: Unicode Content",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"text\": \"Great book! 📚✨ Très bien! 素晴らしい本です\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/moderate"
+					}
+				},
+				{
+					"name": "TC-MOD-007: Long Text",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"text\": \"This is a very long comment that goes on and on about how much I enjoyed this book and would recommend it to others who enjoy this genre of literature and storytelling. The characters were well-developed and the plot was engaging throughout the entire story.\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/moderate"
+					}
+				}
+			]
+		},
+		{
+			"name": "AI Chat API",
+			"item": [
+				{
+					"name": "TC-CHAT-001: Basic Query",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"message\": \"What is this book about?\", \"book_title\": \"Pride and Prejudice\", \"current_page\": 1, \"total_pages\": 300}"},
+						"url": "https://comment-moderation-api.onrender.com/api/chat"
+					}
+				},
+				{
+					"name": "TC-CHAT-002: Empty Message",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"message\": \"\", \"book_title\": \"Test Book\", \"current_page\": 1}"},
+						"url": "https://comment-moderation-api.onrender.com/api/chat"
+					}
+				},
+				{
+					"name": "TC-CHAT-003: Character Analysis",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"message\": \"Tell me about the main character\", \"book_title\": \"To Kill a Mockingbird\", \"current_page\": 50, \"total_pages\": 281}"},
+						"url": "https://comment-moderation-api.onrender.com/api/chat"
+					}
+				},
+				{
+					"name": "TC-CHAT-004: Plot Summary",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"message\": \"Summarize what happened so far\", \"book_title\": \"1984\", \"current_page\": 100, \"total_pages\": 328}"},
+						"url": "https://comment-moderation-api.onrender.com/api/chat"
+					}
+				},
+				{
+					"name": "TC-CHAT-005: Invalid Page Numbers",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"message\": \"What happens next?\", \"book_title\": \"Test Book\", \"current_page\": -1, \"total_pages\": 0}"},
+						"url": "https://comment-moderation-api.onrender.com/api/chat"
+					}
+				}
+			]
+		},
+		{
+			"name": "Image Generation API",
+			"item": [
+				{
+					"name": "TC-IMG-001: Basic Image Generation",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"prompt\": \"A medieval castle\", \"book_title\": \"Game of Thrones\", \"current_page\": 50, \"size\": \"512x512\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/generate-image"
+					}
+				},
+				{
+					"name": "TC-IMG-002: Empty Prompt",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"prompt\": \"\", \"book_title\": \"Test Book\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/generate-image"
+					}
+				},
+				{
+					"name": "TC-IMG-003: Different Size",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"prompt\": \"A sunset over the ocean\", \"book_title\": \"The Old Man and the Sea\", \"current_page\": 25, \"size\": \"1024x1024\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/generate-image"
+					}
+				},
+				{
+					"name": "TC-IMG-004: Complex Scene",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"prompt\": \"A Victorian London street scene with fog and gas lamps\", \"book_title\": \"Sherlock Holmes\", \"current_page\": 75, \"size\": \"512x512\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/generate-image"
+					}
+				},
+				{
+					"name": "TC-IMG-005: Invalid Size",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"prompt\": \"A forest scene\", \"book_title\": \"Test Book\", \"size\": \"invalid_size\"}"},
+						"url": "https://comment-moderation-api.onrender.com/api/generate-image"
+					}
+				}
+			]
+		},
+		{
+			"name": "Dictionary API",
+			"item": [
+				{
+					"name": "TC-DICT-001: Valid Word",
+					"request": {
+						"method": "GET",
+						"url": "https://api.dictionaryapi.dev/api/v2/entries/en/hello"
+					}
+				},
+				{
+					"name": "TC-DICT-002: Invalid Word",
+					"request": {
+						"method": "GET",
+						"url": "https://api.dictionaryapi.dev/api/v2/entries/en/asdfghjkl"
+					}
+				},
+				{
+					"name": "TC-DICT-003: Common Word",
+					"request": {
+						"method": "GET",
+						"url": "https://api.dictionaryapi.dev/api/v2/entries/en/book"
+					}
+				},
+				{
+					"name": "TC-DICT-004: Complex Word",
+					"request": {
+						"method": "GET",
+						"url": "https://api.dictionaryapi.dev/api/v2/entries/en/serendipity"
+					}
+				},
+				{
+					"name": "TC-DICT-005: Special Characters",
+					"request": {
+						"method": "GET",
+						"url": "https://api.dictionaryapi.dev/api/v2/entries/en/hello@world"
+					}
+				}
+			]
+		},
+		{
+			"name": "Gutenberg API",
+			"item": [
+				{
+					"name": "TC-GUT-001: Get Book by ID",
+					"request": {
+						"method": "GET",
+						"url": "https://gutendex.com/books/1342"
+					}
+				},
+				{
+					"name": "TC-GUT-002: Search Books",
+					"request": {
+						"method": "GET",
+						"url": "https://gutendex.com/books?search=pride%20prejudice"
+					}
+				},
+				{
+					"name": "TC-GUT-003: Invalid Book ID",
+					"request": {
+						"method": "GET",
+						"url": "https://gutendex.com/books/999999"
+					}
+				}
+			]
+		},
+		{
+			"name": "OpenLibrary API",
+			"item": [
+				{
+					"name": "TC-LIB-001: Search Authors",
+					"request": {
+						"method": "GET",
+						"url": "https://openlibrary.org/search/authors.json?q=shakespeare&limit=5"
+					}
+				},
+				{
+					"name": "TC-LIB-002: Search Books",
+					"request": {
+						"method": "GET",
+						"url": "https://openlibrary.org/search.json?title=pride+and+prejudice&limit=3"
+					}
+				},
+				{
+					"name": "TC-LIB-003: Invalid Search",
+					"request": {
+						"method": "GET",
+						"url": "https://openlibrary.org/search/authors.json?q=asdfghjklzxcvbnm&limit=1"
+					}
+				},
+				{
+					"name": "TC-LIB-004: Search by Author",
+					"request": {
+						"method": "GET",
+						"url": "https://openlibrary.org/search.json?author=jane+austen&limit=5"
+					}
+				},
+				{
+					"name": "TC-LIB-005: Search Empty Query",
+					"request": {
+						"method": "GET",
+						"url": "https://openlibrary.org/search/authors.json?q=&limit=1"
+					}
+				}
+			]
+		},
+		{
+			"name": "Google Gemini API",
+			"item": [
+				{
+					"name": "TC-GEM-001: Basic Chat",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"contents\": [{\"parts\": [{\"text\": \"What is Pride and Prejudice about?\"}]}]}"},
+						"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{gemini_api_key}}"
+					}
+				},
+				{
+					"name": "TC-GEM-002: Empty Message",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"contents\": [{\"parts\": [{\"text\": \"\"}]}]}"},
+						"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{gemini_api_key}}"
+					}
+				},
+				{
+					"name": "TC-GEM-003: Long Query",
+					"request": {
+						"method": "POST",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"contents\": [{\"parts\": [{\"text\": \"Can you provide a detailed analysis of the themes, characters, and literary significance of Pride and Prejudice by Jane Austen, including its impact on literature?\"}]}]}"},
+						"url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={{gemini_api_key}}"
+					}
+				}
+			]
+		},
+		{
+			"name": "Razorpay API",
+			"item": [
+				{
+					"name": "TC-RAZ-001: Create Order",
+					"request": {
+						"method": "POST",
+						"header": [
+							{"key": "Content-Type", "value": "application/json"},
+							{"key": "Authorization", "value": "Basic {{razorpay_auth}}"}
+						],
+						"body": {"mode": "raw", "raw": "{\"amount\": 50000, \"currency\": \"INR\", \"receipt\": \"test_receipt_001\"}"},
+						"url": "https://api.razorpay.com/v1/orders"
+					}
+				},
+				{
+					"name": "TC-RAZ-002: Get Payment Methods",
+					"request": {
+						"method": "GET",
+						"header": [{"key": "Authorization", "value": "Basic {{razorpay_auth}}"}],
+						"url": "https://api.razorpay.com/v1/methods"
+					}
+				}
+			]
+		},
+		{
+			"name": "Local JSON API",
+			"item": [
+				{
+					"name": "TC-JSON-001: Get Books Data (Local)",
+					"request": {
+						"method": "GET",
+						"url": "http://localhost:5173/books-data.json"
+					}
+				},
+				{
+					"name": "TC-JSON-002: Get Books Data (Production)",
+					"request": {
+						"method": "GET",
+						"url": "https://nextchapter-it-314.vercel.app/books-data.json"
+					}
+				}
+			]
+		}
+	]
+}

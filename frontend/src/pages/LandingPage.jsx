@@ -1,11 +1,13 @@
 import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 import Header from '../components/Header'
 import HeroSection from '../components/HeroSection'
 import Footer from '../components/Footer'
 import CountUp from '../components/CountUp'
 import { BookOpen, Sparkles, Brain, Search, BookMarked, Globe, ArrowRight, TrendingUp, MessageCircle, Download, Trophy } from 'lucide-react'
 import { useOfflineRedirect } from '../hooks/useOfflineRedirect'
+import { supabase } from '../lib/supabaseClient'
 
 // Counter Stat Component
 function CounterStat({ target, suffix, label, duration = 2 }) {
@@ -33,6 +35,48 @@ function LandingPage() {
   // Auto-redirect to offline library when offline
   useOfflineRedirect()
   
+  const [stats, setStats] = useState({
+    booksCount: 10000,
+    usersCount: 50000,
+    avgRating: 4.8
+  })
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      // Fetch from public_stats table (readable by anyone)
+      const { data: publicStats, error: statsError } = await supabase
+        .from('public_stats')
+        .select('total_users, total_books, average_rating')
+        .eq('id', 1)
+        .single()
+
+      if (!statsError && publicStats) {
+        setStats({
+          booksCount: publicStats.total_books || 10000,
+          usersCount: publicStats.total_users || 50000,
+          avgRating: parseFloat(publicStats.average_rating) || 4.8
+        })
+      } else {
+        // Fallback: fetch books count directly
+        const { count: booksCount } = await supabase
+          .from('books')
+          .select('*', { count: 'exact', head: true })
+
+        setStats({
+          booksCount: booksCount || 10000,
+          usersCount: 50000,
+          avgRating: 4.8
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
+  
   const features = [
     {
       icon: <Sparkles className="w-8 h-8 md:w-10 md:h-10" />,
@@ -42,10 +86,10 @@ function LandingPage() {
       size: "large"
     },
     {
-      icon: <Brain className="w-8 h-8 md:w-10 md:h-10" />,
-      title: "AI Summaries",
-      description: "Get instant insights and key takeaways with unlimited AI-generated book summaries to enhance your understanding",
-      isAI: true,
+      icon: <Download className="w-8 h-8 md:w-10 md:h-10" />,
+      title: "Offline Reading",
+      description: "Download your favorite books and read them anytime, anywhere without an internet connection",
+      isAI: false,
       size: "large"
     },
     {
@@ -518,7 +562,7 @@ function LandingPage() {
 
                 {/* Animated Summary Badge */}
                 <motion.div
-                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-linear-to-r from-blue-600/10 to-blue-800/10 dark:from-blue-500/20 dark:to-blue-700/20 rounded-full border border-blue-500/30 dark:border-blue-400/30"
+                  className="mt-6 inline-flex items-center gap-2 px-4 py-2 bg-linear-to-r from-green-600/10 to-green-800/10 dark:from-green-500/20 dark:to-green-700/20 rounded-full border border-green-500/30 dark:border-green-400/30"
                   initial={{ scale: 0, opacity: 0 }}
                   animate={{ 
                     scale: [1, 1.05, 1],
@@ -535,7 +579,7 @@ function LandingPage() {
                   <motion.div
                     animate={{ 
                       scale: [1, 1.2, 1],
-                      rotate: [0, 15, -15, 0]
+                      y: [0, -3, 0]
                     }}
                     transition={{ 
                       duration: 2.5,
@@ -543,10 +587,10 @@ function LandingPage() {
                       ease: "easeInOut"
                     }}
                   >
-                    <Brain className="w-4 h-4 text-blue-600 dark:text-blue-500" />
+                    <Download className="w-4 h-4 text-green-600 dark:text-green-500" />
                   </motion.div>
-                  <span className="text-xs md:text-sm font-medium text-blue-700 dark:text-blue-400">
-                    Generating insights...
+                  <span className="text-xs md:text-sm font-medium text-green-700 dark:text-green-400">
+                    Ready for offline...
                   </span>
                 </motion.div>
               </div>
@@ -782,7 +826,7 @@ function LandingPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 sm:gap-10 md:gap-12 lg:gap-16 border-t-2 border-dark-gray dark:border-white pt-10 sm:pt-12 md:pt-16">
             <div>
               <CounterStat 
-                target={10000} 
+                target={stats.booksCount} 
                 suffix="+" 
                 label="Books Available"
                 duration={2.5}
@@ -790,15 +834,15 @@ function LandingPage() {
             </div>
             <div className="border-t-2 md:border-t-0 md:border-l-2 border-dark-gray dark:border-white pt-8 md:pt-0 md:pl-8 lg:pl-12">
               <CounterStat 
-                target={50000} 
+                target={stats.usersCount} 
                 suffix="+" 
-                label="Active Readers"
+                label="Total Readers"
                 duration={3}
               />
             </div>
             <div className="border-t-2 md:border-t-0 md:border-l-2 border-dark-gray dark:border-white pt-8 md:pt-0 md:pl-8 lg:pl-12">
               <CounterStat 
-                target={4.8} 
+                target={stats.avgRating} 
                 suffix="" 
                 label="User Rating"
                 duration={2}

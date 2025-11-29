@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useAuth } from '../contexts/AuthContext'
+import { useSubscription } from '../contexts/SubscriptionContext'
 import { User, Mail, Calendar, ArrowRight, X, Edit2, Save, ArrowUpRight, Upload, Camera } from 'lucide-react'
 import { supabase } from '../lib/supabaseClient'
 import { getUserProfile } from '../lib/personalizationUtils'
@@ -17,12 +18,12 @@ import MonthlyProgressCard from '../components/MonthlyProgressCard'
 
 function ProfilePage() {
   const { user, signOut } = useAuth()
+  const { plan: subscriptionPlan, status: subscriptionStatus, endDate: subscriptionEndDate, refreshSubscription } = useSubscription()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [profileLoading, setProfileLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
   const [profileData, setProfileData] = useState(null)
-  const [subscriptionPlan, setSubscriptionPlan] = useState('Free')
   const [dashboardData, setDashboardData] = useState(null)
   
   // Form state
@@ -112,14 +113,8 @@ function ProfilePage() {
         setProfilePhotoUrl(profile.profile_photo_url || '')
         setProfilePhotoFile(null)
         setImageError(false)
-        // Get subscription plan from profile or default to 'Free'
-        setSubscriptionPlan(profile.subscription_plan || localStorage.getItem('subscription_plan') || 'Free')
-      } else {
-        // If no profile, check localStorage for subscription
-        const storedPlan = localStorage.getItem('subscription_plan')
-        if (storedPlan) {
-          setSubscriptionPlan(storedPlan)
-        }
+        // Refresh subscription data
+        await refreshSubscription()
       }
     } catch (error) {
       console.error('Error loading profile:', error)

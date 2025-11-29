@@ -82,7 +82,32 @@ function SubscriptionPage() {
       return
     }
 
-    // Prepare payment details
+    // Handle Free plan (no payment needed)
+    if (plan.isFree || price === 0) {
+      const { createSubscription } = await import('../lib/subscriptionUtils')
+      const subscriptionResult = await createSubscription(user.id, {
+        planName: plan.name,
+        billingCycle: billingCycle,
+        amount: 0,
+        paymentDetails: {
+          payment_method: 'free'
+        }
+      })
+
+      if (subscriptionResult.error) {
+        console.error('Error saving subscription:', subscriptionResult.error)
+        toast.error('Failed to activate free plan. Please try again.')
+      } else {
+        toast.success('Free plan activated successfully!')
+        localStorage.setItem('subscription_plan', plan.name)
+        setTimeout(() => {
+          navigate('/profile')
+        }, 1500)
+      }
+      return
+    }
+
+    // Prepare payment details for paid plans
     const paymentDetails = {
       planName: plan.name,
       amount: price,
@@ -94,11 +119,27 @@ function SubscriptionPage() {
     const result = await initiatePayment(paymentDetails)
 
     if (result.success) {
-      toast.success('Payment successful! Your subscription is now active.')
-      // TODO: Update user subscription in database
-      // TODO: Redirect to books page or profile
+      // Update user subscription in database
+      const { createSubscription } = await import('../lib/subscriptionUtils')
+      const subscriptionResult = await createSubscription(user.id, {
+        planName: plan.name,
+        billingCycle: billingCycle,
+        amount: price,
+        paymentDetails: result.paymentData
+      })
+
+      if (subscriptionResult.error) {
+        console.error('Error saving subscription:', subscriptionResult.error)
+        toast.warning('Payment successful but failed to update subscription. Please contact support.')
+      } else {
+        toast.success('Payment successful! Your subscription is now active.')
+        // Update localStorage for immediate UI update
+        localStorage.setItem('subscription_plan', plan.name)
+      }
+
+      // Redirect to profile page
       setTimeout(() => {
-        navigate('/books')
+        navigate('/profile')
       }, 2000)
     } else {
       toast.error(result.error || 'Payment failed. Please try again.')
