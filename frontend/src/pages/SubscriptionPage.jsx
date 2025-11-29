@@ -82,7 +82,44 @@ function SubscriptionPage() {
       return
     }
 
-    // Prepare payment details
+    // Handle Free plan (no payment needed)
+    if (plan.isFree || price === 0) {
+      console.log('🆓 Activating Free plan for user:', user.id)
+      
+      try {
+        const { createSubscription } = await import('../lib/subscriptionUtils')
+        const subscriptionResult = await createSubscription(user.id, {
+          planName: plan.name,
+          billingCycle: billingCycle,
+          amount: 0,
+          paymentDetails: {
+            payment_method: 'free'
+          }
+        })
+
+        if (subscriptionResult.error) {
+          console.error('❌ Error saving subscription:', subscriptionResult.error)
+          toast.error(`Failed to activate free plan: ${subscriptionResult.error.message || 'Unknown error'}`)
+        } else {
+          console.log('✅ Free plan activated successfully')
+          toast.success('Free plan activated successfully!')
+          localStorage.setItem('subscription_plan', plan.name)
+          
+          // Refresh subscription context
+          const { useSubscription } = await import('../contexts/SubscriptionContext')
+          
+          setTimeout(() => {
+            navigate('/profile')
+          }, 1500)
+        }
+      } catch (err) {
+        console.error('❌ Unexpected error:', err)
+        toast.error(`Error: ${err.message}`)
+      }
+      return
+    }
+
+    // Prepare payment details for paid plans
     const paymentDetails = {
       planName: plan.name,
       amount: price,
@@ -92,15 +129,45 @@ function SubscriptionPage() {
 
     // Initiate payment
     const result = await initiatePayment(paymentDetails)
+    
+    console.log('🔍 Payment result:', result)
+    console.log('🔍 Result success:', result.success)
+    console.log('🔍 Result type:', typeof result.success)
 
     if (result.success) {
-      toast.success('Payment successful! Your subscription is now active.')
-      // TODO: Update user subscription in database
-      // TODO: Redirect to books page or profile
+      console.log('✅ Payment successful, creating subscription...')
+      // Update user subscription in database
+      const { createSubscription } = await import('../lib/subscriptionUtils')
+      const subscriptionResult = await createSubscription(user.id, {
+        planName: plan.name,
+        billingCycle: billingCycle,
+        amount: price,
+        paymentDetails: {
+          razorpay_order_id: result.orderId,
+          razorpay_payment_id: result.paymentId,
+          payment_method: 'razorpay'
+        }
+      })
+
+      console.log('📦 Subscription result:', subscriptionResult)
+      
+      if (subscriptionResult.error) {
+        console.error('❌ Error saving subscription:', subscriptionResult.error)
+        toast.warning('Payment successful but failed to update subscription. Please contact support.')
+      } else {
+        console.log('✅ Subscription created successfully!')
+        toast.success('Payment successful! Your subscription is now active.')
+        // Update localStorage for immediate UI update
+        localStorage.setItem('subscription_plan', plan.name)
+      }
+
+      // Redirect to profile page
       setTimeout(() => {
-        navigate('/books')
+        navigate('/profile')
       }, 2000)
     } else {
+      console.error('❌ Payment failed:', result.error)
+      console.log('❌ Full result object:', result)
       toast.error(result.error || 'Payment failed. Please try again.')
     }
   }

@@ -1,7 +1,51 @@
 import { ArrowRight, Sparkles } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { supabase } from '../lib/supabaseClient'
 
 function HeroSection() {
+  const [stats, setStats] = useState({
+    booksCount: 10000,
+    usersCount: 50000,
+    avgRating: 4.8
+  })
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      // Fetch from public_stats table (readable by anyone)
+      const { data: publicStats, error: statsError } = await supabase
+        .from('public_stats')
+        .select('total_users, total_books, average_rating')
+        .eq('id', 1)
+        .single()
+
+      if (!statsError && publicStats) {
+        setStats({
+          booksCount: publicStats.total_books || 10000,
+          usersCount: publicStats.total_users || 50000,
+          avgRating: parseFloat(publicStats.average_rating) || 4.8
+        })
+      } else {
+        // Fallback: fetch books count directly
+        const { count: booksCount } = await supabase
+          .from('books')
+          .select('*', { count: 'exact', head: true })
+
+        setStats({
+          booksCount: booksCount || 10000,
+          usersCount: 50000,
+          avgRating: 4.8
+        })
+      }
+    } catch (error) {
+      console.error('Error fetching stats:', error)
+    }
+  }
+
   return (
     <section className="bg-dark-gray dark:bg-white py-16 sm:py-24 md:py-32 lg:py-40">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -45,15 +89,21 @@ function HeroSection() {
           <div className="md:col-span-4 border-t-2 border-white dark:border-dark-gray pt-8 sm:pt-10 md:pt-0 md:border-t-0 md:border-l-2 md:pl-8 lg:pl-12">
             <div className="grid grid-cols-3 md:grid-cols-1 gap-8 sm:gap-12 md:gap-16">
               <div>
-                <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-2 sm:mb-3 md:mb-4 leading-none">10K+</div>
+                <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-2 sm:mb-3 md:mb-4 leading-none">
+                  {stats.booksCount >= 1000 ? `${Math.floor(stats.booksCount / 1000)}K+` : `${stats.booksCount}+`}
+                </div>
                 <div className="text-xs font-medium uppercase tracking-widest text-white/60 dark:text-dark-gray/60">Books</div>
               </div>
               <div>
-                <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-2 sm:mb-3 md:mb-4 leading-none">50K+</div>
-                <div className="text-xs font-medium uppercase tracking-widest text-white/60 dark:text-dark-gray/60">Readers</div>
+                <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-2 sm:mb-3 md:mb-4 leading-none">
+                  {stats.usersCount >= 1000 ? `${Math.floor(stats.usersCount / 1000)}K+` : `${stats.usersCount}+`}
+                </div>
+                <div className="text-xs font-medium uppercase tracking-widest text-white/60 dark:text-dark-gray/60">Total Readers</div>
               </div>
               <div>
-                <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-2 sm:mb-3 md:mb-4 leading-none">4.8</div>
+                <div className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl text-white dark:text-dark-gray mb-2 sm:mb-3 md:mb-4 leading-none">
+                  {stats.avgRating}
+                </div>
                 <div className="text-xs font-medium uppercase tracking-widest text-white/60 dark:text-dark-gray/60">Rating</div>
               </div>
             </div>

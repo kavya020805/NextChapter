@@ -242,8 +242,44 @@ export async function fetchUserDashboardData(userId) {
 				.filter(Boolean);
 		}
 
-		// Get pinned books
+		// Get pinned books (books from reading list - want_to_read status)
 		let pinnedBooks = [];
+		try {
+			const { data: pinnedBooksRows, error: pinnedError } = await supabase
+				.from("user_books")
+				.select("*")
+				.eq("user_id", userId)
+				.eq("status", "want_to_read")
+				.order("created_at", { ascending: false });
+
+			if (!pinnedError && pinnedBooksRows && pinnedBooksRows.length > 0) {
+				// Fetch book details for pinned books
+				const pinnedBookIds = pinnedBooksRows.map((row) => row.book_id);
+				const { data: pinnedBooksData, error: pinnedBooksError } = await supabase
+					.from("books")
+					.select("*")
+					.in("id", pinnedBookIds);
+
+				if (!pinnedBooksError && pinnedBooksData) {
+					pinnedBooks = transformBookCoverUrls(pinnedBooksData);
+				}
+			} else {
+				// Fallback to localStorage wishlist
+				const wishlist = JSON.parse(localStorage.getItem("wishlist") || "[]");
+				if (wishlist.length > 0) {
+					const { data: wishlistBooks } = await supabase
+						.from("books")
+						.select("*")
+						.in("id", wishlist);
+
+					if (wishlistBooks) {
+						pinnedBooks = transformBookCoverUrls(wishlistBooks);
+					}
+				}
+			}
+		} catch (e) {
+			console.error("Error fetching pinned books:", e);
+		}
 
 		// Calculate reading statistics
 		const stats = calculateReadingStats(readingSessions, booksRead);
