@@ -1,126 +1,147 @@
-import os
-import time
-from supabase import create_client, Client
-from pinecone import Pinecone, ServerlessSpec
-from dotenv import load_dotenv
-from groq import Groq  # NEW: Groq Embeddings API
+import { useState, useEffect } from "react"
 
-# --- 1. Load Environment ---
-load_dotenv()
+const API_BASE_URL = import.meta?.env?.VITE_AI_SUGGESTION_URL ?? "http://127.0.0.1:8000"
 
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
-PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
-GROQ_API_KEY = os.environ.get("GROQ_API_KEY")
+export default function ExploreBooks({ userId }) {
+  const [books, setBooks] = useState([])
+  const [status, setStatus] = useState("idle")
+  const [error, setError] = useState(null)
 
-if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY, PINECONE_API_KEY, GROQ_API_KEY]):
-    raise RuntimeError("❌ Missing required environment variables")
+  useEffect(() => {
+    let isActive = true
 
-# --- 2. Initialize Clients ---
-supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
-pc = Pinecone(api_key=PINECONE_API_KEY)
-groq_client = Groq(api_key=GROQ_API_KEY)
-
-index_name = "nextchapter-books"
-EMBEDDING_DIMENSION = 1536  # Because Groq "text-embedding-3-small" output = 1536 dims
-
-
-# --- 3. Helper: Groq Embedding ---
-def embed_text(text: str):
-    """Generate embeddings using Groq (fast, no RAM)."""
-    try:
-        resp = groq_client.embeddings.create(
-            model="text-embedding-3-small",
-            input=text
-        )
-        return resp.data[0].embedding
-    except Exception as e:
-        print("Embedding error:", e)
-        return None
-
-
-# --- 4. Helper: Convert Book to Text ---
-def get_text_to_embed(book):
-    genres_list = book.get("genres", []) or []
-    genres_str = ", ".join(genres_list)
-
-    return (
-        f"Title: {book.get('title', '')}. "
-        f"Author: {book.get('author', '')}. "
-        f"Genre: {book.get('genre', '')}. "
-        f"Tags: {genres_str}."
-    )
-
-
-# --- 5. Create/Reset Pinecone Index ---
-def recreate_index():
-    if index_name in pc.list_indexes().names():
-        print(f"Deleting existing index '{index_name}'...")
-        pc.delete_index(index_name)
-        time.sleep(5)
-
-    print(f"Creating new Pinecone index '{index_name}'...")
-    pc.create_index(
-        name=index_name,
-        dimension=EMBEDDING_DIMENSION,
-        metric="cosine",
-        spec=ServerlessSpec(cloud="aws", region="us-east-1")
-    )
-    return pc.Index(index_name)
-
-
-# --- 6. Main Ingestion ---
-def run_ingestion():
-    print("Fetching books from Supabase...")
-    response = supabase.table('books').select('id, title, author, genre, genres').execute()
-    books = response.data or []
-
-    if not books:
-        print("❌ No books found in Supabase.")
+    const fetchExploreBooks = async () => {
+      if (!userId) {
+        setError("Missing user id")
+        setStatus("error")
         return
+      }
 
-    print(f"Found {len(books)} books. Generating embeddings...")
+      setStatus("loading")
+      setError(null)
 
-    index = recreate_index()
-    vectors = []
+      const requestQueue = [
+        {
+          url: `${API_BASE_URL}/explore/${encodeURIComponent(userId)}`,
+          options: { method: "GET" }
+        },
+        {
+          url: `${API_BASE_URL}/explore`,
+          options: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: userId })
+          }
+        }
+      ]
 
-    for book in books:
-        try:
-            text = get_text_to_embed(book)
-            vector = embed_text(text)
+      let lastError = null
 
-            if not vector:
-                print(f"⚠️ Skipped book {book['id']} due to embedding error")
-                continue
+      for (const request of requestQueue) {
+        try {
+          const response = await fetch(request.url, request.options)
 
-            vectors.append({
-                "id": str(book["id"]),
-                "values": vector,
-                "metadata": {
-                    "genre": book.get("genre"),
-                    "author": book.get("author")
-                }
-            })
+          if (response.status === 404) {
+            if (!isActive) return
+            setBooks([])
+            setStatus("loaded")
+            setError(null)
+            return
+          }
 
-            print(f"Embedded book ID: {book['id']}")
+          if (!response.ok) {
+            const message = await response.text()
+            throw new Error(message || "Unable to load explore picks")
+          }
 
-        except Exception as e:
-            print(f"Error processing book {book['id']}: {e}")
+          const data = await response.json()
+          if (!isActive) return
+          setBooks(data?.books ?? [])
+          setStatus("loaded")
+          return
+        } catch (err) {
+          lastError = err
+        }
+      }
 
-    print(f"Upserting {len(vectors)} vectors into Pinecone...")
+      if (!isActive) return
+      setStatus("error")
+      setError(lastError?.message || "Unable to load explore picks")
+    }
 
-    # Pinecone batch upload
-    for i in range(0, len(vectors), 100):
-        batch = vectors[i:i+100]
-        try:
-            index.upsert(vectors=batch)
-            print(f"Upserted batch {i//100 + 1}")
-        except Exception as e:
-            print(f"Batch upsert failed: {e}")
+    fetchExploreBooks()
 
-    print("🎉 Ingestion complete!")
+    return () => {
+      isActive = false
+    }
+  }, [userId])
 
+  const hasBooks = books.length > 0
 
-# --- 7. Run File ---
-if __name__ == "__main__":
-    run_ingestion()
+  return (
+    <section className="mt-6 space-y-4">
+      <header className="flex flex-col gap-3">
+        <div>
+          <h2 className="text-lg md:text-xl font-semibold text-white dark:text-dark-gray">
+            Explore Something New
+          </h2>
+          
+        </div>
+      </header>
+
+      {error && (
+        <p className="text-sm text-red-400 dark:text-red-500">
+          {error || "Something went wrong. Please try again."}
+        </p>
+      )}
+
+      {status === "idle" && !error && (
+        <p className="text-sm text-white/60 dark:text-dark-gray/60">
+          Gathering fresh titles for you...
+        </p>
+      )}
+
+      {status === "loaded" && books.length === 0 && !error && (
+        <p className="text-sm text-white/70 dark:text-dark-gray/70">
+          Nothing to explore right now. Check back after you complete a few more books.
+        </p>
+      )}
+
+      {hasBooks && (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {books.map((book) => (
+            <article
+              key={book.book_id}
+              className="flex flex-col gap-3 rounded-xl border border-white/10 dark:border-dark-gray/15 bg-white/5 dark:bg-dark-gray/5 backdrop-blur-sm p-4 md:p-5 shadow-sm shadow-black/20 dark:shadow-black/10 hover:border-white/25 dark:hover:border-dark-gray/25 transition-colors"
+            >
+              {book.cover_url ? (
+                <div className="overflow-hidden rounded-lg border border-white/10 dark:border-dark-gray/20 shadow-md shadow-black/30">
+                  <img
+                    src={book.cover_url}
+                    alt={book.title ?? "Book cover"}
+                    className="w-full aspect-3/4 object-cover"
+                    loading="lazy"
+                  />
+                </div>
+              ) : (
+                <div className="w-full aspect-3/4 rounded-lg border border-white/10 dark:border-dark-gray/20 bg-white/5 dark:bg-dark-gray/20 flex items-center justify-center text-xs font-semibold uppercase tracking-[0.25em] text-white/70 dark:text-dark-gray/70">
+                  No Cover
+                </div>
+              )}
+              <div>
+                <h3 className="text-sm md:text-base font-semibold text-white dark:text-dark-gray line-clamp-2">
+                  {book.title ?? "Untitled"}
+                </h3>
+                {book.author && (
+                  <p className="mt-1 text-xs md:text-sm text-white/70 dark:text-dark-gray/70 line-clamp-1">
+                    {book.author}
+                  </p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
