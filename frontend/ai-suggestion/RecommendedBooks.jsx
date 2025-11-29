@@ -1,75 +1,92 @@
-import { useState } from "react";
+import { useState, useEffect } from "react"
 
-const API_BASE_URL = "https://your-recommendation-api.onrender.com";
+const API_BASE_URL = import.meta?.env?.VITE_AI_SUGGESTION_URL ?? "http://127.0.0.1:8000"
 
+export default function ExploreBooks({ userId }) {
+  const [books, setBooks] = useState([])
+  const [status, setStatus] = useState("idle")
+  const [error, setError] = useState(null)
 
-export default function RecommendedBooks({ userId }) {
-  const [books, setBooks] = useState([]);
-  const [justification, setJustification] = useState("");
-  const [status, setStatus] = useState("idle");
-  const [error, setError] = useState(null);
+  useEffect(() => {
+    let isActive = true
 
-  async function fetchRecommendations() {
-    if (!userId) {
-      setError("Missing user id");
-      setStatus("error");
-      return;
-    }
-
-    setStatus("loading");
-    setError(null);
-    setJustification("");
-
-    try {
-      const response = await fetch(`${API_BASE_URL}/recommendations`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ user_id: userId }),
-      });
-
-      if (!response.ok) {
-        const message = await response.text();
-        throw new Error(message || "Unable to load recommendations");
+    const fetchExploreBooks = async () => {
+      if (!userId) {
+        setError("Missing user id")
+        setStatus("error")
+        return
       }
 
-      const data = await response.json();
-      setBooks(data?.books ?? []);
-      setJustification(data?.justification ?? "");
-      setStatus("loaded");
-    } catch (err) {
-      setStatus("error");
-      setError(err.message);
-    }
-  }
+      setStatus("loading")
+      setError(null)
 
-  const hasBooks = books.length > 0;
+      const requestQueue = [
+        {
+          url: `${API_BASE_URL}/explore/${encodeURIComponent(userId)}`,
+          options: { method: "GET" }
+        },
+        {
+          url: `${API_BASE_URL}/explore`,
+          options: {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ user_id: userId })
+          }
+        }
+      ]
+
+      let lastError = null
+
+      for (const request of requestQueue) {
+        try {
+          const response = await fetch(request.url, request.options)
+
+          if (response.status === 404) {
+            if (!isActive) return
+            setBooks([])
+            setStatus("loaded")
+            setError(null)
+            return
+          }
+
+          if (!response.ok) {
+            const message = await response.text()
+            throw new Error(message || "Unable to load explore picks")
+          }
+
+          const data = await response.json()
+          if (!isActive) return
+          setBooks(data?.books ?? [])
+          setStatus("loaded")
+          return
+        } catch (err) {
+          lastError = err
+        }
+      }
+
+      if (!isActive) return
+      setStatus("error")
+      setError(lastError?.message || "Unable to load explore picks")
+    }
+
+    fetchExploreBooks()
+
+    return () => {
+      isActive = false
+    }
+  }, [userId])
+
+  const hasBooks = books.length > 0
 
   return (
     <section className="mt-6 space-y-4">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <header className="flex flex-col gap-3">
         <div>
           <h2 className="text-lg md:text-xl font-semibold text-white dark:text-dark-gray">
-            Recommended For You
+            Explore Something New
           </h2>
-          <p className="mt-1 text-xs md:text-sm text-white/60 dark:text-dark-gray/60">
-            Tap the button to fetch fresh picks based on your recent reading activity.
-          </p>
+          
         </div>
-        <button
-          type="button"
-          onClick={fetchRecommendations}
-          disabled={status === "loading"}
-          className={`inline-flex items-center justify-center px-5 py-2 text-xs md:text-sm font-medium uppercase tracking-widest border transition-opacity duration-200
-            ${
-              status === "loading"
-                ? "bg-white/5 dark:bg-dark-gray/5 text-white/50 dark:text-dark-gray/50 border-white/20 dark:border-dark-gray/30 cursor-not-allowed opacity-70"
-                : "bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:opacity-80"
-            }`}
-        >
-          {status === "loading" ? "Fetching..." : hasBooks ? "Refresh Picks" : "Show Picks"}
-        </button>
       </header>
 
       {error && (
@@ -80,19 +97,13 @@ export default function RecommendedBooks({ userId }) {
 
       {status === "idle" && !error && (
         <p className="text-sm text-white/60 dark:text-dark-gray/60">
-          You haven't loaded any recommendations yet. Hit "Show Picks" to see what our system suggests for you.
+          Gathering fresh titles for you...
         </p>
       )}
 
       {status === "loaded" && books.length === 0 && !error && (
         <p className="text-sm text-white/70 dark:text-dark-gray/70">
-          No recommendations available right now. Try again after you explore a few more books.
-        </p>
-      )}
-
-      {justification && hasBooks && (
-        <p className="mt-2 text-sm italic text-white/80 dark:text-dark-gray/80 max-w-2xl">
-          {justification}
+          Nothing to explore right now. Check back after you complete a few more books.
         </p>
       )}
 
@@ -132,6 +143,5 @@ export default function RecommendedBooks({ userId }) {
         </div>
       )}
     </section>
-  );
+  )
 }
-
