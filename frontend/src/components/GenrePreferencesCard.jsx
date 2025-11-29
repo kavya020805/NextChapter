@@ -33,6 +33,7 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
       // Use provided genre distribution
       const total = Object.values(propGenreDistribution).reduce((sum, count) => sum + count, 0)
       const genres = Object.entries(propGenreDistribution)
+        .filter(([genre, count]) => count > 0) // Only include genres with count > 0
         .map(([genre, count]) => ({
           genre,
           count,
@@ -153,6 +154,7 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
 
       // Convert to array and calculate percentages
       let genres = Object.entries(genreCounts)
+        .filter(([genre, count]) => count > 0) // Only include genres with count > 0
         .map(([genre, count]) => ({
           genre,
           count,
@@ -170,12 +172,15 @@ function GenrePreferencesCard({ genreDistribution: propGenreDistribution = {} })
         }
       }
 
-      // Round percentages for display
-      genres = genres.map(item => ({
-        ...item,
-        percentage: Math.round(item.percentage)
-      }))
+      // Round percentages for display and filter out 0%
+      genres = genres
+        .map(item => ({
+          ...item,
+          percentage: Math.round(item.percentage)
+        }))
+        .filter(item => item.percentage > 0) // Remove any genres with 0% after rounding
 
+      console.log('Final genres to display:', genres);
       setGenreData(genres)
       setTotalBooks(total)
     } catch (error) {

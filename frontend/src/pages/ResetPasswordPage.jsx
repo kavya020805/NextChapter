@@ -6,7 +6,7 @@ import { useAuth } from '../contexts/AuthContext'
 import { ArrowRight } from 'lucide-react'
 
 function ResetPasswordPage() {
-  const { updatePassword } = useAuth()
+  const { updatePassword, signOut } = useAuth()
   const navigate = useNavigate()
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
@@ -62,11 +62,19 @@ function ResetPasswordPage() {
         setError(updateError.message || 'Failed to update password. Please try again.')
       } else {
         console.log('✅ Password updated successfully')
-        setSuccess('Password updated successfully! Redirecting to sign in...')
-        // Redirect to sign in page after 2 seconds
+        setSuccess('Password updated successfully! Signing you out...')
+        
+        // Sign out immediately to clear the recovery session
+        const { error: signOutError } = await signOut()
+        
+        if (signOutError) {
+          console.error('Sign out error:', signOutError)
+        }
+        
+        // Small delay to ensure sign out completes, then redirect
         setTimeout(() => {
-          navigate('/sign-in', { replace: true })
-        }, 2000)
+          window.location.href = '/sign-in?message=password-reset-success'
+        }, 500)
       }
     } catch (err) {
       console.error('❌ Unexpected error:', err)

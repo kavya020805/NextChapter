@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useTheme } from '../contexts/ThemeContext'
@@ -11,6 +11,7 @@ function SignInPage() {
   const { isDark } = useTheme()
   const { user, loading: authLoading, signIn, signInWithOAuth } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [rememberMe, setRememberMe] = useState(false)
@@ -18,6 +19,22 @@ function SignInPage() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
   const [showPassword, setShowPassword] = useState(false)
+
+  // Check for success message from password reset
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const message = params.get('message')
+    
+    if (message === 'password-reset-success') {
+      setSuccess('Password reset successful! Please sign in with your new password.')
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname)
+    } else if (location.state?.message) {
+      setSuccess(location.state.message)
+      // Clear the state
+      window.history.replaceState({}, document.title)
+    }
+  }, [location])
 
   // Redirect if already logged in
   useEffect(() => {

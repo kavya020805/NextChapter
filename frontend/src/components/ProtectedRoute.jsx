@@ -62,7 +62,11 @@ function ProtectedRoute({ children, requireAdmin = false, blockAdmin = false, pu
   // Handle public routes (auth pages like sign-in, sign-up)
   // These should be accessible without authentication, but redirect logged-in users
   if (publicRoute) {
-    if (user) {
+    // Special case: Allow reset-password page even when authenticated
+    // This is needed because Supabase auto-logs users in with recovery token
+    const isResetPasswordPage = window.location.pathname === '/reset-password'
+    
+    if (user && !isResetPasswordPage) {
       // If user is admin, send to admin dashboard
       if (isAdminUser) {
         return <Navigate to="/admin" replace />
@@ -70,7 +74,7 @@ function ProtectedRoute({ children, requireAdmin = false, blockAdmin = false, pu
       // If regular user, send to books page
       return <Navigate to="/books" replace />
     }
-    // No user, allow access to public route
+    // No user, or on reset password page - allow access to public route
     return children
   }
 
