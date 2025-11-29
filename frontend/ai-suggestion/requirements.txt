@@ -1,8 +1,7 @@
 fastapi
 uvicorn
 python-dotenv
+pinecone-client
+sentence-transformers
 supabase
-pinecone
 pydantic
-postgrest
-groq
