@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react"
 
-const API_BASE_URL = "https://your-recommendation-api.onrender.com";
-
+const API_BASE_URL = import.meta?.env?.VITE_AI_SUGGESTION_URL ?? "http://127.0.0.1:8000"
 
 export default function ExploreBooks({ userId }) {
   const [books, setBooks] = useState([])
