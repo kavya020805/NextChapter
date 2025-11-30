@@ -1,6 +1,6 @@
 import Header from '../components/Header';
 import { useAuth } from '../contexts/AuthContext';
-import RecommendedBooks from '../../ai-suggestion/RecommendedBooks.jsx';
+import RecommendedBooks from '../components/RecommendedBooks';
 
 function RecommendedBooksPage() {
   const { user } = useAuth();
