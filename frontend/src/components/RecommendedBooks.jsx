@@ -1,12 +1,69 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 
 const API_BASE_URL = import.meta.env.VITE_AI_SUGGESTION_URL;
 
 export default function RecommendedBooks({ userId }) {
-  const [books, setBooks] = useState([]);
-  const [justification, setJustification] = useState("");
-  const [status, setStatus] = useState("idle");
+  // Initialize state with a ref to track if we've loaded from localStorage
+  const [books, setBooks] = useState(() => {
+    if (!userId) return [];
+    try {
+      const saved = localStorage.getItem(`recommendations_${userId}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error("Failed to parse saved recommendations:", e);
+      return [];
+    }
+  });
+  
+  const [justification, setJustification] = useState(() => {
+    if (!userId) return "";
+    return localStorage.getItem(`recommendations_justification_${userId}`) || "";
+  });
+  
+  const [status, setStatus] = useState(() => {
+    if (!userId) return "idle";
+    const saved = localStorage.getItem(`recommendations_${userId}`);
+    return saved ? "loaded" : "idle";
+  });
+  
   const [error, setError] = useState(null);
+
+  // Update state when userId changes (for user switching)
+  useEffect(() => {
+    if (userId) {
+      const saved = localStorage.getItem(`recommendations_${userId}`);
+      const savedJustification = localStorage.getItem(`recommendations_justification_${userId}`);
+      
+      if (saved) {
+        try {
+          const parsedBooks = JSON.parse(saved);
+          setBooks(parsedBooks);
+          setStatus("loaded");
+          setJustification(savedJustification || "");
+        } catch (e) {
+          console.error("Failed to parse saved recommendations:", e);
+        }
+      } else {
+        setBooks([]);
+        setStatus("idle");
+        setJustification("");
+      }
+    }
+  }, [userId]);
+
+  // Save to localStorage whenever books change
+  useEffect(() => {
+    if (userId && books.length > 0) {
+      localStorage.setItem(`recommendations_${userId}`, JSON.stringify(books));
+    }
+  }, [books, userId]);
+
+  useEffect(() => {
+    if (userId && justification) {
+      localStorage.setItem(`recommendations_justification_${userId}`, justification);
+    }
+  }, [justification, userId]);
 
   async function fetchRecommendations() {
     if (!userId) {
@@ -46,87 +103,103 @@ export default function RecommendedBooks({ userId }) {
   const hasBooks = books.length > 0;
 
   return (
-    <section className="mt-6 space-y-4">
-      <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+    <section>
+      <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-lg md:text-xl font-semibold text-white dark:text-dark-gray">
-            Recommended For You
-          </h2>
-          <p className="mt-1 text-xs md:text-sm text-white/60 dark:text-dark-gray/60">
-            Tap the button to fetch fresh picks based on your recent reading activity.
+          <p className="text-white/60 dark:text-dark-gray/60 text-xs uppercase tracking-widest mb-2">
+            {hasBooks ? `Showing ${books.length} personalized recommendations` : 'Smart Suggestions'}
           </p>
+          {justification && hasBooks && (
+            <p className="text-sm italic text-white/70 dark:text-dark-gray/70 max-w-2xl">
+              {justification}
+            </p>
+          )}
         </div>
         <button
           type="button"
           onClick={fetchRecommendations}
           disabled={status === "loading"}
-          className={`inline-flex items-center justify-center px-5 py-2 text-xs md:text-sm font-medium uppercase tracking-widest border transition-opacity duration-200
+          className={`border-2 px-6 py-3 text-xs uppercase tracking-widest transition-opacity
             ${
               status === "loading"
                 ? "bg-white/5 dark:bg-dark-gray/5 text-white/50 dark:text-dark-gray/50 border-white/20 dark:border-dark-gray/30 cursor-not-allowed opacity-70"
-                : "bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:opacity-80"
+                : "bg-transparent text-white dark:text-dark-gray border-white dark:border-dark-gray hover:bg-white hover:text-dark-gray dark:hover:bg-dark-gray dark:hover:text-white"
             }`}
         >
           {status === "loading" ? "Fetching..." : hasBooks ? "Refresh Picks" : "Show Picks"}
         </button>
-      </header>
+      </div>
 
       {error && (
-        <p className="text-sm text-red-400 dark:text-red-500">
-          {error || "Something went wrong. Please try again."}
-        </p>
+        <div className="text-center py-20">
+          <p className="text-xl text-red-400 dark:text-red-500">
+            {error || "Something went wrong. Please try again."}
+          </p>
+        </div>
       )}
 
-      {status === "idle" && !error && (
-        <p className="text-sm text-white/60 dark:text-dark-gray/60">
-          You haven't loaded any recommendations yet. Hit "Show Picks" to see what our system suggests for you.
-        </p>
+      {status === "idle" && !error && !hasBooks && (
+        <div className="text-center py-20">
+          <p className="text-xl text-white/60 dark:text-dark-gray/60">
+            You haven't loaded any recommendations yet. Hit "Show Picks" to see what our system suggests for you.
+          </p>
+        </div>
+      )}
+
+      {status === "loading" && !hasBooks && (
+        <div className="text-center py-20">
+          <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-coral"></div>
+          <p className="mt-4 text-white/60 dark:text-dark-gray/60">Loading recommendations...</p>
+        </div>
       )}
 
       {status === "loaded" && books.length === 0 && !error && (
-        <p className="text-sm text-white/70 dark:text-dark-gray/70">
-          No recommendations available right now. Try again after you explore a few more books.
-        </p>
-      )}
-
-      {justification && hasBooks && (
-        <p className="mt-2 text-sm italic text-white/80 dark:text-dark-gray/80 max-w-2xl">
-          {justification}
-        </p>
+        <div className="text-center py-20">
+          <p className="text-xl text-white/70 dark:text-dark-gray/70">
+            No recommendations available right now. Try again after you explore a few more books.
+          </p>
+        </div>
       )}
 
       {hasBooks && (
-        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-6">
           {books.map((book) => (
-            <article
+            <Link
               key={book.book_id}
-              className="flex flex-col gap-3 rounded-xl border border-white/10 dark:border-dark-gray/15 bg-white/5 dark:bg-dark-gray/5 backdrop-blur-sm p-4 md:p-5 shadow-sm shadow-black/20 dark:shadow-black/10 hover:border-white/25 dark:hover:border-dark-gray/25 transition-colors"
+              to={`/book/${encodeURIComponent(book.book_id)}`}
+              className="group"
             >
-              {book.cover_url ? (
-                <div className="overflow-hidden rounded-lg border border-white/10 dark:border-dark-gray/20 shadow-md shadow-black/30">
+              <div className="relative overflow-hidden border-2 border-white dark:border-dark-gray group hover:bg-white dark:hover:bg-dark-gray transition-colors">
+                {book.cover_url ? (
                   <img
                     src={book.cover_url}
                     alt={book.title ?? "Book cover"}
-                    className="w-full aspect-3/4 object-cover"
+                    className="w-full aspect-2/3 object-cover group-hover:opacity-20 transition-opacity duration-300"
                     loading="lazy"
                   />
+                ) : (
+                  <div className="w-full aspect-2/3 bg-white dark:bg-dark-gray flex items-center justify-center text-dark-gray dark:text-white text-6xl">
+                    📚
+                  </div>
+                )}
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-6">
+                  <h3 className="text-dark-gray dark:text-white font-medium text-sm line-clamp-2 mb-2 uppercase tracking-widest">
+                    {book.title ?? "Untitled"}
+                  </h3>
+                  <p className="text-dark-gray/70 dark:text-white/70 text-xs line-clamp-1 font-light uppercase tracking-widest">
+                    {book.author || "Unknown Author"}
+                  </p>
                 </div>
-              ) : (
-                <div className="w-full aspect-3/4 rounded-lg border border-white/10 dark:border-dark-gray/20 bg-white/5 dark:bg-dark-gray/20 flex items-center justify-center text-xs font-semibold uppercase tracking-[0.25em] text-white/70 dark:text-dark-gray/70">
-                  No Cover
-                </div>
-              )}
-              <div>
-                <h3 className="text-sm md:text-base font-semibold text-white dark:text-dark-gray line-clamp-2">
+              </div>
+              <div className="mt-4">
+                <h3 className="text-white dark:text-dark-gray font-medium text-xs line-clamp-2 mb-2 uppercase tracking-widest">
                   {book.title ?? "Untitled"}
                 </h3>
-                {book.author && (
-                  <p className="mt-1 text-xs md:text-sm text-white/70 dark:text-dark-gray/70 line-clamp-1">
-                    {book.author}
-                  </p>
-                )}
+                <p className="text-white/60 dark:text-dark-gray/60 text-xs font-light uppercase tracking-widest">
+                  {book.author || "Unknown Author"}
+                </p>
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       )}
