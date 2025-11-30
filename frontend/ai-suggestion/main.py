@@ -14,7 +14,21 @@ import uvicorn
 from postgrest.exceptions import APIError
 
 
-# --- 1. Load Environment & Initialize Clients ---
+# --- 1. Initialize FastAPI app FIRST ---
+app = FastAPI(title="NextChapter AI Suggestions API")
+
+# --- 2. Add CORS Middleware IMMEDIATELY (before any heavy initialization) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Allow all origins
+    allow_credentials=False,  # Must be False when using wildcard
+    allow_methods=["*"],  # Allow all methods
+    allow_headers=["*"],  # Allow all headers
+    expose_headers=["*"],
+    max_age=3600,
+)
+
+# --- 3. Load Environment & Initialize Clients ---
 load_dotenv() 
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
@@ -24,9 +38,6 @@ PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 # Check if all required environment variables are set
 if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY, PINECONE_API_KEY]):
     raise RuntimeError("Missing one or more required environment variables for recommendation service.")
-
-# Initialize the FastAPI app
-app = FastAPI(title="NextChapter AI Suggestions API")
 
 # Initialize Supabase client (using service_role key to bypass RLS)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
@@ -45,28 +56,6 @@ EMBEDDING_DIMENSION = 384 # Dimensions of the 'all-MiniLM-L6-v2' model
 index = pc.Index("nextchapter-books")
 
 print("Clients (Supabase, Pinecone, SentenceTransformer) initialized.")
-
-# --- 2. CORS Middleware ---
-# Configure Cross-Origin Resource Sharing (CORS)
-# This allows your frontend (running on localhost:3000 or 5173) to call this API
-ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "https://www.next-chapter.dev",
-    "https://next-chapter.dev",
-]
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Temporarily allow all origins for testing
-    allow_credentials=False,  # Must be False when using wildcard
-    allow_methods=["GET", "POST", "OPTIONS"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-    max_age=3600,
-)
 
 # --- 3. Request / Response Models ---
 # Pydantic models define the shape of API requests and responses
@@ -502,6 +491,9 @@ async def post_explore(payload: RecommendationRequest):
 if __name__ == "__main__":
     """
     This block allows you to run the app directly with `python main.py`
+    For Render deployment, it uses PORT from environment variable
     """
-    print("Starting FastAPI server at http://127.0.0.1:8000")
-    uvicorn.run("main:app", host="127.0.0.1", port=8000, reload=True)
+    port = int(os.environ.get("PORT", 8000))
+    host = "0.0.0.0" if os.environ.get("PORT") else "127.0.0.1"
+    print(f"Starting FastAPI server at http://{host}:{port}")
+    uvicorn.run("main:app", host=host, port=port, reload=False)
