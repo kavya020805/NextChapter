@@ -47,17 +47,20 @@ function LandingPage() {
 
   const fetchStats = async () => {
     try {
-      // Fetch from public_stats table (readable by anyone)
+      // Fetch total users via RPC (same as admin page)
+      const { data: totalUsers, error: usersError } = await supabase.rpc('total_users')
+      
+      // Fetch from public_stats table for books and rating
       const { data: publicStats, error: statsError } = await supabase
         .from('public_stats')
-        .select('total_users, total_books, average_rating')
+        .select('total_books, average_rating')
         .eq('id', 1)
         .single()
 
       if (!statsError && publicStats) {
         setStats({
           booksCount: publicStats.total_books || 10000,
-          usersCount: publicStats.total_users || 50000,
+          usersCount: !usersError ? (totalUsers || 50000) : 50000,
           avgRating: parseFloat(publicStats.average_rating) || 4.8
         })
       } else {
@@ -68,7 +71,7 @@ function LandingPage() {
 
         setStats({
           booksCount: booksCount || 10000,
-          usersCount: 50000,
+          usersCount: !usersError ? (totalUsers || 50000) : 50000,
           avgRating: 4.8
         })
       }
