@@ -34,10 +34,10 @@ print("Supabase client initialized - Lightweight mode (no ML models)")
 # Configure Cross-Origin Resource Sharing (CORS)
 # This allows your frontend (running on localhost:3000 or 5173) to call this API
 ALLOWED_ORIGINS = [
+    "https://www.next-chapter.dev",
+    "https://next-chapter.dev",
+    "http://localhost:5173", 
     "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
 ]
 app.add_middleware(
     CORSMiddleware,
