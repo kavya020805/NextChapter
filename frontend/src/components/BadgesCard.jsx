@@ -233,10 +233,7 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
     return (
       <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-6 mb-4">
         <div className="flex items-center gap-3 mb-5">
-          <Award className="w-6 h-6 text-white dark:text-dark-gray" />
-          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">
-            Badges
-          </h3>
+          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">`n            Badges`n          </h3>
         </div>
         <div className="text-center py-12">
           <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-white/20 dark:border-dark-gray/20 border-t-white dark:border-t-dark-gray"></div>
@@ -251,10 +248,7 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
     return (
       <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-6 mb-4">
         <div className="flex items-center gap-3 mb-5">
-          <Award className="w-6 h-6 text-white dark:text-dark-gray" />
-          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">
-            Badges
-          </h3>
+          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">`n            Badges`n          </h3>
         </div>
         <div className="text-center py-8 px-4 bg-white/5 dark:bg-dark-gray/5 border border-white/20 dark:border-dark-gray/20">
           <Award className="w-12 h-12 text-white/30 dark:text-dark-gray/30 mx-auto mb-3" />
@@ -272,16 +266,13 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
   return (
     <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-6 mb-4">
       <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-3">
-          <Award className="w-6 h-6 text-white dark:text-dark-gray" />
-          <div>
-            <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">
-              Badges
-            </h3>
-            <p className="text-xs text-white/60 dark:text-dark-gray/60 mt-0.5">
-              {userBadges.length} of {badges.length} earned
-            </p>
-          </div>
+        <div>
+          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">
+            Badges
+          </h3>
+          <p className="text-xs text-white/60 dark:text-dark-gray/60 mt-0.5">
+            {userBadges.length} of {badges.length} earned
+          </p>
         </div>
         <button
           onClick={checkBadges}
@@ -439,3 +430,5 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
 }
 
 export default BadgesCard
+
+

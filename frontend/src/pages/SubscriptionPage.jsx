@@ -1,18 +1,33 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
-import { Check, Loader2 } from 'lucide-react'
+import { Check, Loader2, Crown } from 'lucide-react'
 import { useRazorpay } from '../hooks/useRazorpay'
 import { useAuth } from '../contexts/AuthContext'
 import { toast, ToastContainer } from 'react-toastify'
 import 'react-toastify/dist/ReactToastify.css'
+import { getUserSubscription } from '../lib/subscriptionUtils'
 
 function SubscriptionPage() {
   const [billingCycle, setBillingCycle] = useState('monthly')
+  const [currentSubscription, setCurrentSubscription] = useState(null)
+  const [loading, setLoading] = useState(true)
   const { initiatePayment, loading: paymentLoading } = useRazorpay()
   const { user } = useAuth()
   const navigate = useNavigate()
+
+  // Fetch current subscription
+  useEffect(() => {
+    const fetchSubscription = async () => {
+      if (user) {
+        const { data } = await getUserSubscription(user.id)
+        setCurrentSubscription(data)
+      }
+      setLoading(false)
+    }
+    fetchSubscription()
+  }, [user])
 
   const plans = [
     {
@@ -192,6 +207,35 @@ function SubscriptionPage() {
     <div className="min-h-screen bg-dark-gray dark:bg-white">
       <Header />
       
+      {/* Current Subscription Banner */}
+      {currentSubscription && currentSubscription.plan_id !== 'free' && (
+        <div className="bg-gradient-to-r from-dark-gray to-dark-gray/90 dark:from-white dark:to-white/90 border-b-2 border-white/20 dark:border-dark-gray/20">
+          <div className="max-w-7xl mx-auto px-8 py-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Crown className="w-5 h-5 text-white dark:text-dark-gray" />
+                <div>
+                  <p className="text-sm font-medium text-white dark:text-dark-gray uppercase tracking-widest">
+                    Current Plan: {currentSubscription.subscription_plans?.name || currentSubscription.plan_id}
+                  </p>
+                  {currentSubscription.expires_at && (
+                    <p className="text-xs text-white/60 dark:text-dark-gray/60 mt-0.5">
+                      Expires: {new Date(currentSubscription.expires_at).toLocaleDateString()}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <Link
+                to="/profile#subscription-history"
+                className="text-xs uppercase tracking-widest text-white dark:text-dark-gray hover:underline"
+              >
+                Manage Subscription
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
+      
       {/* Hero Section */}
       <section className="bg-dark-gray dark:bg-white py-24 md:py-32">
         <div className="max-w-7xl mx-auto px-8">
@@ -343,26 +387,48 @@ function SubscriptionPage() {
                     ))}
                   </ul>
 
-                  {!plan.isFree && (
-                    <button
-                      onClick={() => handleSubscribe(plan, price)}
-                      disabled={paymentLoading}
-                      className={`inline-flex items-center justify-center w-full border-2 px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
-                        plan.popular
-                          ? 'bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray'
-                          : 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-dark-gray dark:border-white hover:bg-white dark:hover:bg-dark-gray hover:text-dark-gray dark:hover:text-white'
-                      }`}
-                    >
-                      {paymentLoading ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Processing...
-                        </>
-                      ) : (
-                        'Get Started'
-                      )}
-                    </button>
-                  )}
+                  {(() => {
+                    const isCurrentPlan = currentSubscription?.plan_id === plan.name.toLowerCase()
+                    const isFreePlan = plan.isFree
+                    
+                    if (isCurrentPlan) {
+                      return (
+                        <div className={`inline-flex items-center justify-center w-full border-2 px-8 py-4 text-sm font-medium uppercase tracking-widest ${
+                          plan.popular
+                            ? 'bg-white/10 dark:bg-dark-gray/10 text-white dark:text-dark-gray border-white dark:border-dark-gray'
+                            : 'bg-dark-gray/10 dark:bg-white/10 text-dark-gray dark:text-white border-dark-gray dark:border-white'
+                        }`}>
+                          <Crown className="w-4 h-4 mr-2" />
+                          Current Plan
+                        </div>
+                      )
+                    }
+                    
+                    if (isFreePlan) {
+                      return null
+                    }
+                    
+                    return (
+                      <button
+                        onClick={() => handleSubscribe(plan, price)}
+                        disabled={paymentLoading}
+                        className={`inline-flex items-center justify-center w-full border-2 px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed ${
+                          plan.popular
+                            ? 'bg-white dark:bg-dark-gray text-dark-gray dark:text-white border-white dark:border-dark-gray hover:bg-dark-gray dark:hover:bg-white hover:text-white dark:hover:text-dark-gray'
+                            : 'bg-dark-gray dark:bg-white text-white dark:text-dark-gray border-dark-gray dark:border-white hover:bg-white dark:hover:bg-dark-gray hover:text-dark-gray dark:hover:text-white'
+                        }`}
+                      >
+                        {paymentLoading ? (
+                          <>
+                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          'Get Started'
+                        )}
+                      </button>
+                    )
+                  })()}
                   
                   {plan.isFree && (
                     <div className={`text-center py-4 text-sm font-medium uppercase tracking-widest ${

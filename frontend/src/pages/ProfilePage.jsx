@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useAuth } from '../contexts/AuthContext'
@@ -16,11 +16,13 @@ import CurrentlyReadingCard from '../components/CurrentlyReadingCard'
 import GenrePreferencesCard from '../components/GenrePreferencesCard'
 import MonthlyProgressCard from '../components/MonthlyProgressCard'
 import BadgesCard from '../components/BadgesCard'
+import SubscriptionHistoryCard from '../components/SubscriptionHistoryCard'
 
 function ProfilePage() {
   const { user, signOut } = useAuth()
   const { plan: subscriptionPlan, status: subscriptionStatus, endDate: subscriptionEndDate, refreshSubscription } = useSubscription()
   const navigate = useNavigate()
+  const location = useLocation()
   const [loading, setLoading] = useState(false)
   const [profileLoading, setProfileLoading] = useState(true)
   const [isEditing, setIsEditing] = useState(false)
@@ -96,6 +98,19 @@ function ProfilePage() {
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
+
+  // Scroll to subscription history if hash is present
+  useEffect(() => {
+    if (location.hash === '#subscription-history') {
+      // Wait for component to render
+      setTimeout(() => {
+        const element = document.getElementById('subscription-history')
+        if (element) {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        }
+      }, 500)
+    }
+  }, [location])
 
   const loadProfile = async () => {
     if (!user) return
@@ -760,6 +775,11 @@ function ProfilePage() {
                       readingStats={dashboardData?.readingStats}
                     />
 
+                    {/* Subscription History Card */}
+                    <div className="mt-4">
+                      <SubscriptionHistoryCard userId={user?.id} />
+                    </div>
+
                     {/* Reading Challenge Card */}
                     <ReadingChallengeCard 
                       challengeData={dashboardData?.challengeData}
@@ -809,3 +829,6 @@ function ProfilePage() {
 }
 
 export default ProfilePage
+
+// Note: Add <SubscriptionHistoryCard userId={user?.id} /> to the profile page layout
+// Place it after the MonthlyProgressCard section

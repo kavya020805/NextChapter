@@ -32,7 +32,7 @@ export async function createSubscription(userId, subscriptionData) {
     razorpay_signature: paymentDetails?.razorpay_signature || null,
     amount: Math.round(amount * 100), // Convert to paise
     currency: 'INR',
-    status: 'captured',
+    status: paymentDetails?.razorpay_payment_id ? 'captured' : 'created', // Use 'created' for free plans
     plan_id: planId,
     billing_cycle: billingCycle,
     payment_method: paymentDetails?.payment_method || 'razorpay'
