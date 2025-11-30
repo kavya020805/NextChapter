@@ -531,39 +531,45 @@ function Header() {
             </Link>
           </div>
           
-          {/* Desktop Navigation - Centered */}
-          <nav className="hidden md:flex items-center justify-center flex-1 gap-8 lg:gap-12 mx-8">
-            <Link to="/books" className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === '/books' ? 'text-dark-gray dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-dark-gray dark:hover:text-white'}`}>
-              Library
-            </Link>
-            <LibraryDropdown location={location} />
-            <Link 
-              to="/subscription" 
-              className={`bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-4 lg:px-6 py-2 text-xs font-medium uppercase tracking-widest hover:scale-105 subscription-glow ${
-                location.pathname === '/subscription' ? 'opacity-100' : ''
-              }`}
-            >
-              Subscription
-            </Link>
-          </nav>
+          {/* Desktop Navigation - Centered - Hide on reset-password and forgot-password pages */}
+          {location.pathname !== '/reset-password' && location.pathname !== '/forgot-password' && (
+            <nav className="hidden md:flex items-center justify-center flex-1 gap-8 lg:gap-12 mx-8">
+              <Link to="/books" className={`text-xs font-medium uppercase tracking-widest transition-colors ${location.pathname === '/books' ? 'text-dark-gray dark:text-white' : 'text-gray-500 dark:text-gray-400 hover:text-dark-gray dark:hover:text-white'}`}>
+                Library
+              </Link>
+              <LibraryDropdown location={location} />
+              <Link 
+                to="/subscription" 
+                className={`bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-4 lg:px-6 py-2 text-xs font-medium uppercase tracking-widest hover:scale-105 subscription-glow ${
+                  location.pathname === '/subscription' ? 'opacity-100' : ''
+                }`}
+              >
+                Subscription
+              </Link>
+            </nav>
+          )}
 
           {/* Right Side Actions */}
           <div className="hidden md:flex items-center justify-end gap-3 lg:gap-4">
-            <FilterDropdown location={location} navigate={navigate} />
-            
-            {user ? (
-              <ProfileDropdown user={user} onSignOut={handleSignOut} />
-            ) : (
-              <Link 
-                to="/sign-in" 
-                className={`text-xs font-medium uppercase tracking-widest transition-opacity hover:opacity-60 ${
-                  location.pathname === '/sign-in' 
-                    ? 'text-dark-gray dark:text-white opacity-100' 
-                    : 'text-dark-gray dark:text-white'
-                }`}
-              >
-                Sign In
-              </Link>
+            {/* Hide filter and profile on reset-password and forgot-password pages */}
+            {location.pathname !== '/reset-password' && location.pathname !== '/forgot-password' && (
+              <>
+                <FilterDropdown location={location} navigate={navigate} />
+                {user ? (
+                  <ProfileDropdown user={user} onSignOut={handleSignOut} />
+                ) : (
+                  <Link 
+                    to="/sign-in" 
+                    className={`text-xs font-medium uppercase tracking-widest transition-opacity hover:opacity-60 ${
+                      location.pathname === '/sign-in' 
+                        ? 'text-dark-gray dark:text-white opacity-100' 
+                        : 'text-dark-gray dark:text-white'
+                    }`}
+                  >
+                    Sign In
+                  </Link>
+                )}
+              </>
             )}
           </div>
 
@@ -587,92 +593,99 @@ function Header() {
         {isMenuOpen && (
           <div className="md:hidden mt-3 pb-3 border-t border-dark-gray/10 dark:border-white/10 pt-3">
             <nav className="flex flex-col space-y-1">
-              {/* Library Link */}
-              <Link 
-                to="/books" 
-                onClick={() => setIsMenuOpen(false)}
-                className={`px-3 py-2.5 text-sm uppercase tracking-wider transition-colors ${
-                  location.pathname === '/books' 
-                    ? 'text-dark-gray dark:text-white bg-dark-gray/5 dark:bg-white/5' 
-                    : 'text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white'
-                }`}
-              >
-                Library
-              </Link>
+              {/* Hide navigation links on reset-password and forgot-password pages */}
+              {location.pathname !== '/reset-password' && location.pathname !== '/forgot-password' && (
+                <>
+                  {/* Library Link */}
+                  <Link 
+                    to="/books" 
+                    onClick={() => setIsMenuOpen(false)}
+                    className={`px-3 py-2.5 text-sm uppercase tracking-wider transition-colors ${
+                      location.pathname === '/books' 
+                        ? 'text-dark-gray dark:text-white bg-dark-gray/5 dark:bg-white/5' 
+                        : 'text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white'
+                    }`}
+                  >
+                    Library
+                  </Link>
 
-              {/* My Shelf Submenu */}
-              <LibraryDropdownMobile />
+                  {/* My Shelf Submenu */}
+                  <LibraryDropdownMobile />
 
-              {/* Subscription Link */}
-              <Link 
-                to="/subscription"
-                onClick={() => setIsMenuOpen(false)}
-                className="mx-3 mt-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-4 py-2.5 text-xs uppercase tracking-widest text-center font-medium transition-all hover:opacity-90"
-              >
-                Subscription
-              </Link>
+                  {/* Subscription Link */}
+                  <Link 
+                    to="/subscription"
+                    onClick={() => setIsMenuOpen(false)}
+                    className="mx-3 mt-2 bg-dark-gray dark:bg-white text-white dark:text-dark-gray px-4 py-2.5 text-xs uppercase tracking-widest text-center font-medium transition-all hover:opacity-90"
+                  >
+                    Subscription
+                  </Link>
+                </>
+              )}
 
               {/* Divider */}
               <div className="h-px bg-dark-gray/10 dark:bg-white/10 my-2"></div>
 
-              {/* User Section */}
-              {user ? (
-                <>
-                  {/* User Info */}
-                  <div className="px-3 py-2 flex items-center gap-2">
-                    {profilePhotoUrl ? (
-                      <img
-                        src={profilePhotoUrl}
-                        alt="Profile"
-                        className="w-8 h-8 rounded-full object-cover border border-dark-gray/20 dark:border-white/20"
-                        onError={(e) => {
-                          e.target.style.display = 'none'
-                          e.target.nextElementSibling.style.display = 'flex'
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-8 h-8 rounded-full bg-dark-gray/10 dark:bg-white/10 items-center justify-center ${profilePhotoUrl ? 'hidden' : 'flex'}`}>
-                      <User className="w-4 h-4 text-dark-gray dark:text-white" />
+              {/* User Section - Hide on reset-password and forgot-password pages */}
+              {location.pathname !== '/reset-password' && location.pathname !== '/forgot-password' && (
+                user ? (
+                  <>
+                    {/* User Info */}
+                    <div className="px-3 py-2 flex items-center gap-2">
+                      {profilePhotoUrl ? (
+                        <img
+                          src={profilePhotoUrl}
+                          alt="Profile"
+                          className="w-8 h-8 rounded-full object-cover border border-dark-gray/20 dark:border-white/20"
+                          onError={(e) => {
+                            e.target.style.display = 'none'
+                            e.target.nextElementSibling.style.display = 'flex'
+                          }}
+                        />
+                      ) : null}
+                      <div className={`w-8 h-8 rounded-full bg-dark-gray/10 dark:bg-white/10 items-center justify-center ${profilePhotoUrl ? 'hidden' : 'flex'}`}>
+                        <User className="w-4 h-4 text-dark-gray dark:text-white" />
+                      </div>
+                      <span className="text-xs text-dark-gray/60 dark:text-white/60 truncate flex-1">
+                        {username || user.email?.split('@')[0] || user.email}
+                      </span>
                     </div>
-                    <span className="text-xs text-dark-gray/60 dark:text-white/60 truncate flex-1">
-                      {username || user.email?.split('@')[0] || user.email}
-                    </span>
-                  </div>
 
-                  {/* Profile Link */}
-                  <Link
-                    to="/profile"
+                    {/* Profile Link */}
+                    <Link
+                      to="/profile"
+                      onClick={() => setIsMenuOpen(false)}
+                      className={`px-3 py-2.5 text-sm uppercase tracking-wider transition-colors flex items-center gap-2 ${
+                        location.pathname === '/profile'
+                          ? 'text-dark-gray dark:text-white bg-dark-gray/5 dark:bg-white/5'
+                          : 'text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white'
+                      }`}
+                    >
+                      <User className="w-4 h-4" />
+                      Profile
+                    </Link>
+
+                    {/* Logout Button */}
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false)
+                        handleSignOut()
+                      }}
+                      className="px-3 py-2.5 text-sm uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+                    >
+                      <LogOut className="w-4 h-4" />
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <Link 
+                    to="/sign-in"
                     onClick={() => setIsMenuOpen(false)}
-                    className={`px-3 py-2.5 text-sm uppercase tracking-wider transition-colors flex items-center gap-2 ${
-                      location.pathname === '/profile'
-                        ? 'text-dark-gray dark:text-white bg-dark-gray/5 dark:bg-white/5'
-                        : 'text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white'
-                    }`}
+                    className="px-3 py-2.5 text-sm uppercase tracking-wider text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white transition-colors"
                   >
-                    <User className="w-4 h-4" />
-                    Profile
+                    Sign In
                   </Link>
-
-                  {/* Logout Button */}
-                  <button
-                    onClick={() => {
-                      setIsMenuOpen(false)
-                      handleSignOut()
-                    }}
-                    className="px-3 py-2.5 text-sm uppercase tracking-wider text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    Logout
-                  </button>
-                </>
-              ) : (
-                <Link 
-                  to="/sign-in"
-                  onClick={() => setIsMenuOpen(false)}
-                  className="px-3 py-2.5 text-sm uppercase tracking-wider text-dark-gray/60 dark:text-white/60 hover:text-dark-gray dark:hover:text-white transition-colors"
-                >
-                  Sign In
-                </Link>
+                )
               )}
             </nav>
           </div>

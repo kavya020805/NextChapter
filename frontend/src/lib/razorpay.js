@@ -31,6 +31,15 @@ export const createRazorpayOrder = async (supabase, planId, billingCycle, amount
       throw new Error('Not authenticated');
     }
 
+    const requestBody = {
+      planId,
+      billingCycle,
+      amount,
+      currency: 'INR',
+    };
+    
+    logger.log('Request body:', requestBody);
+    
     const response = await fetch(
       `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-razorpay-order`,
       {
@@ -40,19 +49,24 @@ export const createRazorpayOrder = async (supabase, planId, billingCycle, amount
           'Authorization': `Bearer ${session.access_token}`,
           'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
         },
-        body: JSON.stringify({
-          planId,
-          billingCycle,
-          amount,
-          currency: 'INR',
-        }),
+        body: JSON.stringify(requestBody),
       }
     );
 
     if (!response.ok) {
       const errorText = await response.text();
-      logger.error('Order creation failed:', errorText);
-      throw new Error('Failed to create order. Please contact support.');
+      logger.error('Order creation failed - Status:', response.status);
+      logger.error('Order creation failed - Response:', errorText);
+      
+      // Try to parse as JSON for better error details
+      try {
+        const errorJson = JSON.parse(errorText);
+        logger.error('Parsed error:', errorJson);
+      } catch (e) {
+        // Not JSON, already logged as text
+      }
+      
+      throw new Error(`Failed to create order: ${errorText}`);
     }
 
     const data = await response.json();

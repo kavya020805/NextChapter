@@ -4,7 +4,11 @@ import { supabase } from '../lib/supabaseClient'
 
 // Custom badge icons matching the theme
 const BadgeIcon = ({ type, earned }) => {
-  const iconClass = `w-8 h-8 ${earned ? 'text-white dark:text-dark-gray' : 'text-white/30 dark:text-dark-gray/30'}`
+  const iconClass = `w-12 h-12 transition-all duration-300 ${
+    earned 
+      ? 'text-white dark:text-dark-gray drop-shadow-lg' 
+      : 'text-white/30 dark:text-dark-gray/30'
+  }`
   
   switch(type) {
     case 'First Chapter':
@@ -227,15 +231,13 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
 
   if (loading) {
     return (
-      <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 mb-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Award className="w-5 h-5 text-white dark:text-dark-gray" />
-          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">
-            Badges
-          </h3>
+      <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-6 mb-4">
+        <div className="flex items-center gap-3 mb-5">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">`n            Badges`n          </h3>
         </div>
-        <div className="text-center py-4">
-          <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-white dark:border-dark-gray"></div>
+        <div className="text-center py-12">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-2 border-white/20 dark:border-dark-gray/20 border-t-white dark:border-t-dark-gray"></div>
+          <p className="text-xs text-white/50 dark:text-dark-gray/50 mt-3">Loading badges...</p>
         </div>
       </div>
     )
@@ -244,19 +246,17 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
   // Show setup message if badges system not set up
   if (badges.length === 0) {
     return (
-      <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 mb-4">
-        <div className="flex items-center gap-2 mb-3">
-          <Award className="w-5 h-5 text-white dark:text-dark-gray" />
-          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">
-            Badges
-          </h3>
+      <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-6 mb-4">
+        <div className="flex items-center gap-3 mb-5">
+          <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">`n            Badges`n          </h3>
         </div>
-        <div className="text-center py-6">
-          <p className="text-sm text-white/60 dark:text-dark-gray/60 mb-2">
+        <div className="text-center py-8 px-4 bg-white/5 dark:bg-dark-gray/5 border border-white/20 dark:border-dark-gray/20">
+          <Award className="w-12 h-12 text-white/30 dark:text-dark-gray/30 mx-auto mb-3" />
+          <p className="text-sm text-white/70 dark:text-dark-gray/70 font-medium mb-2">
             Badges system not set up yet
           </p>
-          <p className="text-xs text-white/40 dark:text-dark-gray/40">
-            Run badges_setup.sql in Supabase SQL Editor
+          <p className="text-xs text-white/50 dark:text-dark-gray/50">
+            Run badges_setup.sql in Supabase SQL Editor to enable achievements
           </p>
         </div>
       </div>
@@ -264,23 +264,25 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
   }
 
   return (
-    <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 mb-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <Award className="w-5 h-5 text-white dark:text-dark-gray" />
+    <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-6 mb-4">
+      <div className="flex items-center justify-between mb-5">
+        <div>
           <h3 className="text-sm font-medium uppercase tracking-wider text-white dark:text-dark-gray">
-            Badges ({userBadges.length}/{badges.length})
+            Badges
           </h3>
+          <p className="text-xs text-white/60 dark:text-dark-gray/60 mt-0.5">
+            {userBadges.length} of {badges.length} earned
+          </p>
         </div>
         <button
           onClick={checkBadges}
-          className="px-2 py-1 text-xs text-white/70 dark:text-dark-gray/70 hover:text-white dark:hover:text-dark-gray border border-white/40 dark:border-dark-gray/40 hover:border-white/60 dark:hover:border-dark-gray/60 rounded transition-all"
+          className="px-3 py-1.5 text-xs text-white/70 dark:text-dark-gray/70 hover:text-white dark:hover:text-dark-gray border border-white/40 dark:border-dark-gray/40 hover:border-white/70 dark:hover:border-dark-gray/70 hover:bg-white/5 dark:hover:bg-dark-gray/5 transition-all uppercase tracking-wider font-medium"
         >
           Check Progress
         </button>
       </div>
 
-      <div className="grid grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
         {badges.map((badge) => {
           const earned = hasBadge(badge.id)
           return (
@@ -290,19 +292,19 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
             >
               {/* Badge Container */}
               <div
-                className={`flex flex-col items-center justify-center p-4 transition-all duration-300 ${
+                className={`flex flex-col items-center justify-center p-5 transition-all duration-300 hover:scale-105 ${
                   earned
-                    ? 'bg-white/5 dark:bg-dark-gray/5 border-2 border-white/60 dark:border-dark-gray/60'
-                    : 'bg-transparent border-2 border-white/20 dark:border-dark-gray/20'
+                    ? 'bg-white/10 dark:bg-dark-gray/10 border-2 border-white/70 dark:border-dark-gray/70 shadow-lg'
+                    : 'bg-transparent border-2 border-white/20 dark:border-dark-gray/20 hover:border-white/30 dark:hover:border-dark-gray/30'
                 }`}
               >
                 {/* Icon */}
-                <div className="mb-2">
+                <div className="mb-3">
                   <BadgeIcon type={badge.name} earned={earned} />
                 </div>
                 
                 {/* Badge Name */}
-                <div className={`text-[10px] text-center font-medium uppercase tracking-wider leading-tight ${
+                <div className={`text-[10px] text-center font-medium uppercase tracking-wider leading-tight min-h-[2rem] flex items-center ${
                   earned 
                     ? 'text-white dark:text-dark-gray' 
                     : 'text-white/40 dark:text-dark-gray/40'
@@ -312,14 +314,19 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
                 
                 {/* Earned indicator */}
                 {earned && (
-                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-white dark:bg-dark-gray rounded-full border-2 border-dark-gray dark:border-white"></div>
+                  <div className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-white dark:bg-dark-gray rounded-full border-2 border-dark-gray dark:border-white flex items-center justify-center">
+                    <svg className="w-2.5 h-2.5 text-dark-gray dark:text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
                 )}
               </div>
               
               {/* Tooltip */}
-              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-dark-gray dark:bg-white border-2 border-white/40 dark:border-dark-gray/40 text-xs text-white dark:text-dark-gray whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-lg">
-                <div className="font-medium mb-0.5">{badge.name}</div>
+              <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-3 px-3 py-2 bg-dark-gray dark:bg-white border-2 border-white/40 dark:border-dark-gray/40 text-xs text-white dark:text-dark-gray whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10 shadow-xl">
+                <div className="font-medium mb-1">{badge.name}</div>
                 <div className="text-white/70 dark:text-dark-gray/70 text-[10px]">{badge.description}</div>
+                <div className="absolute top-full left-1/2 -translate-x-1/2 -mt-0.5 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-white/40 dark:border-t-dark-gray/40"></div>
               </div>
             </div>
           )
@@ -327,9 +334,14 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
       </div>
 
       {userBadges.length === 0 && (
-        <p className="text-xs text-white/60 dark:text-dark-gray/60 text-center mt-3">
-          Start reading to earn badges!
-        </p>
+        <div className="text-center mt-6 p-4 bg-white/5 dark:bg-dark-gray/5 border border-white/20 dark:border-dark-gray/20">
+          <p className="text-sm text-white/70 dark:text-dark-gray/70 font-medium">
+            Start reading to earn badges!
+          </p>
+          <p className="text-xs text-white/50 dark:text-dark-gray/50 mt-1">
+            Complete books, read pages, and explore genres to unlock achievements
+          </p>
+        </div>
       )}
 
       {/* Custom Modal */}
@@ -418,3 +430,5 @@ function BadgesCard({ userId, readingStats = null, genreDistribution = null }) {
 }
 
 export default BadgesCard
+
+

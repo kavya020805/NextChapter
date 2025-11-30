@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import Header from '../components/Header'
 import Footer from '../components/Footer'
 import { useAuth } from '../contexts/AuthContext'
+import { supabase } from '../lib/supabaseClient'
 import { ArrowRight } from 'lucide-react'
 
 function ResetPasswordPage() {
@@ -15,19 +16,37 @@ function ResetPasswordPage() {
   const [success, setSuccess] = useState('')
   const [hasRecoveryToken, setHasRecoveryToken] = useState(false)
 
-  // Check if there's a recovery token in the URL
+  // Check if user is logged in (Supabase auto-logs in with recovery token)
   useEffect(() => {
-    const hash = window.location.hash
-    console.log('🔐 ResetPasswordPage - Checking for recovery token')
-    console.log('   Hash:', hash ? 'Present' : 'None')
-    
-    if (hash && (hash.includes('type=recovery') || hash.includes('access_token'))) {
-      console.log('✅ Recovery token found')
-      setHasRecoveryToken(true)
-    } else {
-      console.log('❌ No recovery token found')
-      setError('Invalid or expired password reset link. Please request a new one.')
+    const checkSession = async () => {
+      console.log('🔐 ResetPasswordPage - Checking session')
+      
+      // Get current session
+      const { data: { session }, error } = await supabase.auth.getSession()
+      
+      if (error) {
+        console.error('❌ Error getting session:', error)
+        setError('Invalid or expired password reset link. Please request a new one.')
+        return
+      }
+      
+      if (session && session.user) {
+        console.log('✅ User is logged in:', session.user.email)
+        console.log('   Session created at:', new Date(session.user.created_at))
+        console.log('   Last sign in:', new Date(session.user.last_sign_in_at))
+        
+        // If user is logged in, assume they came from password reset link
+        // Supabase auto-logs them in with the recovery token
+        setHasRecoveryToken(true)
+        setError('') // Clear any error
+      } else {
+        console.log('❌ No session found')
+        setError('Invalid or expired password reset link. Please request a new one.')
+      }
     }
+    
+    // Check immediately
+    checkSession()
   }, [])
 
   const handleSubmit = async (e) => {
@@ -204,13 +223,17 @@ function ResetPasswordPage() {
                 {/* Back to Sign In Link */}
                 {!loading && (
                   <div className="mt-8 text-center">
-                    <Link 
-                      to="/sign-in" 
-                      className="text-sm text-white/70 dark:text-dark-gray/70 font-light uppercase tracking-widest hover:text-white dark:hover:text-dark-gray transition-colors inline-flex items-center gap-2"
+                    <button
+                      onClick={async () => {
+                        // Sign out first, then redirect
+                        await signOut()
+                        navigate('/sign-in')
+                      }}
+                      className="text-sm text-white/70 dark:text-dark-gray/70 font-light uppercase tracking-widest hover:text-white dark:hover:text-dark-gray transition-colors inline-flex items-center gap-2 cursor-pointer"
                     >
                       Back to Sign In
                       <ArrowRight className="w-4 h-4" />
-                    </Link>
+                    </button>
                   </div>
                 )}
               </div>

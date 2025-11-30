@@ -128,22 +128,7 @@ function SignInPage() {
     }
   }
 
-  const handleAppleSignIn = async () => {
-    setError('')
-    setLoading(true)
-    try {
-      const { error: oauthError } = await signInWithOAuth('apple')
-      if (oauthError) {
-        setError(oauthError.message || 'Failed to sign in with Apple.')
-        setLoading(false)
-      }
-      // OAuth will redirect, so we don't need to handle success here
-    } catch (err) {
-      setError('An unexpected error occurred. Please try again.')
-      setLoading(false)
-      console.error('Apple sign in error:', err)
-    }
-  }
+
 
   return (
     <div className="min-h-screen bg-dark-gray dark:bg-white">
@@ -335,17 +320,7 @@ function SignInPage() {
                     <span>Continue with Google</span>
                   </button>
 
-                  {/* Apple Sign In */}
-                  <button
-                    onClick={handleAppleSignIn}
-                    disabled={loading}
-                    className="w-full inline-flex items-center justify-center gap-3 bg-transparent border-2 border-white dark:border-dark-gray text-white dark:text-dark-gray px-8 py-4 text-sm font-medium uppercase tracking-widest transition-all duration-300 hover:bg-white/10 dark:hover:bg-dark-gray/10 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                      <path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/>
-                    </svg>
-                    <span>Continue with Apple</span>
-                  </button>
+
                 </div>
               </div>
             </div>

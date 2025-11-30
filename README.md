@@ -2,27 +2,27 @@
 
 # NextChapter
 
-## 🚀 Overview
+##  Overview
 
 NextChapter is a modern digital library platform that revolutionizes online reading. Users can explore, read, and manage their book collections with **AI-powered recommendations, content moderation, personalized reading experiences, and comprehensive analytics**. Built with a focus on user experience, accessibility, and scalability.
 
 ---
 
-## ✨ Features
+##  Features
 
-### � Cmore Features
-- 🔍 **Advanced Search & Filters** – Find books by title, author, genre, language, and rating
-- 📖 **Built-in PDF Reader** – Read books directly in the browser with PDF.js integration
-- 🎨 **Dark/Light Theme** – Seamless theme switching with persistent preferences
-- 📱 **Fully Responsive** – Optimized for desktop, tablet, and mobile devices
-- 🔐 **Authentication System** – Secure sign-up/sign-in with OAuth support (Google, GitHub)
+###  Core Features
+- **Advanced Search & Filters** – Find books by title, author, genre, language, and rating
+- **Built-in PDF Reader** – Read books directly in the browser with PDF.js integration
+- **Dark/Light Theme** – Seamless theme switching with persistent preferences
+- **Fully Responsive** – Optimized for desktop, tablet, and mobile devices
+- **Authentication System** – Secure sign-up/sign-in with OAuth support (Google, GitHub)
 
-### 🤖 AI-Powered Features
+###  AI-Powered Features
 - **AI Content Moderation** – Groq-powered moderation for user-generated content
 - **Personalized Recommendations** – Smart book suggestions based on reading preferences
 - **Genre-Based Discovery** – Curated book collections by genre
 
-### � User Dashboard
+###  User Dashboard
 - **Reading Statistics** – Track books read, pages completed, and reading time
 - **Reading Activity** – Visual charts showing daily/weekly reading patterns
 - **Monthly Progress** – Monitor reading goals and achievements
@@ -31,7 +31,7 @@ NextChapter is a modern digital library platform that revolutionizes online read
 - **Pinned Books** – Bookmark favorite books for easy access
 - **Genre Preferences** – Customize reading recommendations
 
-### 👨‍💼 Admin Features
+###  Admin Features
 - **Book Management** – Add, edit, and delete books
 - **Bulk Upload** – Upload multiple books via CSV with cover images and PDFs
 - **User Management** – View and manage user accounts
@@ -45,7 +45,7 @@ NextChapter is a modern digital library platform that revolutionizes online read
 - **New Releases** – Stay updated with latest additions
 - **Word Meaning Search** – Built-in dictionary for vocabulary lookup
 
-### 🎯 Additional Features
+###  Additional Features
 - **Subscription System** – Premium membership with Razorpay integration
 - **Profile Management** – Customize user profiles and preferences
 - **Contact & Support** – User support and feedback system
@@ -87,7 +87,7 @@ NextChapter is a modern digital library platform that revolutionizes online read
 
 ---
 
-## 📂 Project Structure
+##  Project Structure
 
 ```bash
 NextChapter-React/
@@ -153,7 +153,7 @@ NextChapter-React/
 
 ---
 
-## ⚡ Getting Started
+##  Getting Started
 
 ### Prerequisites
 - Node.js 18+ and npm
@@ -272,7 +272,7 @@ NextChapter follows a clean, modern design approach:
 - **covers** - Book cover images
 - **pdfs** - Book PDF files
 
-## 🎯 Key Features Explained
+##  Key Features Explained
 
 ### Bulk Upload Books
 Admins can upload multiple books at once using a CSV file:
@@ -302,7 +302,7 @@ Admins can upload multiple books at once using a CSV file:
 
 ---
 
-## 🔒 Security Features
+##  Security Features
 
 - **XSS Protection** - DOMPurify sanitization
 - **Authentication** - Supabase Auth with OAuth
@@ -310,55 +310,10 @@ Admins can upload multiple books at once using a CSV file:
 - **Error Boundaries** - Graceful error handling
 - **Input Validation** - Pydantic models for API validation
 
-## 🚀 Deployment
+##  Deployment
 
 ### Frontend (Vercel)
 ```bash
 npm run build
 # Deploy the dist/ folder to Vercel
 ```
-
-### Backend AI (Render)
-- Uses `render.yaml` for configuration
-- Automatic deployment from GitHub
-- Environment variables configured in Render dashboard
-
-## 📸 Screenshots
-
-### Landing Page
-![Landing Page](./gallery/LandindPage.png)
-
-### Authentication
-![Authentication](./gallery/Authentication.png)
-
-### Personalization
-![Personalization](./gallery/Personalization.png)
-
-### Figma Prototype
-[View Figma Design](https://www.figma.com/design/1hZPTeSGErMWfbfgiuGxFP/NextChapter?node-id=261-76&t=6hj7PHXcodaAcMU4-1)
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
-
-## 📄 License
-
-MIT License
-
-## 👥 Team
-
-Developed by the NextChapter team
-
-## 📞 Support
-
-For support, email support@nextchapter.com or open an issue in the repository.
-
----
-
-**Built with ❤️ using React, Vite, Tailwind CSS, and Supabase**

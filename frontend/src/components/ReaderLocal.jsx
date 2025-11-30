@@ -1572,9 +1572,14 @@ const ReaderLocal = () => {
     setMessages(prev => [...prev, { role: 'loading', text: 'Thinking...' }]);
     
     try {
-      // Use Gemini API directly (no backend needed!)
-      const geminiKey = import.meta.env.VITE_GEMINI_API_KEY;
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`;
+      // Use the configured API key (either from localStorage or env)
+      const activeApiKey = apiKey || import.meta.env.VITE_GEMINI_API_KEY;
+      
+      if (!activeApiKey) {
+        throw new Error('No API key configured. Please add your API key in the settings.');
+      }
+      
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${activeApiKey}`;
       
       console.log('Calling Gemini API...');
       
@@ -2494,9 +2499,9 @@ Guidelines:
               <button 
                 className="bg-dark-gray dark:bg-white text-white dark:text-dark-gray border border-dark-gray dark:border-white px-4 py-2 text-[10px] font-medium uppercase tracking-widest hover:opacity-80 transition-opacity disabled:opacity-40 disabled:cursor-not-allowed"
                 onClick={handleChatSend}
-                disabled={!chatbotInput.trim() || !apiKey}
+                disabled={!chatbotInput.trim() || isSendingMessage}
               >
-                Send
+                {isSendingMessage ? 'Sending...' : 'Send'}
               </button>
             </div>
           </div>
@@ -2532,11 +2537,17 @@ Guidelines:
                   <select 
                     value={imageSize}
                     onChange={(e) => setImageSize(e.target.value)}
-                    className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                    className="w-full bg-white dark:bg-dark-gray border-2 border-dark-gray/30 dark:border-white/30 px-3 py-2.5 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-all hover:border-dark-gray/50 dark:hover:border-white/50 cursor-pointer appearance-none"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 8px center',
+                      paddingRight: '32px'
+                    }}
                   >
-                    <option value="1024x1024">Square</option>
-                    <option value="1792x1024">Landscape</option>
-                    <option value="1024x1792">Portrait</option>
+                    <option value="1024x1024">Square (1:1)</option>
+                    <option value="1792x1024">Landscape (16:9)</option>
+                    <option value="1024x1792">Portrait (9:16)</option>
                   </select>
                 </div>
                 
@@ -2547,7 +2558,13 @@ Guidelines:
                   <select 
                     value={imageStyle}
                     onChange={(e) => setImageStyle(e.target.value)}
-                    className="w-full bg-transparent border border-dark-gray/30 dark:border-white/30 px-3 py-2 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-colors"
+                    className="w-full bg-white dark:bg-dark-gray border-2 border-dark-gray/30 dark:border-white/30 px-3 py-2.5 text-xs text-dark-gray dark:text-white focus:outline-none focus:border-dark-gray dark:focus:border-white transition-all hover:border-dark-gray/50 dark:hover:border-white/50 cursor-pointer appearance-none"
+                    style={{
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: 'no-repeat',
+                      backgroundPosition: 'right 8px center',
+                      paddingRight: '32px'
+                    }}
                   >
                     <option value="default">Default</option>
                     <option value="realistic">Realistic</option>

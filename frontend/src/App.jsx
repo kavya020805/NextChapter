@@ -9,6 +9,7 @@ import SignInPage from './pages/SignInPage'
 import SignUpPage from './pages/SignUpPage'
 import ForgotPasswordPage from './pages/ForgotPasswordPage'
 import ResetPasswordPage from './pages/ResetPasswordPage'
+import VerifyEmailPage from './pages/VerifyEmailPage'
 import ProfilePage from './pages/ProfilePage'
 import PersonalizationPage from './pages/PersonalizationPage'
 import RecommendedBooksPage from './pages/RecommendedBooksPage'
@@ -70,6 +71,14 @@ function App() {
           element={
             <ProtectedRoute publicRoute>
               <ResetPasswordPage />
+            </ProtectedRoute>
+          } 
+        />
+        <Route 
+          path="/verify-email" 
+          element={
+            <ProtectedRoute publicRoute>
+              <VerifyEmailPage />
             </ProtectedRoute>
           } 
         />

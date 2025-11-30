@@ -191,8 +191,8 @@ const Reader = () => {
       isSending: isSendingMessage 
     });
     
-    if (!chatbotInput.trim() || !apiKey || isSendingMessage) {
-      console.log('Message blocked - missing requirements');
+    if (!chatbotInput.trim() || isSendingMessage) {
+      console.log('Message blocked - missing input or already sending');
       return;
     }
     
@@ -517,11 +517,11 @@ const Reader = () => {
               value={chatbotInput}
               onChange={(e) => setChatbotInput(e.target.value)}
               onKeyPress={(e) => {
-                if (e.key === 'Enter' && !isSendingMessage && apiKey && chatbotInput.trim()) {
+                if (e.key === 'Enter' && !isSendingMessage && chatbotInput.trim()) {
                   sendMessage();
                 }
               }}
-              disabled={isSendingMessage || !apiKey}
+              disabled={isSendingMessage}
             />
             <button 
               className="chatbot-send" 
@@ -530,9 +530,9 @@ const Reader = () => {
                 e.stopPropagation();
                 sendMessage();
               }}
-              disabled={isSendingMessage || !apiKey || !chatbotInput.trim()}
+              disabled={isSendingMessage || !chatbotInput.trim()}
               style={{ 
-                pointerEvents: (isSendingMessage || !apiKey || !chatbotInput.trim()) ? 'none' : 'auto'
+                pointerEvents: (isSendingMessage || !chatbotInput.trim()) ? 'none' : 'auto'
               }}
             >
               {isSendingMessage ? '⏳' : 'Send'}

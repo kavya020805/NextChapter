@@ -15,7 +15,7 @@ function ReadingChallengeCard({ challengeData: propChallengeData = null }) {
   }, [propChallengeData])
 
   return (
-    <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4">
+    <div className="bg-dark-gray dark:bg-white border-2 border-white/30 dark:border-dark-gray/30 p-4 mb-4">
       {/* Header */}
       <div className="mb-4">
         <h3 className="text-base text-white dark:text-dark-gray font-medium mb-1 uppercase tracking-wider">

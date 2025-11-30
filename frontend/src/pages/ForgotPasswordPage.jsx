@@ -28,16 +28,21 @@ function ForgotPasswordPage() {
     setLoading(true)
 
     try {
+      console.log('📧 Requesting password reset for:', trimmedEmail)
       const { data, error: resetError } = await resetPassword(trimmedEmail)
       
+      console.log('📬 Reset password response:', { data, error: resetError })
+      
       if (resetError) {
+        console.error('❌ Reset error:', resetError)
         setError(resetError.message || 'Failed to send password reset email. Please try again.')
       } else {
+        console.log('✅ Reset email sent successfully')
         setSuccess('Password reset email sent! Please check your inbox and follow the instructions to reset your password.')
       }
     } catch (err) {
+      console.error('❌ Unexpected error:', err)
       setError('An unexpected error occurred. Please try again.')
-      console.error('Password reset error:', err)
     } finally {
       setLoading(false)
     }
