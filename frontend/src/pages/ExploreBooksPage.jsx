@@ -1,6 +1,6 @@
 import Header from '../components/Header'
 import { useAuth } from '../contexts/AuthContext'
-import ExploreBooks from '../../ai-suggestion/ExploreBooks.jsx'
+import ExploreBooks from '../components/ExploreBooks'
 
 function ExploreBooksPage() {
   const { user } = useAuth()
