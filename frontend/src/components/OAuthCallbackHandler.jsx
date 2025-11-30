@@ -9,6 +9,12 @@ export default function OAuthCallbackHandler() {
 
   useEffect(() => {
     async function finalizeOAuth() {
+      // Skip if on reset-password page - let that page handle the recovery token
+      if (window.location.pathname === '/reset-password') {
+        console.log('🔐 OAuthCallbackHandler: Skipping - on reset-password page');
+        return;
+      }
+
       // If no hash, nothing to do
       if (!window.location.hash) return;
 
@@ -17,6 +23,13 @@ export default function OAuthCallbackHandler() {
 
       const access_token = params.get("access_token");
       const refresh_token = params.get("refresh_token");
+      const type = params.get("type");
+
+      // Skip if this is a recovery token (password reset)
+      if (type === 'recovery') {
+        console.log('🔐 OAuthCallbackHandler: Skipping - recovery token detected');
+        return;
+      }
 
       // Only handle if we received OAuth tokens
       if (!access_token) return;

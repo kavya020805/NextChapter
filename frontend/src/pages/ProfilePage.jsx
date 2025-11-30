@@ -754,13 +754,6 @@ function ProfilePage() {
                       </div>
                     </div>
 
-                    {/* Badges Card */}
-                    <BadgesCard 
-                      userId={user?.id} 
-                      readingStats={dashboardData?.readingStats}
-                      genreDistribution={dashboardData?.genreDistribution}
-                    />
-
                     {/* Reading Activity Card */}
                     <ReadingActivityCard 
                       readingSessions={dashboardData?.readingSessions || []}
@@ -770,6 +763,13 @@ function ProfilePage() {
                     {/* Reading Challenge Card */}
                     <ReadingChallengeCard 
                       challengeData={dashboardData?.challengeData}
+                    />
+
+                    {/* Badges Card */}
+                    <BadgesCard 
+                      userId={user?.id} 
+                      readingStats={dashboardData?.readingStats}
+                      genreDistribution={dashboardData?.genreDistribution}
                     />
 
                     {/* Reading Stats Card */}

@@ -84,8 +84,46 @@ export function AuthProvider({ children }) {
   }
 
   const resetPassword = async (email) => {
+    // Use the full URL with protocol
+    const redirectUrl = `${window.location.protocol}//${window.location.host}/reset-password`
+    console.log('🔐 Sending password reset email to:', email)
+    console.log('🔗 Redirect URL:', redirectUrl)
+    
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
+      redirectTo: redirectUrl,
+    })
+    
+    if (error) {
+      console.error('❌ Password reset error:', error)
+    } else {
+      console.log('✅ Password reset email sent successfully')
+    }
+    
+    return { data, error }
+  }
+  
+  const verifyOtp = async (email, token) => {
+    console.log('🔐 Verifying OTP:', { email, token: token.substring(0, 4) + '****' })
+    
+    const { data, error } = await supabase.auth.verifyOtp({
+      email,
+      token,
+      type: 'signup', // Use 'signup' for email confirmation
+    })
+    
+    if (error) {
+      console.error('❌ OTP verification error:', error)
+    } else {
+      console.log('✅ OTP verified successfully:', data)
+    }
+    
+    return { data, error }
+  }
+  
+  const resendOtp = async (email) => {
+    const { data, error } = await supabase.auth.resend({
+      type: 'signup',
+      email,
     })
     return { data, error }
   }
@@ -123,6 +161,8 @@ export function AuthProvider({ children }) {
     resetPassword,
     updatePassword,
     signInWithOAuth,
+    verifyOtp,
+    resendOtp,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

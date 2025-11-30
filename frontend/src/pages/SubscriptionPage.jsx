@@ -99,7 +99,15 @@ function SubscriptionPage() {
 
         if (subscriptionResult.error) {
           console.error('❌ Error saving subscription:', subscriptionResult.error)
-          toast.error(`Failed to activate free plan: ${subscriptionResult.error.message || 'Unknown error'}`)
+          const errorMsg = subscriptionResult.error.message || 'Unknown error'
+          toast.error(errorMsg, { autoClose: 8000 })
+          
+          // Show setup instructions if tables don't exist
+          if (errorMsg.includes('does not exist') || errorMsg.includes('subscription_setup.sql')) {
+            setTimeout(() => {
+              toast.info('Please run database_migrations/subscription_setup.sql in Supabase SQL Editor', { autoClose: 10000 })
+            }, 1000)
+          }
         } else {
           console.log('✅ Free plan activated successfully')
           toast.success('Free plan activated successfully!')
@@ -153,7 +161,15 @@ function SubscriptionPage() {
       
       if (subscriptionResult.error) {
         console.error('❌ Error saving subscription:', subscriptionResult.error)
-        toast.warning('Payment successful but failed to update subscription. Please contact support.')
+        const errorMsg = subscriptionResult.error.message || 'Unknown error'
+        toast.warning(`Payment successful but failed to update subscription: ${errorMsg}`, { autoClose: 8000 })
+        
+        // Show setup instructions if tables don't exist
+        if (errorMsg.includes('does not exist') || errorMsg.includes('subscription_setup.sql')) {
+          setTimeout(() => {
+            toast.info('Please run database_migrations/subscription_setup.sql in Supabase SQL Editor', { autoClose: 10000 })
+          }, 1000)
+        }
       } else {
         console.log('✅ Subscription created successfully!')
         toast.success('Payment successful! Your subscription is now active.')

@@ -49,6 +49,18 @@ export async function createSubscription(userId, subscriptionData) {
   if (paymentError) {
     console.error('❌ Error creating payment:', paymentError)
     console.error('Payment error details:', JSON.stringify(paymentError, null, 2))
+    
+    // Provide helpful error messages
+    if (paymentError.code === '42P01') {
+      return { 
+        data: null, 
+        error: { 
+          ...paymentError, 
+          message: 'Payments table does not exist. Please run database_migrations/subscription_setup.sql in Supabase SQL Editor.' 
+        } 
+      }
+    }
+    
     return { data: null, error: paymentError }
   }
 
@@ -76,6 +88,28 @@ export async function createSubscription(userId, subscriptionData) {
   if (error) {
     console.error('❌ Error creating subscription:', error)
     console.error('Subscription error details:', JSON.stringify(error, null, 2))
+    
+    // Provide helpful error messages
+    if (error.code === '42P01') {
+      return { 
+        data: null, 
+        error: { 
+          ...error, 
+          message: 'User subscriptions table does not exist. Please run database_migrations/subscription_setup.sql in Supabase SQL Editor.' 
+        } 
+      }
+    }
+    
+    if (error.code === '23503') {
+      return { 
+        data: null, 
+        error: { 
+          ...error, 
+          message: 'Invalid plan_id or user_id. Please ensure subscription_plans table is set up correctly.' 
+        } 
+      }
+    }
+    
     return { data: null, error }
   }
 
@@ -110,9 +144,16 @@ async function updateUserProfileSubscription(userId, planName, status, startDate
   if (error) {
     console.error('❌ Error updating user profile subscription:', error)
     console.error('Profile update error details:', JSON.stringify(error, null, 2))
+    
+    // Provide helpful error messages
+    if (error.code === '42703') {
+      console.error('💡 Hint: Subscription columns do not exist in user_profiles table. Run database_migrations/subscription_setup.sql')
+    }
   } else {
     console.log('✅ User profile updated:', data)
   }
+  
+  return { data, error }
 }
 
 /**
