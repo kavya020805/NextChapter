@@ -1372,7 +1372,14 @@ const BookDetailPage = () => {
         <div className="max-w-7xl mx-auto px-8">
           {/* Back Button */}
           <button
-            onClick={() => navigate('/books')}
+            onClick={() => {
+              // Check if there's a previous page in history
+              if (window.history.state && window.history.state.idx > 0) {
+                navigate(-1);
+              } else {
+                navigate('/books');
+              }
+            }}
             className="mb-8 flex items-center gap-2 text-white dark:text-dark-gray hover:opacity-70 transition-opacity text-sm uppercase tracking-widest"
           >
             <ArrowLeft className="w-4 h-4" />
