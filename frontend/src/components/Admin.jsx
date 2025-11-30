@@ -235,6 +235,8 @@ function useDashboardMetrics() {
     topGenres: [],
     recentActivity: [],
     paidUsers: 0,
+    paidUsersGrowth: 0,
+    revenueGrowth: 0,
     newComments: 0,
     userRetention: 0,
     reportedComments: 0,
@@ -258,11 +260,87 @@ function useDashboardMetrics() {
         // Fetch total users via RPC (not affected by RLS)
         const totalUsers = await fetchTotalUsers();
 
-        // Fetch revenue data (example - adjust based on your payment system)
-        const { data: revenueData } = await supabase
-          .from('transactions')
-          .select('amount, created_at')
-          .eq('status', 'completed');
+        // Fetch paid users count and active subscriptions using RPC (bypasses RLS)
+        let paidUsersCount = 0;
+        let allActiveSubscriptions = [];
+        
+        // Try RPC function first (recommended - bypasses RLS)
+        const { data: activeSubsRPC, error: activeSubsRPCError } = await supabase
+          .rpc('get_all_active_subscriptions');
+
+        if (!activeSubsRPCError && activeSubsRPC) {
+          allActiveSubscriptions = activeSubsRPC;
+          paidUsersCount = activeSubsRPC.filter(sub => 
+            sub.plan_id && sub.plan_id.toLowerCase() !== 'free'
+          ).length;
+          console.log('✅ Fetched via RPC - Active subscriptions:', allActiveSubscriptions.length);
+          console.log('💰 Paid users count:', paidUsersCount);
+        } else {
+          console.log('⚠️ RPC not available, trying direct query');
+          console.log('RPC Error:', activeSubsRPCError);
+          
+          // Fallback: Try direct query
+          const { data: allSubs, error: allSubsError } = await supabase
+            .from('user_subscriptions')
+            .select('*');
+
+          console.log('🔍 ALL subscriptions (direct query):', allSubs);
+          console.log('🔍 Subscription error:', allSubsError);
+
+          if (allSubs && allSubs.length > 0) {
+            allActiveSubscriptions = allSubs.filter(sub => sub.status === 'active');
+            paidUsersCount = allActiveSubscriptions.filter(sub => 
+              sub.plan_id && sub.plan_id.toLowerCase() !== 'free'
+            ).length;
+            console.log('💰 Paid users count (direct):', paidUsersCount);
+          } else if (allSubsError) {
+            console.error('❌ Error fetching subscriptions:', allSubsError);
+            console.error('⚠️ Please create RPC functions or update RLS policies. See console for SQL.');
+          }
+        }
+
+        // Fetch revenue data from payments table (not transactions)
+        // Status values: 'created', 'authorized', 'captured', 'failed', 'refunded'
+        // We count 'captured' as successful payments for revenue
+        let capturedPayments = [];
+        let allPayments = [];
+        
+        const { data: paymentsRPC, error: paymentsRPCError } = await supabase
+          .rpc('get_all_payments');
+
+        if (!paymentsRPCError && paymentsRPC) {
+          allPayments = paymentsRPC;
+          // Filter for captured payments (successful payments in Razorpay)
+          capturedPayments = paymentsRPC.filter(payment => 
+            payment.status && payment.status.toLowerCase() === 'captured'
+          );
+          console.log('✅ Fetched via RPC - All Payments:', allPayments.length);
+          console.log('💵 Payment statuses:', [...new Set(allPayments.map(p => p.status))]);
+          console.log('💵 Captured payments:', capturedPayments.length);
+        } else {
+          console.log('⚠️ Payments RPC not available, trying direct query');
+          console.log('RPC Error:', paymentsRPCError);
+          
+          // Fallback: Try direct query on payments table
+          const { data: paymentsData, error: paymentsError } = await supabase
+            .from('payments')
+            .select('amount, created_at, status');
+
+          console.log('💵 ALL payments (direct):', paymentsData);
+          console.log('💵 Payments error:', paymentsError);
+
+          if (paymentsData) {
+            allPayments = paymentsData;
+            capturedPayments = paymentsData.filter(payment => 
+              payment.status && payment.status.toLowerCase() === 'captured'
+            );
+            console.log('💵 Payment statuses:', [...new Set(paymentsData.map(p => p.status))]);
+            console.log('💵 Captured payments (direct):', capturedPayments.length);
+          } else if (paymentsError) {
+            console.error('❌ Error fetching payments:', paymentsError);
+            console.error('⚠️ Payments table might be empty or RLS is blocking access');
+          }
+        }
 
         const { count: newCommentsCount } = await supabase
           .from('book_comments')
@@ -376,6 +454,10 @@ function useDashboardMetrics() {
           .order('created_at', { ascending: false })
           .limit(5);
 
+        // Fetch active subscriptions for monthly chart (reuse the data we already fetched)
+        const activeSubscriptions = allActiveSubscriptions || [];
+        console.log('📊 Active subscriptions for chart:', activeSubscriptions.length);
+
         // Build monthly series for the revenue/subscriptions chart from DB data
         const now = new Date();
         const year = now.getFullYear();
@@ -385,37 +467,26 @@ function useDashboardMetrics() {
           subscriptionsUsers: new Set(),
         }));
 
-        // Aggregate revenue per month (current year)
-        (revenueData || []).forEach(txn => {
-          if (!txn.created_at) return;
-          const created = new Date(txn.created_at);
+        // Aggregate revenue per month (current year) - use captured payments only
+        // Convert paise to rupees (divide by 100)
+        capturedPayments.forEach(payment => {
+          if (!payment.created_at) return;
+          const created = new Date(payment.created_at);
           if (created.getFullYear() !== year) return;
           const monthIndex = created.getMonth();
-          const amount = parseFloat(txn.amount) || 0;
-          monthlyBuckets[monthIndex].revenue += amount;
+          const amountInPaise = parseFloat(payment.amount) || 0;
+          const amountInRupees = amountInPaise / 100; // Convert paise to rupees
+          monthlyBuckets[monthIndex].revenue += amountInRupees;
         });
 
-        // Aggregate distinct active users per month from sessions (approximate active subscriptions)
-        // Note: Skipped because user_session table doesn't exist yet
-        // When table is created, uncomment the code above and this will work automatically
-        // For now, we'll use synthetic data for the chart
-        if (sessionRows && sessionRows.length > 0) {
-          sessionRows.forEach(session => {
-            if (!session.created_at || !session.user_id) return;
-            const created = new Date(session.created_at);
-            if (created.getFullYear() !== year) return;
-            const monthIndex = created.getMonth();
-            monthlyBuckets[monthIndex].subscriptionsUsers.add(session.user_id);
-          });
-        } else {
-          // Generate synthetic subscription data for demo purposes
-          monthlyBuckets.forEach((bucket, index) => {
-            const baseSubscriptions = 200 + Math.floor(Math.random() * 50);
-            for (let i = 0; i < baseSubscriptions; i++) {
-              bucket.subscriptionsUsers.add(`user_${index}_${i}`);
-            }
-          });
-        }
+        // Aggregate active subscriptions per month (count unique users with active subscriptions created in each month)
+        (activeSubscriptions || []).forEach(sub => {
+          if (!sub.created_at || !sub.user_id) return;
+          const created = new Date(sub.created_at);
+          if (created.getFullYear() !== year) return;
+          const monthIndex = created.getMonth();
+          monthlyBuckets[monthIndex].subscriptionsUsers.add(sub.user_id);
+        });
 
         const computedMonthlySeries = monthlyBuckets.map(bucket => ({
           month: bucket.month,
@@ -425,15 +496,65 @@ function useDashboardMetrics() {
 
         setMonthlySeries(computedMonthlySeries);
 
+        // Calculate total revenue from captured payments
+        // Note: Razorpay stores amounts in paise (smallest unit), so divide by 100 to get rupees
+        const totalRevenue = capturedPayments.reduce((sum, payment) => {
+          const amountInPaise = parseFloat(payment.amount) || 0;
+          const amountInRupees = amountInPaise / 100; // Convert paise to rupees
+          return sum + amountInRupees;
+        }, 0);
+
+        console.log('💰 Calculating revenue from', capturedPayments.length, 'captured payments');
+        console.log('💰 Sample payment amounts (paise):', capturedPayments.slice(0, 3).map(p => p.amount));
+        console.log('💰 Sample payment amounts (rupees):', capturedPayments.slice(0, 3).map(p => p.amount / 100));
+        console.log('💰 Total revenue calculated (₹):', totalRevenue);
+        console.log('📈 Monthly series:', computedMonthlySeries);
+
+        // Calculate monthly growth (compare current month to previous month)
+        const currentMonth = now.getMonth();
+        const currentMonthRevenue = computedMonthlySeries[currentMonth]?.revenue || 0;
+        const previousMonthRevenue = currentMonth > 0 
+          ? computedMonthlySeries[currentMonth - 1]?.revenue || 0 
+          : 0;
+        
+        const monthlyGrowth = previousMonthRevenue > 0 
+          ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 
+          : 0;
+
+        // Calculate paid users growth (current month vs previous month)
+        const currentMonthSubs = computedMonthlySeries[currentMonth]?.subscriptions || 0;
+        const previousMonthSubs = currentMonth > 0 
+          ? computedMonthlySeries[currentMonth - 1]?.subscriptions || 0 
+          : 0;
+        
+        const paidUsersGrowth = previousMonthSubs > 0 
+          ? ((currentMonthSubs - previousMonthSubs) / previousMonthSubs) * 100 
+          : 0;
+
+        // Calculate revenue growth (current month vs previous month)
+        const revenueGrowth = previousMonthRevenue > 0 
+          ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 
+          : 0;
+
+        console.log('📊 Metrics calculated:', {
+          paidUsersCount,
+          totalRevenue,
+          monthlyGrowth,
+          paidUsersGrowth,
+          revenueGrowth
+        });
+
         setMetrics({
           totalBooks: bookCount || 0,
           totalUsers: totalUsers || 0,
           activeUsers: Math.floor((totalUsers || 0) * 0.65), // Example calculation
-          revenue: 0,
-          monthlyGrowth: 12.5, // Example growth percentage
+          revenue: totalRevenue,
+          monthlyGrowth: Math.round(monthlyGrowth * 10) / 10, // Round to 1 decimal
           topGenres: genreData || [],
           recentActivity: recentActivity || [],
-          paidUsers: 0,
+          paidUsers: paidUsersCount || 0,
+          paidUsersGrowth: Math.round(paidUsersGrowth * 10) / 10,
+          revenueGrowth: Math.round(revenueGrowth * 10) / 10,
           newComments: newCommentsCount || 0,
           userRetention,
           reportedComments: reportedCommentsCount || 0,
@@ -608,17 +729,17 @@ const Admin = () => {
     },
     { 
       label: "Paid Users", 
-      value: metrics.paidUsers?.toLocaleString("en-US") || '1,245',
+      value: metrics.paidUsers?.toLocaleString("en-US") || '0',
       icon: <User className="w-6 h-6 text-green-500" />,
-      change: '+12.1%',
-      changeType: 'increase'
+      change: metrics.paidUsersGrowth ? `${metrics.paidUsersGrowth > 0 ? '+' : ''}${metrics.paidUsersGrowth}%` : '0%',
+      changeType: metrics.paidUsersGrowth >= 0 ? 'increase' : 'decrease'
     },
     { 
       label: "Revenue", 
       value: formatCurrency(metrics.revenue),
       icon: <DollarSign className="w-6 h-6 text-yellow-500" />,
-      change: '+8.7%',
-      changeType: 'increase'
+      change: metrics.revenueGrowth ? `${metrics.revenueGrowth > 0 ? '+' : ''}${metrics.revenueGrowth}%` : '0%',
+      changeType: metrics.revenueGrowth >= 0 ? 'increase' : 'decrease'
     },
     { 
       label: "New Comments", 
@@ -636,36 +757,7 @@ const Admin = () => {
     }
   ];
 
-  // Generate smoother synthetic data for charts (12 months for current year)
-  const generateMonthlyData = () => {
-    const months = [];
-    const now = new Date();
-    const yearStart = new Date(now.getFullYear(), 0, 1); // Jan 1st of current year
-
-    let revenue = 50000; // base revenue in INR
-    let subscriptions = 200; // base active subscriptions count
-
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(yearStart.getFullYear(), yearStart.getMonth() + i, 1);
-
-      // Apply small month-over-month change
-      const revenueGrowthFactor = 1 + (Math.random() * 0.08 - 0.02); // between -2% and +6%
-      const subsGrowthFactor = 1 + (Math.random() * 0.10 - 0.03);    // between -3% and +7%
-
-      revenue = Math.max(20000, revenue * revenueGrowthFactor);
-      subscriptions = Math.max(50, subscriptions * subsGrowthFactor);
-
-      months.push({
-        month: format(date, 'MMM'), // Jan, Feb, ...
-        revenue: Math.round(revenue),
-        subscriptions: Math.round(subscriptions)
-      });
-    }
-
-    return months;
-  };
-
-  const monthlyData = useMemo(() => generateMonthlyData(), []);
+  // Monthly data is now fetched from database via monthlySeries from useDashboardMetrics hook
 
   // Top genres data (from metrics, used as fallback)
   // Pastel genre colors (aligned with GenrePreferencesCard)
@@ -2177,7 +2269,7 @@ const Admin = () => {
               />
               <StatCard 
                 label="Paid Users" 
-                value={metrics.paidUsers?.toLocaleString() || '1,245'} 
+                value={metrics.paidUsers?.toLocaleString() || '0'} 
                 icon={<User className="w-4 h-4 sm:w-5 sm:h-5 text-green-500" />}
               />
               <StatCard 
