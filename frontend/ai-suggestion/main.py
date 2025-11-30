@@ -6,7 +6,9 @@ from typing import Any, Dict, List, Optional
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pinecone import Pinecone
 from pydantic import BaseModel
+from sentence_transformers import SentenceTransformer
 from supabase import Client, create_client
 import uvicorn
 from postgrest.exceptions import APIError
@@ -17,9 +19,10 @@ load_dotenv()
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_SERVICE_KEY = os.environ.get("SUPABASE_SERVICE_KEY")
+PINECONE_API_KEY = os.environ.get("PINECONE_API_KEY")
 
 # Check if all required environment variables are set
-if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY]):
+if not all([SUPABASE_URL, SUPABASE_SERVICE_KEY, PINECONE_API_KEY]):
     raise RuntimeError("Missing one or more required environment variables for recommendation service.")
 
 # Initialize the FastAPI app
@@ -28,7 +31,20 @@ app = FastAPI(title="NextChapter AI Suggestions API")
 # Initialize Supabase client (using service_role key to bypass RLS)
 supabase: Client = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
-print("Supabase client initialized - Lightweight mode (no ML models)")
+# Initialize Pinecone client
+pc = Pinecone(api_key=PINECONE_API_KEY)
+
+print("Loading SentenceTransformer model... (This may take a moment on first start)")
+start_model_load = time.time()
+# Load the model for creating vector embeddings
+embedding_model = SentenceTransformer("all-MiniLM-L6-v2")
+print(f"Model loaded in {time.time() - start_model_load:.2f}s")
+
+EMBEDDING_DIMENSION = 384 # Dimensions of the 'all-MiniLM-L6-v2' model
+# Connect to the Pinecone index where book vectors are stored
+index = pc.Index("nextchapter-books")
+
+print("Clients (Supabase, Pinecone, SentenceTransformer) initialized.")
 
 # --- 2. CORS Middleware ---
 # Configure Cross-Origin Resource Sharing (CORS)
@@ -38,13 +54,18 @@ ALLOWED_ORIGINS = [
     "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5173",
+    "https://www.next-chapter.dev",
+    "https://next-chapter.dev",
 ]
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["*"],
+    max_age=3600,
 )
 
 # --- 3. Request / Response Models ---
@@ -70,57 +91,19 @@ class RecommendationResponse(BaseModel):
 
 # --- 4. Helper Functions ---
 
-def get_similar_books_by_metadata(top_book_details: Dict[str, Any], read_book_ids: set, limit: int = 5) -> List[Dict[str, Any]]:
+def get_text_to_embed(book: Dict[str, Any]) -> str:
     """
-    Lightweight metadata-based recommendation without ML models.
-    Finds books with matching genres, authors, or language.
+    Creates a single descriptive string for a book, which is then
+    converted into a vector embedding by the SentenceTransformer model.
     """
-    try:
-        # Extract preferences from top book
-        top_genres = top_book_details.get("genres", [])
-        top_author = top_book_details.get("author")
-        top_language = top_book_details.get("language")
-        
-        # Build query for similar books
-        query = supabase.table("books").select("id, title, author, cover_image, genres, language")
-        
-        # Filter out already read books
-        if read_book_ids:
-            query = query.not_.in_("id", list(read_book_ids))
-        
-        # Get a larger pool to filter from
-        response = query.limit(100).execute()
-        all_books = response.data or []
-        
-        # Score books based on similarity
-        scored_books = []
-        for book in all_books:
-            score = 0
-            book_genres = book.get("genres", [])
-            
-            # Genre matching (highest weight)
-            if top_genres and book_genres:
-                matching_genres = set(top_genres) & set(book_genres)
-                score += len(matching_genres) * 3
-            
-            # Same author (medium weight)
-            if top_author and book.get("author") == top_author:
-                score += 2
-            
-            # Same language (low weight)
-            if top_language and book.get("language") == top_language:
-                score += 1
-            
-            if score > 0:
-                scored_books.append((score, book))
-        
-        # Sort by score and return top results
-        scored_books.sort(key=lambda x: x[0], reverse=True)
-        return [book for _, book in scored_books[:limit]]
-        
-    except Exception as e:
-        print(f"Error in metadata-based recommendation: {e}")
-        return []
+    genres_list = book.get("genres", [])
+    genres_str = ", ".join(genres_list) if genres_list else ""
+    return (
+        f"Title: {book.get('title', '')}. "
+        f"Author: {book.get('author', '')}. "
+        f"Genre: {book.get('genre', '')}. " 
+        f"Tags: {genres_str}."
+    )
 
 def calculate_love_score(history_item: Dict[str, Any]) -> float:
     """
@@ -352,20 +335,46 @@ async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
         top_book_details = top_book.get("details", {})
         print(f"   [TIMING] Calculated user preferences: {time.time() - start_step_time:.2f}s")
 
-        # --- Step 5b: Metadata-based Recommendation (Lightweight) ---
+        # --- Step 5b: Generate Query Vector ---
         start_step_time = time.time()
-        candidate_books = get_similar_books_by_metadata(top_book_details, read_book_ids, limit=5)
-        print(f"   [TIMING] Found similar books by metadata: {time.time() - start_step_time:.2f}s")
+        query_text = get_text_to_embed(top_book_details)
+        query_vector = embedding_model.encode(query_text).tolist()
+        print(f"   [TIMING] Generated query vector (encode): {time.time() - start_step_time:.2f}s")
 
-        # --- Step 5c: Handle Fallback Logic ---
-        strategy = "metadata_matching"
+        # --- Step 5c: Query Pinecone (Vector Search) ---
+        start_step_time = time.time()
+        pinecone_filter = {} 
+        query_results = index.query(
+            vector=query_vector,
+            top_k=8,
+            include_metadata=True,
+            filter=pinecone_filter if pinecone_filter else None,
+        )
+        print(f"   [TIMING] Queried Pinecone: {time.time() - start_step_time:.2f}s")
+
+        # Use the *complete* list of read_book_ids to filter the results
+        similar_book_ids = [m["id"] for m in query_results["matches"] if m["id"] not in read_book_ids][:5]
+
+        # --- Step 5d: Handle Fallback Logic ---
+        candidate_books: List[Dict[str, Any]] = []
+        strategy = "vector_search"
         
-        if not candidate_books:
-            print("Metadata matching produced no results. Falling back to preferences/popular.")
+        if not similar_book_ids:
+            print("Vector search produced no unseen titles. Falling back to preferences/popular.")
             prefs = await get_recs_from_preferences(user_id)
             strategy = "preferences" if prefs else "popular"
             candidate_books_raw = prefs or await get_popular_books_from_supabase()
             candidate_books = [b for b in candidate_books_raw if b.get('id') not in read_book_ids]
+        else:
+            start_step_time = time.time()
+            final_books_response = (
+                supabase.table("books")
+                .select("id, title, author, cover_image")
+                .in_("id", similar_book_ids)
+                .execute()
+            )
+            candidate_books = final_books_response.data or []
+            print(f"   [TIMING] Fetched final book details: {time.time() - start_step_time:.2f}s")
 
         # --- Step 6: Format and Return ---
         formatted = format_books(candidate_books)
@@ -377,7 +386,7 @@ async def build_recommendations_payload(user_id: str) -> RecommendationResponse:
             user_id=user_id,
             books=[RecommendedBook(**book) for book in formatted],
             strategy=strategy,
-            is_fallback=strategy != "metadata_matching",
+            is_fallback=strategy != "vector_search",
         )
 
     except HTTPException:
@@ -454,6 +463,11 @@ async def build_explore_payload(user_id: str, limit: int = 5) -> RecommendationR
 
 
 # --- 6. Main Recommendation Endpoints ---
+
+@app.get("/")
+async def root():
+    """Health check endpoint"""
+    return {"status": "ok", "message": "NextChapter AI Suggestions API is running"}
 
 @app.get("/recommendations/{user_id}", response_model=RecommendationResponse)
 async def get_smart_suggestions(user_id: str):
